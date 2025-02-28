@@ -1,9 +1,9 @@
 
-import React, { useEffect } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-import { supabase } from "@/lib/supabase";
+import { isUsingDefaultCredentials } from "@/lib/supabase";
 import { toast } from "sonner";
 
 interface RoleCardProps {
@@ -17,6 +17,16 @@ interface RoleCardProps {
 const RoleCard: React.FC<RoleCardProps> = ({ title, description, route, className, delay }) => {
   const navigate = useNavigate();
   
+  const handleCardClick = () => {
+    // Check if we're using default credentials before navigating
+    if (isUsingDefaultCredentials()) {
+      toast.error("Supabase credentials not configured. Please set up your environment variables.");
+      console.error("Supabase credentials not properly configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.");
+    } else {
+      navigate(route);
+    }
+  };
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -27,7 +37,7 @@ const RoleCard: React.FC<RoleCardProps> = ({ title, description, route, classNam
     >
       <Card 
         className={`cursor-pointer overflow-hidden ${className} shadow-lg border-2 hover:shadow-xl transition-all duration-300`}
-        onClick={() => navigate(route)}
+        onClick={handleCardClick}
       >
         <CardContent className="p-8">
           <h3 className="text-2xl font-bold mb-4">{title}</h3>
@@ -39,25 +49,17 @@ const RoleCard: React.FC<RoleCardProps> = ({ title, description, route, classNam
 };
 
 const RoleSelection: React.FC = () => {
-  useEffect(() => {
-    const checkSupabaseConnection = async () => {
-      try {
-        const { error } = await supabase.from('health_check').select('*').limit(1);
-        
-        if (error) {
-          console.error("Supabase connection error:", error);
-          toast.error("Failed to connect to Supabase");
-        } else {
-          console.log("Successfully connected to Supabase");
-          toast.success("Connected to Supabase");
-        }
-      } catch (error) {
-        console.error("Error checking Supabase connection:", error);
-        toast.error("Error connecting to Supabase");
-      }
-    };
-    
-    checkSupabaseConnection();
+  // Remove the Supabase connection check on component mount
+  // Instead, we'll check when the user tries to navigate
+
+  // Display a warning if using default credentials
+  React.useEffect(() => {
+    if (isUsingDefaultCredentials()) {
+      toast.warning("Demo mode: Supabase credentials not configured. Some features may not work.", {
+        duration: 5000,
+      });
+      console.warn("Using default Supabase credentials. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.");
+    }
   }, []);
 
   return (
@@ -66,14 +68,14 @@ const RoleSelection: React.FC = () => {
         title="I'm a Vendor"
         description="Manage your menu, accept orders, and track deliveries."
         route="/vendor/login"
-        className="border-vendor-500 hover:border-vendor-700"
+        className="border-primary hover:border-primary/80"
         delay={0.2}
       />
       <RoleCard
         title="I'm a Student"
         description="Browse restaurants, order food, and enjoy campus delivery."
         route="/student/restaurants"
-        className="border-student-500 hover:border-student-700"
+        className="border-secondary hover:border-secondary/80"
         delay={0.4}
       />
     </div>
