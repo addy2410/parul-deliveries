@@ -10,21 +10,21 @@ import { motion } from "framer-motion";
 // Sample data to use when Supabase is not configured
 const sampleRestaurants = [
   {
-    id: "1",
-    name: "Capitol Cafe",
-    description: "A cozy cafe with a variety of snacks and beverages.",
-    image: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?q=80&w=2047&auto=format&fit=crop"
+    id: "rest-1",
+    name: "Capitol Food Court",
+    description: "A variety of authentic Indian street food and regional specialties.",
+    image: "https://images.unsplash.com/photo-1505253758473-96b7015fcd40?q=80&w=1448&auto=format&fit=crop"
   },
   {
-    id: "2",
-    name: "Greenzy Salads",
-    description: "Fresh salads and healthy options for the health-conscious student.",
-    image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=2070&auto=format&fit=crop"
+    id: "rest-2",
+    name: "Greenzy Veg Corner",
+    description: "Fresh vegetarian options featuring traditional Indian recipes.",
+    image: "https://images.unsplash.com/photo-1576022162933-39809e39d244?q=80&w=1374&auto=format&fit=crop"
   },
   {
-    id: "3",
-    name: "Main Food Court",
-    description: "A variety of options from different cuisines all in one place.",
+    id: "rest-3",
+    name: "Main Dhaba",
+    description: "Authentic North Indian cuisine with flavorful curries and tandoor specialties.",
     image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=2070&auto=format&fit=crop"
   }
 ];
@@ -38,10 +38,10 @@ const RestaurantCard = ({ restaurant }) => {
       whileHover={{ y: -5 }}
       className="h-full"
     >
-      <Card className="h-full overflow-hidden hover:shadow-lg transition-shadow duration-300">
+      <Card className="h-full overflow-hidden hover:shadow-lg transition-shadow duration-300 border-student-200">
         <div className="h-48 overflow-hidden">
           <img 
-            src={restaurant.image || "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=2070&auto=format&fit=crop"} 
+            src={restaurant.image || "https://images.unsplash.com/photo-1505253758473-96b7015fcd40?q=80&w=1448&auto=format&fit=crop"} 
             alt={restaurant.name}
             className="w-full h-full object-cover"
           />
@@ -49,7 +49,11 @@ const RestaurantCard = ({ restaurant }) => {
         <CardContent className="p-5">
           <h3 className="text-xl font-bold mb-2">{restaurant.name}</h3>
           <p className="text-muted-foreground">{restaurant.description}</p>
-          <Button className="w-full mt-4" variant="default" asChild>
+          <Button 
+            className="w-full mt-4 bg-student-600 hover:bg-student-700" 
+            variant="default" 
+            asChild
+          >
             <Link to={`/student/restaurant/${restaurant.id}`}>View Menu</Link>
           </Button>
         </CardContent>
@@ -99,16 +103,16 @@ const StudentRestaurants = () => {
   }, []);
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4 indian-pattern min-h-screen">
       <Button variant="ghost" className="mb-4" asChild>
         <Link to="/">
           <ArrowLeft size={16} className="mr-2" /> Back to Home
         </Link>
       </Button>
       
-      <h1 className="text-3xl font-bold mb-6">Campus Restaurants</h1>
+      <h1 className="text-3xl font-bold mb-6 text-[#ea384c]">Campus Eateries</h1>
       <p className="text-muted-foreground mb-8">
-        Browse and order from these campus restaurants.
+        Browse and order from these campus food outlets.
       </p>
       
       {loading ? (
