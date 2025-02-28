@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 const VendorLogin = () => {
   const [pucampid, setPucampid] = useState("");
@@ -25,21 +26,26 @@ const VendorLogin = () => {
     
     setIsLoading(true);
     
-    // In a real app, this would be an API call to verify credentials
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // For demo purposes, this uses email authentication with pucampid as email
+      // In a real implementation, you'd have a proper vendor authentication system
+      const email = `${pucampid.toLowerCase()}@campus-vendor.com`;
       
-      // For demo purposes, accept any login with proper format
-      if (pucampid.startsWith("VEN") && pucampid.length >= 5 && password.length >= 6) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) {
+        console.error("Login error:", error);
+        toast.error(error.message || "Login failed. Please try again.");
+      } else if (data?.user) {
         toast.success("Login successful");
         navigate("/vendor/dashboard");
-      } else {
-        toast.error("Invalid PUCAMPID or password");
       }
     } catch (error) {
-      toast.error("Login failed. Please try again.");
       console.error("Login error:", error);
+      toast.error("Login failed. Please try again.");
     } finally {
       setIsLoading(false);
     }

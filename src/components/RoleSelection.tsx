@@ -1,8 +1,10 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 interface RoleCardProps {
   title: string;
@@ -37,6 +39,27 @@ const RoleCard: React.FC<RoleCardProps> = ({ title, description, route, classNam
 };
 
 const RoleSelection: React.FC = () => {
+  useEffect(() => {
+    const checkSupabaseConnection = async () => {
+      try {
+        const { error } = await supabase.from('health_check').select('*').limit(1);
+        
+        if (error) {
+          console.error("Supabase connection error:", error);
+          toast.error("Failed to connect to Supabase");
+        } else {
+          console.log("Successfully connected to Supabase");
+          toast.success("Connected to Supabase");
+        }
+      } catch (error) {
+        console.error("Error checking Supabase connection:", error);
+        toast.error("Error connecting to Supabase");
+      }
+    };
+    
+    checkSupabaseConnection();
+  }, []);
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
       <RoleCard
