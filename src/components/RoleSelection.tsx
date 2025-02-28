@@ -18,13 +18,12 @@ const RoleCard: React.FC<RoleCardProps> = ({ title, description, route, classNam
   const navigate = useNavigate();
   
   const handleCardClick = () => {
-    // Check if we're using default credentials before navigating
+    // Always navigate, even with default credentials - just show a toast warning
     if (isUsingDefaultCredentials()) {
-      toast.error("Supabase credentials not configured. Please set up your environment variables.");
-      console.error("Supabase credentials not properly configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.");
-    } else {
-      navigate(route);
+      toast.warning("Using demo mode with sample data. Set up Supabase for full functionality.");
+      console.log("Using demo mode with sample data");
     }
+    navigate(route);
   };
   
   return (
@@ -49,16 +48,13 @@ const RoleCard: React.FC<RoleCardProps> = ({ title, description, route, classNam
 };
 
 const RoleSelection: React.FC = () => {
-  // Remove the Supabase connection check on component mount
-  // Instead, we'll check when the user tries to navigate
-
-  // Display a warning if using default credentials
+  // Show a demo mode message on component mount
   React.useEffect(() => {
     if (isUsingDefaultCredentials()) {
-      toast.warning("Demo mode: Supabase credentials not configured. Some features may not work.", {
+      toast.info("Demo mode active: Using sample data since Supabase is not configured.", {
         duration: 5000,
       });
-      console.warn("Using default Supabase credentials. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.");
+      console.log("Demo mode active: Using sample data");
     }
   }, []);
 

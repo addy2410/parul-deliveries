@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase, isUsingDefaultCredentials } from "@/lib/supabase";
 
 const VendorLogin = () => {
   const [pucampid, setPucampid] = useState("");
@@ -27,8 +27,19 @@ const VendorLogin = () => {
     setIsLoading(true);
     
     try {
-      // For demo purposes, this uses email authentication with pucampid as email
-      // In a real implementation, you'd have a proper vendor authentication system
+      // Check if using default credentials (demo mode)
+      if (isUsingDefaultCredentials()) {
+        // In demo mode, allow any login with valid format
+        if (pucampid.startsWith("VEN") && password.length >= 6) {
+          toast.success("Demo mode: Login successful");
+          navigate("/vendor/dashboard");
+          return;
+        } else {
+          throw new Error("Invalid credentials format");
+        }
+      }
+      
+      // Real Supabase authentication for production mode
       const email = `${pucampid.toLowerCase()}@campus-vendor.com`;
       
       const { data, error } = await supabase.auth.signInWithPassword({
