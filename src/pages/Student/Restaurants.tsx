@@ -1,18 +1,19 @@
+
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Restaurant } from "@/data/data";
-import { sampleRestaurants } from "@/data/data";
+import { restaurants } from "@/data/data";
 import { MapPin, Star } from "lucide-react";
 import StudentHeader from "@/components/StudentHeader";
 
 const StudentRestaurants = () => {
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [restaurantList, setRestaurantList] = useState<Restaurant[]>([]);
 
   useEffect(() => {
     // In a real app, you would fetch this data from an API
-    setRestaurants(sampleRestaurants);
+    setRestaurantList(restaurants);
     console.info("Using sample data for restaurants (demo mode)");
   }, []);
 
@@ -24,7 +25,7 @@ const StudentRestaurants = () => {
         <h1 className="text-2xl font-bold mb-6 mt-4">Campus Restaurants</h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {restaurants.map((restaurant) => (
+          {restaurantList.map((restaurant) => (
             <Card key={restaurant.id} className="card-hover">
               <Link to={`/student/restaurant/${restaurant.id}`}>
                 <div className="relative h-40 overflow-hidden rounded-md">
