@@ -24,6 +24,11 @@ interface CartContextType {
   totalItems: number;
   totalPrice: number;
   restaurantId: string | null;
+  
+  // Aliases for backward compatibility with existing components
+  cartItems: CartItem[];
+  addToCart: (item: MenuItem) => void;
+  removeFromCart: (itemId: string) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -138,7 +143,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clearCart,
       totalItems,
       totalPrice,
-      restaurantId
+      restaurantId,
+      
+      // Aliases for backward compatibility
+      cartItems: items,
+      addToCart: addItem,
+      removeFromCart: removeItem
     }}>
       {children}
     </CartContext.Provider>
