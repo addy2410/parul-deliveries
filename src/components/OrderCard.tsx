@@ -119,15 +119,25 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
               Mark as {getNextStatus(order.status).replace(/^\w/, c => c.toUpperCase())}
             </Button>
           </CardFooter>
-        ) : !isVendor && order.status !== 'delivered' && order.status !== 'cancelled' ? (
-          <CardFooter className="pt-2">
+        ) : !isVendor ? (
+          <CardFooter className="pt-2 flex gap-2">
+            {order.status !== 'delivered' && order.status !== 'cancelled' ? (
+              <Button 
+                asChild
+                className="flex-1 bg-[#ea384c] hover:bg-[#d02e40]"
+              >
+                <Link to={`/student/order-tracking/${order.id}`} className="flex items-center justify-center gap-2">
+                  <ExternalLink size={16} />
+                  Track Order
+                </Link>
+              </Button>
+            ) : null}
             <Button 
               asChild
-              className="w-full bg-[#ea384c] hover:bg-[#d02e40]"
+              className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800"
             >
-              <Link to={`/student/order-tracking/${order.id}`} className="flex items-center justify-center gap-2">
-                <ExternalLink size={16} />
-                Track Order
+              <Link to={`/student/view-order/${order.id}`} className="flex items-center justify-center gap-2">
+                View Details
               </Link>
             </Button>
           </CardFooter>

@@ -1,4 +1,5 @@
-import React from "react";
+
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,9 +13,10 @@ import StudentHeader from "@/components/StudentHeader";
 const StudentCart = () => {
   const navigate = useNavigate();
   const { cartItems, removeFromCart, clearCart } = useCart();
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const deliveryFee = subtotal > 0 ? 20 : 0;
+  const deliveryFee = subtotal > 0 ? 30 : 0;
   const total = subtotal + deliveryFee;
   
   const groupedCartItems = cartItems.reduce((acc: any, item) => {
@@ -44,8 +46,11 @@ const StudentCart = () => {
       return;
     }
     
-    // In a real app, you would send the cart data to the server
-    // and handle the order placement logic there
+    setIsPaymentModalOpen(true);
+  };
+  
+  const handlePaymentComplete = () => {
+    // In a real app, you would process the payment here
     toast.success("Order placed successfully!");
     clearCart();
     navigate("/student/order-success");
@@ -149,13 +154,66 @@ const StudentCart = () => {
                   className="w-full mt-4 bg-[#ea384c] hover:bg-[#d02e40]"
                   onClick={handlePlaceOrder}
                 >
-                  Place Order
+                  Proceed to Payment
                 </Button>
               </CardContent>
             </Card>
           </div>
         )}
       </div>
+      
+      {isPaymentModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Payment</CardTitle>
+              <CardDescription>Choose your payment method</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4">
+                <Button 
+                  variant="outline" 
+                  className="justify-start border-2 border-blue-500 hover:bg-blue-50"
+                  onClick={handlePaymentComplete}
+                >
+                  <img src="https://images.unsplash.com/photo-1493962853295-0fd70327578a" alt="UPI" className="w-6 h-6 mr-2" />
+                  UPI Payment
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="justify-start border-2 border-green-500 hover:bg-green-50"
+                  onClick={handlePaymentComplete}
+                >
+                  <img src="https://images.unsplash.com/photo-1582562124811-c09040d0a901" alt="Card" className="w-6 h-6 mr-2" />
+                  Credit/Debit Card
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="justify-start border-2 border-orange-500 hover:bg-orange-50"
+                  onClick={handlePaymentComplete}
+                >
+                  <img src="https://images.unsplash.com/photo-1466721591366-2d5fba72006d" alt="COD" className="w-6 h-6 mr-2" />
+                  Cash on Delivery
+                </Button>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsPaymentModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                className="bg-[#ea384c] hover:bg-[#d02e40]"
+                onClick={handlePaymentComplete}
+              >
+                Pay ₹{total.toFixed(2)}
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

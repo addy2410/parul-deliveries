@@ -1,73 +1,57 @@
 
-import React, { useState } from "react";
+import React from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { ShoppingCart, User, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { User, LogOut, MapPin, Package, Clock } from "lucide-react";
-import { toast } from "sonner";
+import { useCart } from "@/context/CartContext";
 
-interface StudentHeaderProps {
-  studentName?: string;
-}
-
-const StudentHeader: React.FC<StudentHeaderProps> = ({ 
-  studentName = "Guest User" 
-}) => {
+const StudentHeader = () => {
+  const { totalItems } = useCart();
   const navigate = useNavigate();
-  
-  const handleLogout = () => {
-    toast.success("Logged out successfully");
-    navigate("/");
-  };
 
   return (
-    <header className="bg-white shadow-sm border-b">
-      <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-        <Link to="/student/restaurants" className="flex items-center space-x-2">
-          <span className="text-2xl font-bold text-[#ea384c] fontLogo">Parul Deliveries</span>
+    <header className="bg-white border-b sticky top-0 z-10">
+      <div className="container mx-auto py-3 px-4 flex items-center justify-between">
+        <Link to="/student/restaurants" className="text-xl font-bold fontLogo text-[#ea384c]">
+          Campus<span className="text-black">Grub</span>
         </Link>
         
-        <div className="flex items-center gap-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full w-10 h-10 bg-red-50">
-                <User size={18} className="text-[#ea384c]" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
-                <User size={16} />
-                <span>{studentName}</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/student/address-book")}>
-                <MapPin size={16} className="mr-2" />
-                Address Book
-              </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/student/orders/active")}>
-                <Clock size={16} className="mr-2" />
-                Active Orders
-              </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/student/orders/previous")}>
-                <Package size={16} className="mr-2" />
-                Order History
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="cursor-pointer text-red-500" onClick={handleLogout}>
-                <LogOut size={16} className="mr-2" />
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <nav className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate("/student/orders/active")}
+            className="flex items-center text-sm text-muted-foreground"
+          >
+            <Clock className="w-4 h-4 mr-1" />
+            <span className="hidden sm:inline">My Orders</span>
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate("/student/login")}
+            className="flex items-center text-sm text-muted-foreground"
+          >
+            <User className="w-4 h-4 mr-1" />
+            <span className="hidden sm:inline">Account</span>
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => navigate("/student/cart")}
+            className="relative flex items-center"
+          >
+            <ShoppingCart className="w-4 h-4 mr-1" />
+            <span className="hidden sm:inline">Cart</span>
+            {totalItems > 0 && (
+              <span className="absolute -top-2 -right-2 bg-[#ea384c] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                {totalItems}
+              </span>
+            )}
+          </Button>
+        </nav>
       </div>
     </header>
   );

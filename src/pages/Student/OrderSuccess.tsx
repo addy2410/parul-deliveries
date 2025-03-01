@@ -47,6 +47,12 @@ const StudentOrderSuccess = () => {
                 <ExternalLink className="mr-2 h-4 w-4" /> Track Order
               </Link>
             </Button>
+            
+            <Button asChild variant="outline">
+              <Link to={`/student/view-order/${orderId}`} className="flex items-center">
+                <Clock className="mr-2 h-4 w-4" /> View Order
+              </Link>
+            </Button>
           </div>
         </motion.div>
       </div>
