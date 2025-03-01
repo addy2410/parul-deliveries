@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import StudentHeader from "@/components/StudentHeader";
@@ -8,9 +9,8 @@ import { Button } from "@/components/ui/button";
 
 const StudentRestaurantDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { addToCart, cartItems } = useCart();
+  const { addToCart } = useCart();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [quantity, setQuantity] = useState<number>(1);
   
   // Find the restaurant by id
   const restaurant = restaurants.find((r) => r.id === id);

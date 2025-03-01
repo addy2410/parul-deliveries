@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
+import { restaurants } from "@/data/data";
 
 interface MenuItem {
   id: string;
@@ -13,6 +14,7 @@ interface MenuItem {
 
 interface CartItem extends MenuItem {
   quantity: number;
+  restaurantName?: string; // Add this property
 }
 
 interface CartContextType {
@@ -69,10 +71,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [items, restaurantId]);
   
   const addItem = (item: MenuItem) => {
+    // Find restaurant name
+    const restaurant = restaurants.find(r => r.id === item.restaurantId);
+    const restaurantName = restaurant?.name || 'Unknown Restaurant';
+    
     // Check if we need to clear the cart (items from different restaurants)
     if (restaurantId && item.restaurantId !== restaurantId && items.length > 0) {
       if (window.confirm("Your cart contains items from another restaurant. Would you like to clear your cart and add this item?")) {
-        setItems([{ ...item, quantity: 1 }]);
+        setItems([{ ...item, quantity: 1, restaurantName }]);
         setRestaurantId(item.restaurantId);
         toast.success(`Added ${item.name} to your cart`);
       }
@@ -94,7 +100,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setItems(newItems);
     } else {
       // Add new item to cart
-      setItems([...items, { ...item, quantity: 1 }]);
+      setItems([...items, { ...item, quantity: 1, restaurantName }]);
     }
     
     toast.success(`Added ${item.name} to your cart`);

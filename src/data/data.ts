@@ -6,6 +6,8 @@ export interface MenuItem {
   price: number;
   image: string;
   restaurantId: string;
+  category: string;
+  isAvailable?: boolean;
 }
 
 export interface Restaurant {
@@ -16,6 +18,7 @@ export interface Restaurant {
   coverImage: string;
   location: string;
   rating: number;
+  cuisine?: string;
   tags: string[];
   deliveryFee: number;
   deliveryTime: string;
@@ -42,14 +45,16 @@ export interface Order {
   deliveryLocation: string;
 }
 
-export const sampleRestaurants: Restaurant[] = [
+// Export data collections
+export const restaurants: Restaurant[] = [
   {
     id: 'rest-1',
-    name: 'Campus Grill',
+    name: 'Parul Deliveries',
     description: 'Delicious grilled meals and sandwiches for students on the go.',
     logo: '/placeholder.svg',
     coverImage: '/placeholder.svg',
     location: 'Main Food Court',
+    cuisine: 'Fast Food',
     rating: 4.5,
     tags: ['Burgers', 'Sandwiches', 'Grill'],
     deliveryFee: 1.50,
@@ -63,6 +68,7 @@ export const sampleRestaurants: Restaurant[] = [
     logo: '/placeholder.svg',
     coverImage: '/placeholder.svg',
     location: 'CAPITOL Food Court',
+    cuisine: 'Italian',
     rating: 4.2,
     tags: ['Pizza', 'Italian', 'Fast Food'],
     deliveryFee: 1.00,
@@ -76,6 +82,7 @@ export const sampleRestaurants: Restaurant[] = [
     logo: '/placeholder.svg',
     coverImage: '/placeholder.svg',
     location: 'GREENZY Food Court',
+    cuisine: 'Healthy',
     rating: 4.7,
     tags: ['Healthy', 'Salads', 'Smoothies'],
     deliveryFee: 2.00,
@@ -84,14 +91,16 @@ export const sampleRestaurants: Restaurant[] = [
   }
 ];
 
-export const sampleMenuItems: MenuItem[] = [
+export const menuItems: MenuItem[] = [
   {
     id: 'item-1',
     name: 'Classic Cheeseburger',
     description: 'Juicy beef patty with cheddar cheese, lettuce, tomato, and special sauce.',
     price: 8.99,
     image: '/placeholder.svg',
-    restaurantId: 'rest-1'
+    restaurantId: 'rest-1',
+    category: 'Burgers',
+    isAvailable: true
   },
   {
     id: 'item-2',
@@ -99,7 +108,9 @@ export const sampleMenuItems: MenuItem[] = [
     description: 'Grilled chicken breast with avocado, bacon, lettuce, and mayo.',
     price: 9.99,
     image: '/placeholder.svg',
-    restaurantId: 'rest-1'
+    restaurantId: 'rest-1',
+    category: 'Sandwiches',
+    isAvailable: true
   },
   {
     id: 'item-3',
@@ -107,7 +118,9 @@ export const sampleMenuItems: MenuItem[] = [
     description: 'Classic pizza with tomato sauce, fresh mozzarella, and basil.',
     price: 12.99,
     image: '/placeholder.svg',
-    restaurantId: 'rest-2'
+    restaurantId: 'rest-2',
+    category: 'Pizzas',
+    isAvailable: true
   },
   {
     id: 'item-4',
@@ -115,7 +128,9 @@ export const sampleMenuItems: MenuItem[] = [
     description: 'Pizza topped with tomato sauce, mozzarella, and pepperoni slices.',
     price: 14.99,
     image: '/placeholder.svg',
-    restaurantId: 'rest-2'
+    restaurantId: 'rest-2',
+    category: 'Pizzas',
+    isAvailable: true
   },
   {
     id: 'item-5',
@@ -123,7 +138,9 @@ export const sampleMenuItems: MenuItem[] = [
     description: 'Fresh romaine lettuce with Caesar dressing, croutons, and parmesan cheese.',
     price: 7.99,
     image: '/placeholder.svg',
-    restaurantId: 'rest-3'
+    restaurantId: 'rest-3',
+    category: 'Salads',
+    isAvailable: true
   },
   {
     id: 'item-6',
@@ -131,7 +148,9 @@ export const sampleMenuItems: MenuItem[] = [
     description: 'Refreshing smoothie with mixed berries, yogurt, and honey.',
     price: 5.99,
     image: '/placeholder.svg',
-    restaurantId: 'rest-3'
+    restaurantId: 'rest-3',
+    category: 'Smoothies',
+    isAvailable: true
   }
 ];
 
