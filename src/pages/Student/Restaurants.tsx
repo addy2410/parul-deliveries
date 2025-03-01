@@ -1,131 +1,62 @@
-
-import React, { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { supabase, isUsingDefaultCredentials } from "@/lib/supabase";
-import { motion } from "framer-motion";
-
-// Sample data to use when Supabase is not configured
-const sampleRestaurants = [
-  {
-    id: "rest-1",
-    name: "Capitol Food Court",
-    description: "A variety of authentic Indian street food and regional specialties.",
-    image: "https://images.unsplash.com/photo-1505253758473-96b7015fcd40?q=80&w=1448&auto=format&fit=crop"
-  },
-  {
-    id: "rest-2",
-    name: "Greenzy Veg Corner",
-    description: "Fresh vegetarian options featuring traditional Indian recipes.",
-    image: "https://images.unsplash.com/photo-1576022162933-39809e39d244?q=80&w=1374&auto=format&fit=crop"
-  },
-  {
-    id: "rest-3",
-    name: "Main Dhaba",
-    description: "Authentic North Indian cuisine with flavorful curries and tandoor specialties.",
-    image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=2070&auto=format&fit=crop"
-  }
-];
-
-const RestaurantCard = ({ restaurant }) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      whileHover={{ y: -5 }}
-      className="h-full"
-    >
-      <Card className="h-full overflow-hidden hover:shadow-lg transition-shadow duration-300 border-student-200">
-        <div className="h-48 overflow-hidden">
-          <img 
-            src={restaurant.image || "https://images.unsplash.com/photo-1505253758473-96b7015fcd40?q=80&w=1448&auto=format&fit=crop"} 
-            alt={restaurant.name}
-            className="w-full h-full object-cover"
-          />
-        </div>
-        <CardContent className="p-5">
-          <h3 className="text-xl font-bold mb-2">{restaurant.name}</h3>
-          <p className="text-muted-foreground">{restaurant.description}</p>
-          <Button 
-            className="w-full mt-4 bg-student-600 hover:bg-student-700" 
-            variant="default" 
-            asChild
-          >
-            <Link to={`/student/restaurant/${restaurant.id}`}>View Menu</Link>
-          </Button>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
-};
+import { Button } from "@/components/ui/button";
+import { Restaurant } from "@/data/data";
+import { sampleRestaurants } from "@/data/data";
+import { MapPin, Star } from "lucide-react";
+import StudentHeader from "@/components/StudentHeader";
 
 const StudentRestaurants = () => {
-  const [restaurants, setRestaurants] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
 
   useEffect(() => {
-    const fetchRestaurants = async () => {
-      setLoading(true);
-      
-      // Check if using default credentials
-      if (isUsingDefaultCredentials()) {
-        console.log("Using sample restaurant data (demo mode)");
-        setRestaurants(sampleRestaurants);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from('restaurants')
-          .select('*');
-          
-        if (error) {
-          console.error("Error fetching restaurants:", error);
-          // Fallback to sample data if there's an error
-          setRestaurants(sampleRestaurants);
-        } else {
-          console.log("Fetched restaurants:", data);
-          setRestaurants(data.length > 0 ? data : sampleRestaurants);
-        }
-      } catch (error) {
-        console.error("Error:", error);
-        setRestaurants(sampleRestaurants);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRestaurants();
+    // In a real app, you would fetch this data from an API
+    setRestaurants(sampleRestaurants);
+    console.info("Using sample data for restaurants (demo mode)");
   }, []);
 
   return (
-    <div className="container mx-auto p-4 indian-pattern min-h-screen">
-      <Button variant="ghost" className="mb-4" asChild>
-        <Link to="/">
-          <ArrowLeft size={16} className="mr-2" /> Back to Home
-        </Link>
-      </Button>
+    <div className="min-h-screen bg-gray-50">
+      <StudentHeader />
       
-      <h1 className="text-3xl font-bold mb-6 text-[#ea384c]">Campus Eateries</h1>
-      <p className="text-muted-foreground mb-8">
-        Browse and order from these campus food outlets.
-      </p>
-      
-      {loading ? (
-        <div className="p-12 border rounded-lg flex items-center justify-center">
-          <p className="text-center text-muted-foreground">Loading restaurants...</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="container mx-auto p-4">
+        <h1 className="text-2xl font-bold mb-6 mt-4">Campus Restaurants</h1>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {restaurants.map((restaurant) => (
-            <RestaurantCard key={restaurant.id} restaurant={restaurant} />
+            <Card key={restaurant.id} className="card-hover">
+              <Link to={`/student/restaurant/${restaurant.id}`}>
+                <div className="relative h-40 overflow-hidden rounded-md">
+                  <img
+                    src={restaurant.coverImage}
+                    alt={restaurant.name}
+                    className="object-cover w-full h-full transition-transform duration-300 transform-gpu group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                  <div className="absolute bottom-0 left-0 p-4 text-white">
+                    <h3 className="text-lg font-semibold">{restaurant.name}</h3>
+                    <p className="text-sm opacity-80">{restaurant.tags.join(', ')}</p>
+                  </div>
+                </div>
+                
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      {restaurant.location}
+                    </div>
+                    <div className="flex items-center gap-1 text-sm text-yellow-500">
+                      <Star className="h-4 w-4 fill-yellow-500" />
+                      {restaurant.rating}
+                    </div>
+                  </div>
+                </CardContent>
+              </Link>
+            </Card>
           ))}
         </div>
-      )}
+      </div>
     </div>
   );
 };

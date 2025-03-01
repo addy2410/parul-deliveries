@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,7 +42,7 @@ const VendorDashboard = () => {
           <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
             <Menu size={20} />
           </Button>
-          <h1 className="text-xl font-bold">Vendor Dashboard</h1>
+          <h1 className="text-xl font-bold fontLogo">Vendor Dashboard</h1>
           <Button variant="ghost" size="icon" onClick={handleLogout}>
             <LogOut size={20} />
           </Button>
@@ -60,7 +59,7 @@ const VendorDashboard = () => {
         >
           <div className="flex flex-col h-full p-4">
             <div className="flex items-center justify-between p-2">
-              <h2 className="text-xl font-bold">The Campus Grill</h2>
+              <h2 className="text-xl font-bold fontLogo text-[#ea384c]">Parul Deliveries</h2>
               <Button 
                 variant="ghost" 
                 size="icon" 

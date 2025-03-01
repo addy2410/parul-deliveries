@@ -16,37 +16,63 @@ import StudentRestaurants from "./pages/Student/Restaurants";
 import StudentRestaurantDetail from "./pages/Student/RestaurantDetail";
 import StudentCart from "./pages/Student/Cart";
 import StudentOrderSuccess from "./pages/Student/OrderSuccess";
+import StudentOrders from "./pages/Student/Orders";
+import OrderTracking from "./pages/Student/OrderTracking";
+import AddressBook from "./pages/Student/AddressBook";
+
+// Add a custom style to the head for the logo font
+const addLogoFontStyle = () => {
+  const style = document.createElement('style');
+  style.textContent = `
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap');
+    .fontLogo {
+      font-family: 'Poppins', sans-serif;
+      letter-spacing: -0.5px;
+    }
+  `;
+  document.head.appendChild(style);
+};
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <CartProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            
-            {/* Vendor Routes */}
-            <Route path="/vendor/login" element={<VendorLogin />} />
-            <Route path="/vendor/dashboard" element={<VendorDashboard />} />
-            <Route path="/vendor/menu" element={<VendorMenuManagement />} />
-            
-            {/* Student Routes */}
-            <Route path="/student/restaurants" element={<StudentRestaurants />} />
-            <Route path="/student/restaurant/:id" element={<StudentRestaurantDetail />} />
-            <Route path="/student/cart" element={<StudentCart />} />
-            <Route path="/student/order-success" element={<StudentOrderSuccess />} />
-            
-            {/* Catch-all */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </CartProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  // Add the logo font style when the app loads
+  React.useEffect(() => {
+    addLogoFontStyle();
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <CartProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              
+              {/* Vendor Routes */}
+              <Route path="/vendor/login" element={<VendorLogin />} />
+              <Route path="/vendor/dashboard" element={<VendorDashboard />} />
+              <Route path="/vendor/menu" element={<VendorMenuManagement />} />
+              
+              {/* Student Routes */}
+              <Route path="/student/restaurants" element={<StudentRestaurants />} />
+              <Route path="/student/restaurant/:id" element={<StudentRestaurantDetail />} />
+              <Route path="/student/cart" element={<StudentCart />} />
+              <Route path="/student/order-success" element={<StudentOrderSuccess />} />
+              <Route path="/student/orders/:type" element={<StudentOrders />} />
+              <Route path="/student/order-tracking/:id" element={<OrderTracking />} />
+              <Route path="/student/address-book" element={<AddressBook />} />
+              
+              {/* Catch-all */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </CartProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

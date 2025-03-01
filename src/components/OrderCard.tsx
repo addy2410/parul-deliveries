@@ -4,9 +4,10 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Order } from "@/data/data";
-import { Clock, MapPin } from "lucide-react";
+import { Clock, MapPin, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
+import { Link } from "react-router-dom";
 
 interface OrderCardProps {
   order: Order;
@@ -109,7 +110,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
           </div>
         </CardContent>
         
-        {isVendor && order.status !== 'delivered' && order.status !== 'cancelled' && (
+        {isVendor && order.status !== 'delivered' && order.status !== 'cancelled' ? (
           <CardFooter className="pt-2">
             <Button 
               onClick={handleNextStatus} 
@@ -118,7 +119,19 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
               Mark as {getNextStatus(order.status).replace(/^\w/, c => c.toUpperCase())}
             </Button>
           </CardFooter>
-        )}
+        ) : !isVendor && order.status !== 'delivered' && order.status !== 'cancelled' ? (
+          <CardFooter className="pt-2">
+            <Button 
+              asChild
+              className="w-full bg-[#ea384c] hover:bg-[#d02e40]"
+            >
+              <Link to={`/student/order-tracking/${order.id}`} className="flex items-center justify-center gap-2">
+                <ExternalLink size={16} />
+                Track Order
+              </Link>
+            </Button>
+          </CardFooter>
+        ) : null}
       </Card>
     </motion.div>
   );

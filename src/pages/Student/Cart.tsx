@@ -1,333 +1,160 @@
-
-import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
+import React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, ShoppingCart, Trash2, Plus, Minus, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCart } from "@/context/CartContext";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Trash2, ArrowLeft, Home } from "lucide-react";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
-
-type CheckoutStep = 'cart' | 'address' | 'payment';
-
-const DELIVERY_FEE = 20; // ₹20 delivery fee
+import StudentHeader from "@/components/StudentHeader";
 
 const StudentCart = () => {
-  const { items, totalPrice, removeItem, updateQuantity, clearCart } = useCart();
-  const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>('cart');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [address, setAddress] = useState('');
-  const [saveAddress, setSaveAddress] = useState(false);
   const navigate = useNavigate();
-
-  // Handle phone login
-  const handlePhoneLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (phoneNumber.length >= 10) {
-      toast.success('Login successful');
-      setIsLoggedIn(true);
-      // In a real app, we would send OTP here
-    } else {
-      toast.error('Please enter a valid phone number');
+  const { cartItems, removeFromCart, clearCart } = useCart();
+  
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const deliveryFee = subtotal > 0 ? 20 : 0;
+  const total = subtotal + deliveryFee;
+  
+  const groupedCartItems = cartItems.reduce((acc: any, item) => {
+    if (!acc[item.restaurantId]) {
+      acc[item.restaurantId] = {
+        restaurantName: item.restaurantName,
+        items: []
+      };
     }
+    acc[item.restaurantId].items.push(item);
+    return acc;
+  }, {});
+  
+  const handleRemoveFromCart = (menuItemId: string) => {
+    removeFromCart(menuItemId);
+    toast.success("Item removed from cart");
   };
-
-  // Handle address submission
-  const handleAddressSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (address.trim().length > 0) {
-      if (saveAddress) {
-        // In a real app, we would save this to the user's profile
-        localStorage.setItem('savedAddress', address);
-        toast.success('Address saved for future orders');
-      }
-      setCheckoutStep('payment');
-    } else {
-      toast.error('Please enter your delivery address');
-    }
-  };
-
-  // Handle payment
-  const handlePayment = () => {
-    // In a real app, we would process the payment here
-    toast.success('Payment successful');
+  
+  const handleClearCart = () => {
     clearCart();
-    navigate('/student/order-success');
+    toast.success("Cart cleared");
+  };
+  
+  const handlePlaceOrder = () => {
+    if (cartItems.length === 0) {
+      toast.error("Your cart is empty");
+      return;
+    }
+    
+    // In a real app, you would send the cart data to the server
+    // and handle the order placement logic there
+    toast.success("Order placed successfully!");
+    clearCart();
+    navigate("/student/order-success");
   };
 
-  if (items.length === 0 && checkoutStep === 'cart') {
-    return (
-      <div className="container mx-auto p-4">
-        <Button variant="ghost" className="mb-4" asChild>
-          <Link to="/student/restaurants">
-            <ArrowLeft size={16} className="mr-2" /> Continue Shopping
-          </Link>
-        </Button>
-        
-        <div className="flex items-center mb-6">
-          <ShoppingCart className="mr-2" />
-          <h1 className="text-3xl font-bold">Your Cart</h1>
-        </div>
-        
-        <Card className="my-8">
-          <CardContent className="flex flex-col items-center justify-center p-12">
-            <ShoppingCart size={64} className="text-muted-foreground mb-4" />
-            <h3 className="text-xl font-medium mb-2">Your cart is empty</h3>
-            <p className="text-muted-foreground mb-6">Add items from restaurants to get started</p>
-            <Button asChild>
-              <Link to="/student/restaurants">Browse Restaurants</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Phone login step
-  if (!isLoggedIn) {
-    return (
-      <div className="container mx-auto p-4">
-        <Button variant="ghost" className="mb-4" asChild>
-          <Link to="/student/restaurants">
-            <ArrowLeft size={16} className="mr-2" /> Back to Restaurants
-          </Link>
-        </Button>
-        
-        <div className="max-w-md mx-auto mt-8">
-          <Card>
-            <CardHeader>
-              <h2 className="text-2xl font-bold">Login to continue</h2>
-              <p className="text-sm text-muted-foreground">
-                Please enter your phone number to receive an OTP
-              </p>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handlePhoneLogin}>
-                <div className="mb-4">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="Enter your 10-digit number"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="mt-1"
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full">Continue</Button>
-              </form>
-            </CardContent>
-            <CardFooter className="flex justify-center text-sm text-muted-foreground">
-              <p>For demo: Any 10-digit number will work</p>
-            </CardFooter>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  // Cart review step
-  if (checkoutStep === 'cart') {
-    return (
-      <div className="container mx-auto p-4">
-        <Button variant="ghost" className="mb-4" asChild>
-          <Link to="/student/restaurants">
-            <ArrowLeft size={16} className="mr-2" /> Continue Shopping
-          </Link>
-        </Button>
-        
-        <div className="flex items-center mb-6">
-          <ShoppingCart className="mr-2" />
-          <h1 className="text-3xl font-bold">Your Cart</h1>
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <Card>
-              <CardContent className="p-6">
-                {items.map((item) => (
-                  <motion.div
-                    key={item.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center justify-between py-4 border-b last:border-0"
-                  >
-                    <div>
-                      <h3 className="font-medium">{item.name}</h3>
-                      <p className="text-sm text-muted-foreground">₹{item.price.toFixed(2)}</p>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <div className="flex items-center mr-4 bg-gray-100 rounded-md">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        >
-                          <Minus size={14} />
-                        </Button>
-                        <span className="w-8 text-center">{item.quantity}</span>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        >
-                          <Plus size={14} />
-                        </Button>
-                      </div>
-                      
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="text-red-500"
-                        onClick={() => removeItem(item.id)}
-                      >
-                        <Trash2 size={18} />
-                      </Button>
-                    </div>
-                  </motion.div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-          
-          <div>
-            <Card>
-              <CardHeader>
-                <h2 className="text-xl font-semibold">Order Summary</h2>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span>Subtotal</span>
-                    <span>₹{totalPrice.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Delivery Fee</span>
-                    <span>₹{DELIVERY_FEE.toFixed(2)}</span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between font-medium">
-                    <span>Total</span>
-                    <span>₹{(totalPrice + DELIVERY_FEE).toFixed(2)}</span>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button 
-                  className="w-full" 
-                  onClick={() => setCheckoutStep('address')}
-                >
-                  Proceed to Checkout
-                </Button>
-              </CardFooter>
-            </Card>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Address step
-  if (checkoutStep === 'address') {
-    return (
-      <div className="container mx-auto p-4">
-        <Button variant="ghost" className="mb-4" onClick={() => setCheckoutStep('cart')}>
-          <ArrowLeft size={16} className="mr-2" /> Back to Cart
-        </Button>
-        
-        <div className="max-w-md mx-auto">
-          <h1 className="text-2xl font-bold mb-6">Delivery Address</h1>
-          
-          <Card>
-            <CardContent className="p-6">
-              <form onSubmit={handleAddressSubmit}>
-                <div className="mb-4">
-                  <Label htmlFor="address">Delivery Address</Label>
-                  <Input
-                    id="address"
-                    placeholder="Enter your full delivery address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    className="mt-1"
-                    required
-                  />
-                </div>
-                
-                <div className="flex items-center space-x-2 mb-6">
-                  <Checkbox 
-                    id="save-address" 
-                    checked={saveAddress} 
-                    onCheckedChange={(checked) => setSaveAddress(checked as boolean)}
-                  />
-                  <Label htmlFor="save-address">
-                    Save this address in my address book
-                  </Label>
-                </div>
-                
-                <Button type="submit" className="w-full">Continue to Payment</Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  // Payment step
   return (
-    <div className="container mx-auto p-4">
-      <Button variant="ghost" className="mb-4" onClick={() => setCheckoutStep('address')}>
-        <ArrowLeft size={16} className="mr-2" /> Back to Address
-      </Button>
+    <div className="min-h-screen bg-gray-50">
+      <StudentHeader />
       
-      <div className="max-w-md mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Payment</h1>
-        
-        <Card>
-          <CardHeader>
-            <h2 className="text-xl font-semibold">Order Summary</h2>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span>₹{totalPrice.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Delivery Fee</span>
-                <span>₹{DELIVERY_FEE.toFixed(2)}</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between font-medium">
-                <span>Total</span>
-                <span>₹{(totalPrice + DELIVERY_FEE).toFixed(2)}</span>
+      <div className="container mx-auto p-4">
+        {cartItems.length === 0 ? (
+          <Card className="max-w-md mx-auto mt-16">
+            <CardContent className="flex flex-col items-center justify-center p-6">
+              <CardTitle className="text-lg font-semibold mb-2">Your cart is empty</CardTitle>
+              <CardDescription className="text-muted-foreground">
+                Looks like you haven't added anything to your cart yet.
+              </CardDescription>
+              <Button asChild className="mt-4 bg-[#ea384c] hover:bg-[#d02e40]">
+                <Link to="/student/restaurants">
+                  <Home className="mr-2 h-4 w-4" />
+                  Back to Restaurants
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="md:col-span-2">
+              <div className="mb-6 flex justify-between items-center">
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to="/student/restaurants" className="flex items-center gap-1">
+                    <ArrowLeft size={16} />
+                    Back to Restaurants
+                  </Link>
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={handleClearCart}
+                  className="gap-2"
+                >
+                  <Trash2 size={16} />
+                  Clear Cart
+                </Button>
               </div>
               
-              <div className="pt-4">
-                <p className="text-sm font-medium mb-2">Delivery Address:</p>
-                <p className="text-sm text-muted-foreground">{address}</p>
-              </div>
+              <ScrollArea className="h-[450px]">
+                <div className="space-y-4">
+                  {Object.entries(groupedCartItems).map(([restaurantId, { restaurantName, items }]: [string, any]) => (
+                    <Card key={restaurantId}>
+                      <CardHeader>
+                        <CardTitle>{restaurantName}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4">
+                        <ul className="space-y-2">
+                          {items.map(item => (
+                            <li key={item.menuItemId} className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">x{item.quantity}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">₹{(item.price * item.quantity).toFixed(2)}</span>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handleRemoveFromCart(item.menuItemId)}
+                                >
+                                  <Trash2 size={16} />
+                                </Button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </ScrollArea>
             </div>
-          </CardContent>
-          <CardFooter>
-            <Button 
-              className="w-full bg-[#6741d9] hover:bg-[#5f3dc4]" 
-              onClick={handlePayment}
-            >
-              Pay with UPI
-            </Button>
-          </CardFooter>
-        </Card>
+            
+            <Card className="md:col-span-1">
+              <CardHeader>
+                <CardTitle>Order Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between text-sm">
+                  <span>Subtotal</span>
+                  <span>₹{subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Delivery Fee</span>
+                  <span>₹{deliveryFee.toFixed(2)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between font-medium">
+                  <span>Total</span>
+                  <span>₹{total.toFixed(2)}</span>
+                </div>
+                <Button 
+                  className="w-full mt-4 bg-[#ea384c] hover:bg-[#d02e40]"
+                  onClick={handlePlaceOrder}
+                >
+                  Place Order
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
