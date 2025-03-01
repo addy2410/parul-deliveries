@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ShoppingBag } from "lucide-react";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, ShoppingBag, Plus, Minus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase, isUsingDefaultCredentials } from "@/lib/supabase";
 import { motion } from "framer-motion";
 import { sampleRestaurants, sampleMenuItems } from "@/data/data";
 import { toast } from "sonner";
+import { useCart } from "@/context/CartContext";
 
 interface MenuItem {
   id: string;
@@ -27,6 +28,18 @@ interface Restaurant {
 }
 
 const MenuItemCard = ({ item }: { item: MenuItem }) => {
+  const [quantity, setQuantity] = useState(1);
+  const { addItem } = useCart();
+
+  const handleAddToCart = () => {
+    const itemWithQuantity = { ...item };
+    for (let i = 0; i < quantity; i++) {
+      addItem(itemWithQuantity);
+    }
+    setQuantity(1);
+    toast.success(`Added ${quantity}x ${item.name} to cart`);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -44,9 +57,34 @@ const MenuItemCard = ({ item }: { item: MenuItem }) => {
               )}
               <p className="text-student-700 font-medium">₹{item.price.toFixed(2)}</p>
             </div>
-            <Button className="bg-student-600 hover:bg-student-700" size="sm">
-              <ShoppingBag size={14} className="mr-1" /> Add
-            </Button>
+            <div className="flex flex-col items-end">
+              <div className="flex items-center mb-2 bg-student-100 rounded-md">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 text-student-700"
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                >
+                  <Minus size={14} />
+                </Button>
+                <span className="w-8 text-center">{quantity}</span>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 text-student-700"
+                  onClick={() => setQuantity(quantity + 1)}
+                >
+                  <Plus size={14} />
+                </Button>
+              </div>
+              <Button 
+                className="bg-student-600 hover:bg-student-700" 
+                size="sm"
+                onClick={handleAddToCart}
+              >
+                <ShoppingBag size={14} className="mr-1" /> Add
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -59,6 +97,8 @@ const StudentRestaurantDetail = () => {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const { totalItems } = useCart();
   
   useEffect(() => {
     const fetchRestaurantDetails = async () => {
@@ -141,11 +181,20 @@ const StudentRestaurantDetail = () => {
 
   return (
     <div className="container mx-auto p-4">
-      <Button variant="ghost" className="mb-4" asChild>
-        <Link to="/student/restaurants">
-          <ArrowLeft size={16} className="mr-2" /> Back to Restaurants
-        </Link>
-      </Button>
+      <div className="flex justify-between items-center mb-4">
+        <Button variant="ghost" asChild>
+          <Link to="/student/restaurants">
+            <ArrowLeft size={16} className="mr-2" /> Back to Restaurants
+          </Link>
+        </Button>
+        
+        <Button 
+          className="bg-student-600 hover:bg-student-700"
+          onClick={() => navigate('/student/cart')}
+        >
+          <ShoppingBag className="mr-2" /> Cart ({totalItems})
+        </Button>
+      </div>
       
       {loading ? (
         <div className="p-12 border rounded-lg flex items-center justify-center">

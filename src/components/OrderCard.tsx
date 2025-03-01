@@ -94,7 +94,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
                     <span>
                       {item.quantity}x {item.name}
                     </span>
-                    <span>${(item.price * item.quantity).toFixed(2)}</span>
+                    <span>₹{(item.price * item.quantity).toFixed(2)}</span>
                   </li>
                 ))}
               </ul>
@@ -103,7 +103,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
             <div className="pt-2 border-t border-border">
               <div className="flex justify-between font-medium">
                 <span>Total</span>
-                <span>${order.totalAmount.toFixed(2)}</span>
+                <span>₹{order.totalAmount.toFixed(2)}</span>
               </div>
             </div>
           </div>

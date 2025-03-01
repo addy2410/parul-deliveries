@@ -6,7 +6,7 @@ import RoleSelection from "@/components/RoleSelection";
 const Index = () => {
   return (
     <div className="min-h-screen indian-pattern flex flex-col">
-      <header className="py-6 container mx-auto">
+      <header className="py-8 container mx-auto">
         <motion.h1 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
