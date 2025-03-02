@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,9 +41,12 @@ const StudentRestaurants = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <StudentHeader />
+      {/* Fixed header with proper z-index */}
+      <div className="sticky top-0 z-50">
+        <StudentHeader />
+      </div>
       
-      {/* Hero Section with Food Delivery Theme - Fixed z-index and positioning */}
+      {/* Hero Section with Food Delivery Theme - Fixed position */}
       <div className="relative bg-gradient-to-r from-[#FEC6A1] to-[#FFDEE2] py-16">
         <div className="container mx-auto px-4 relative z-10">
           <motion.div 
@@ -95,8 +99,8 @@ const StudentRestaurants = () => {
         </motion.div>
       </div>
       
-      {/* Category Filter - Improved styling to prevent overlap */}
-      <div className="bg-white shadow-sm sticky top-16 z-20">
+      {/* Category Filter - Fixed position and proper z-index */}
+      <div className="bg-white shadow-sm sticky top-16 z-40">
         <ScrollArea>
           <div className="container mx-auto px-4 py-3 overflow-x-auto">
             <div className="flex space-x-2 min-w-max">
@@ -175,7 +179,7 @@ const StudentRestaurants = () => {
           ))}
         </div>
         
-        {/* Food Delivery Visual Section - Updated with food delivery smartphone image */}
+        {/* Food Delivery Visual Section - Updated with a proper food delivery smartphone image */}
         <div className="mt-12 mb-8 bg-gradient-to-r from-[#D3E4FD] to-[#E5DEFF] rounded-2xl overflow-hidden shadow-md">
           <div className="flex flex-col md:flex-row items-center">
             <div className="p-8 md:w-1/2">

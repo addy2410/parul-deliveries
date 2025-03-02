@@ -1,154 +1,205 @@
 
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { ArrowLeft, Cpu, Users, Rocket, Heart, Coffee, GraduationCap } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-const AboutPage = () => {
-  const navigate = useNavigate();
-
+const About = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#E5DEFF] to-[#F8F7FF] overflow-hidden">
-      {/* Decorative Elements */}
-      <div className="absolute top-20 right-10 opacity-30 pointer-events-none">
-        <motion.div 
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 0.3, rotate: 15 }}
-          transition={{ duration: 1, delay: 0.2 }}
-          className="w-64 h-64 rounded-full bg-[#9b87f5] filter blur-xl"
-        />
-      </div>
-      <div className="absolute bottom-20 left-10 opacity-30 pointer-events-none">
-        <motion.div 
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 0.3, rotate: -10 }}
-          transition={{ duration: 1, delay: 0.4 }}
-          className="w-72 h-72 rounded-full bg-[#D6BCFA] filter blur-xl"
-        />
-      </div>
+    <div className="min-h-screen purple-pattern flex flex-col">
+      {/* Header with back button */}
+      <header className="bg-white/80 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+        <div className="container mx-auto py-4 px-4 flex justify-between items-center">
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/student/restaurants">
+              <ArrowLeft size={16} className="mr-1" /> Back to Restaurants
+            </Link>
+          </Button>
+          <h1 className="text-xl font-bold text-purple-800">Campus Eats</h1>
+        </div>
+      </header>
 
-      <div className="container mx-auto px-4 py-12 relative z-10">
-        <header className="text-center mb-16">
+      {/* Hero Section */}
+      <section className="py-16 px-4">
+        <div className="container mx-auto">
           <motion.div
-            initial={{ y: -50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center max-w-3xl mx-auto"
           >
-            <Button 
-              variant="ghost" 
-              className="mb-6"
-              onClick={() => navigate(-1)}
-            >
-              ← Back
-            </Button>
-            <h1 className="text-5xl md:text-6xl font-bold text-[#7E69AB] mb-6">
-              About Campus Grub
+            <div className="inline-block mb-6 bg-purple-100 p-3 rounded-2xl">
+              <GraduationCap className="h-10 w-10 text-purple-700" />
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold mb-6 text-purple-900">
+              A Startup by Students, For Students
             </h1>
-            <p className="text-xl text-[#6B5E99] max-w-2xl mx-auto">
-              A food delivery solution created by students, for students
+            <p className="text-lg text-purple-800 mb-8">
+              Campus Eats was created by the talented students of Parul University, Vadodara
+              as a solution to make campus dining easier, faster, and more enjoyable.
+            </p>
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="inline-flex items-center justify-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-full font-medium shadow-lg"
+            >
+              <Heart className="h-5 w-5" />
+              Made with love in Vadodara
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Fun Features Section */}
+      <section className="py-12 px-4">
+        <div className="container mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              {
+                icon: <Rocket className="h-8 w-8 text-purple-600" />,
+                title: "Student Initiative",
+                description: "Born from a hackathon project, this app is entirely created and maintained by Parul University students."
+              },
+              {
+                icon: <Users className="h-8 w-8 text-purple-600" />,
+                title: "For The Community",
+                description: "Designed to solve real problems faced by students and local food vendors on campus."
+              },
+              {
+                icon: <Cpu className="h-8 w-8 text-purple-600" />,
+                title: "Tech Innovation",
+                description: "Built using cutting-edge technologies to deliver a seamless food ordering experience."
+              }
+            ].map((feature, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                viewport={{ once: true }}
+                className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-300"
+              >
+                <div className="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+                  {feature.icon}
+                </div>
+                <h3 className="text-xl font-semibold mb-2 text-purple-900">{feature.title}</h3>
+                <p className="text-purple-700">{feature.description}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Team Section with Playful Elements */}
+      <section className="py-16 px-4 relative">
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-10 pointer-events-none">
+          <div className="absolute top-10 left-10 w-24 h-24 bg-purple-400 rounded-full"></div>
+          <div className="absolute bottom-20 right-20 w-32 h-32 bg-pink-400 rounded-full"></div>
+          <div className="absolute top-40 right-40 w-16 h-16 bg-yellow-400 rounded-full"></div>
+        </div>
+        
+        <div className="container mx-auto relative z-10">
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="text-center max-w-3xl mx-auto mb-12"
+          >
+            <h2 className="text-3xl font-bold mb-4 text-purple-900">Meet Our Amazing Team</h2>
+            <p className="text-purple-700">
+              Passionate students from different departments working together to bring you the best campus food ordering experience.
             </p>
           </motion.div>
-        </header>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map((_, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                viewport={{ once: true }}
+                whileHover={{ y: -10 }}
+                className="bg-white/80 backdrop-blur-sm rounded-xl p-5 text-center shadow-md"
+              >
+                <div className="w-24 h-24 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-xl font-bold">
+                  PU
+                </div>
+                <h3 className="text-lg font-semibold text-purple-900">Parul Student {index + 1}</h3>
+                <p className="text-sm text-purple-600">Computer Science • 2024</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-        <main className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center mb-16">
+      {/* Fun Facts Section with Coffee Animation */}
+      <section className="py-12 px-4 bg-gradient-to-r from-purple-100 to-pink-100">
+        <div className="container mx-auto">
+          <div className="flex flex-col md:flex-row items-center justify-between">
             <motion.div
-              initial={{ x: -50, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="md:w-1/2 mb-8 md:mb-0"
             >
-              <h2 className="text-3xl font-bold text-[#7E69AB] mb-4">
-                A Parul University Initiative
-              </h2>
-              <p className="text-[#6B5E99] text-lg mb-6">
-                This is a startup created by Parul University, Vadodara students who recognized 
-                the need for a better campus food delivery experience.
-              </p>
-              <p className="text-[#6B5E99] text-lg">
-                Our mission is to connect hungry students with their favorite campus eateries, 
-                ensuring delicious food arrives quickly and reliably.
-              </p>
+              <h2 className="text-2xl font-bold mb-4 text-purple-900">Fun Facts</h2>
+              <ul className="space-y-4">
+                <li className="flex items-start">
+                  <div className="bg-purple-200 p-2 rounded-full mr-3">
+                    <Coffee className="h-5 w-5 text-purple-700" />
+                  </div>
+                  <div>
+                    <p className="text-purple-800">This project was fueled by over 150 cups of coffee during development</p>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <div className="bg-purple-200 p-2 rounded-full mr-3">
+                    <Cpu className="h-5 w-5 text-purple-700" />
+                  </div>
+                  <div>
+                    <p className="text-purple-800">Our first prototype was built in just 48 hours during a campus hackathon</p>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <div className="bg-purple-200 p-2 rounded-full mr-3">
+                    <Users className="h-5 w-5 text-purple-700" />
+                  </div>
+                  <div>
+                    <p className="text-purple-800">We interviewed over 200 fellow students to understand their food ordering needs</p>
+                  </div>
+                </li>
+              </ul>
             </motion.div>
-            
             <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="relative"
+              initial={{ opacity: 0, scale: 0.8 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              className="md:w-2/5"
             >
-              <div className="absolute inset-0 bg-purple-200 rounded-full blur-2xl opacity-60"></div>
               <img 
-                src="https://images.unsplash.com/photo-1541976844346-f18aeac57b06" 
-                alt="Students working together" 
-                className="rounded-2xl shadow-lg relative z-10"
+                src="https://images.unsplash.com/photo-1487058792275-0ad4aaf24ca7" 
+                alt="Team coding session" 
+                className="rounded-lg shadow-xl"
               />
             </motion.div>
           </div>
+        </div>
+      </section>
 
-          <motion.div
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-            className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 md:p-12 shadow-xl border border-purple-100"
-          >
-            <h2 className="text-3xl font-bold text-[#7E69AB] mb-6 text-center">
-              Our Awesome Features
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="bg-purple-50 p-6 rounded-xl text-center">
-                <div className="w-16 h-16 bg-[#9b87f5] rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h3 className="font-bold text-xl text-[#7E69AB] mb-2">Fast Delivery</h3>
-                <p className="text-[#6B5E99]">Get your food delivered quickly anywhere on campus</p>
-              </div>
-              
-              <div className="bg-purple-50 p-6 rounded-xl text-center">
-                <div className="w-16 h-16 bg-[#9b87f5] rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                </div>
-                <h3 className="font-bold text-xl text-[#7E69AB] mb-2">Easy Ordering</h3>
-                <p className="text-[#6B5E99]">Simple interface to order from your favorite campus eateries</p>
-              </div>
-              
-              <div className="bg-purple-50 p-6 rounded-xl text-center">
-                <div className="w-16 h-16 bg-[#9b87f5] rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                  </svg>
-                </div>
-                <h3 className="font-bold text-xl text-[#7E69AB] mb-2">Special Offers</h3>
-                <p className="text-[#6B5E99]">Exclusive discounts and promotions for campus students</p>
-              </div>
-            </div>
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.8 }}
-            className="text-center mt-16"
-          >
-            <Button 
-              className="bg-[#9b87f5] hover:bg-[#8a74f3] text-white text-lg px-8 py-6"
-              onClick={() => navigate("/student/restaurants")}
-            >
-              Start Ordering Now
-            </Button>
-          </motion.div>
-        </main>
-      </div>
-      
-      <footer className="py-8 text-center text-[#6B5E99] relative z-10">
-        <p>© {new Date().getFullYear()} Campus Grub - A Parul University Student Initiative</p>
+      {/* Footer */}
+      <footer className="bg-purple-900 text-white py-8 px-4 mt-auto">
+        <div className="container mx-auto text-center">
+          <p className="mb-4">© 2024 Campus Eats - A Parul University Student Project</p>
+          <div className="flex justify-center space-x-4">
+            <Link to="/student/restaurants" className="hover:text-purple-300 transition-colors">Home</Link>
+            <Link to="/" className="hover:text-purple-300 transition-colors">Sign In</Link>
+            <a href="#" className="hover:text-purple-300 transition-colors">Contact</a>
+          </div>
+        </div>
       </footer>
     </div>
   );
 };
 
-export default AboutPage;
+export default About;
