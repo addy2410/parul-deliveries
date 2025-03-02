@@ -169,7 +169,7 @@ const StudentRestaurants = () => {
         
         {/* Food Delivery Visual Section - Updated with proper food delivery smartphone image */}
         <div className="mt-12 mb-8 bg-gradient-to-r from-[#D3E4FD] to-[#E5DEFF] rounded-2xl overflow-hidden shadow-md">
-          <div className="flex flex-col md:flex-row items-center">
+          <div className="flex flex-col md:flex-row items-center bg-orange-100">
             <div className="p-8 md:w-1/2">
               <motion.div initial={{
               opacity: 0,
