@@ -179,7 +179,7 @@ const StudentRestaurants = () => {
           ))}
         </div>
         
-        {/* Food Delivery Visual Section - Updated with a proper food delivery smartphone image */}
+        {/* Food Delivery Visual Section - Updated with proper food delivery smartphone image */}
         <div className="mt-12 mb-8 bg-gradient-to-r from-[#D3E4FD] to-[#E5DEFF] rounded-2xl overflow-hidden shadow-md">
           <div className="flex flex-col md:flex-row items-center">
             <div className="p-8 md:w-1/2">
@@ -218,7 +218,7 @@ const StudentRestaurants = () => {
                 className="p-4"
               >
                 <img 
-                  src="https://images.unsplash.com/photo-1622593989708-3eb1b38d8a9f" 
+                  src="/lovable-uploads/1a77b2d6-5459-48fa-b819-e131f229d72a.png" 
                   alt="Food Delivery on Mobile" 
                   className="rounded-lg shadow-lg w-full h-64 object-cover"
                 />
