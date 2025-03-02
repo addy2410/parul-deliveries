@@ -5,7 +5,11 @@ import { ShoppingCart, User, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 
-const StudentHeader = () => {
+interface StudentHeaderProps {
+  studentName?: string;
+}
+
+const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName }) => {
   const { totalItems } = useCart();
   const navigate = useNavigate();
 
@@ -35,6 +39,9 @@ const StudentHeader = () => {
           >
             <User className="w-4 h-4 mr-1" />
             <span className="hidden sm:inline">Account</span>
+            {studentName && (
+              <span className="ml-1 text-xs opacity-75 hidden sm:inline">({studentName})</span>
+            )}
           </Button>
           
           <Button 
