@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Restaurant } from "@/data/data";
@@ -12,9 +11,15 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const StudentRestaurants = () => {
+  const navigate = useNavigate();
   const [restaurantList, setRestaurantList] = useState<Restaurant[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
+
+  // Scroll to top function for Order Now button
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   useEffect(() => {
     // In a real app, you would fetch this data from an API
@@ -37,7 +42,7 @@ const StudentRestaurants = () => {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <StudentHeader />
       
-      {/* Hero Section with Food Delivery Theme */}
+      {/* Hero Section with Food Delivery Theme - Fixed z-index and positioning */}
       <div className="relative bg-gradient-to-r from-[#FEC6A1] to-[#FFDEE2] py-16">
         <div className="container mx-auto px-4 relative z-10">
           <motion.div 
@@ -90,8 +95,8 @@ const StudentRestaurants = () => {
         </motion.div>
       </div>
       
-      {/* Category Filter - Make sticky with proper z-index */}
-      <div className="bg-white shadow-sm sticky top-16 z-10">
+      {/* Category Filter - Improved styling to prevent overlap */}
+      <div className="bg-white shadow-sm sticky top-16 z-20">
         <ScrollArea>
           <div className="container mx-auto px-4 py-3 overflow-x-auto">
             <div className="flex space-x-2 min-w-max">
@@ -170,7 +175,7 @@ const StudentRestaurants = () => {
           ))}
         </div>
         
-        {/* Food Delivery Visual Section - Updated with better image */}
+        {/* Food Delivery Visual Section - Updated with food delivery smartphone image */}
         <div className="mt-12 mb-8 bg-gradient-to-r from-[#D3E4FD] to-[#E5DEFF] rounded-2xl overflow-hidden shadow-md">
           <div className="flex flex-col md:flex-row items-center">
             <div className="p-8 md:w-1/2">
@@ -185,10 +190,16 @@ const StudentRestaurants = () => {
                   We ensure your food arrives hot and fresh, no matter where you are on campus. Track your order in real-time!
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <Button className="bg-[#ea384c] hover:bg-[#d02e40]">
+                  <Button 
+                    className="bg-[#ea384c] hover:bg-[#d02e40]"
+                    onClick={scrollToTop}
+                  >
                     Order Now
                   </Button>
-                  <Button variant="outline">
+                  <Button 
+                    variant="outline"
+                    onClick={() => navigate("/about")}
+                  >
                     Learn More
                   </Button>
                 </div>
