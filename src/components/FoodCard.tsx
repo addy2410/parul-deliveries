@@ -34,6 +34,7 @@ const FoodCard: React.FC<FoodCardProps> = ({ item, onAddToCart }) => {
     }
     
     onAddToCart(quantity);
+    toast.success(`Added ${quantity} ${item.name} to cart`);
     setQuantity(1); // Reset quantity after adding to cart
   };
 
@@ -50,13 +51,18 @@ const FoodCard: React.FC<FoodCardProps> = ({ item, onAddToCart }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
+      whileHover={{ y: -5 }}
     >
       <Card className={`overflow-hidden h-full border border-border/40 ${item.isAvailable === false ? 'opacity-70' : ''}`}>
-        <div className="relative h-40 overflow-hidden">
+        <div className="relative h-48 overflow-hidden">
           <img
-            src={item.image}
+            src={item.image || '/placeholder.svg'}
             alt={item.name}
             className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = '/placeholder.svg'; // Fallback image if loading fails
+            }}
           />
           {item.category && (
             <div className="absolute top-2 left-2">
