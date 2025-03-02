@@ -209,7 +209,7 @@ const StudentRestaurants = () => {
             }} viewport={{
               once: true
             }} className="p-4">
-                <img alt="Food Delivery on Mobile" className="rounded-lg shadow-lg w-full h-64 object-cover" src="/lovable-uploads/1271dc67-e1e0-43ca-a49d-85a5eb8f1622.jpg" />
+                <img alt="Food Delivery on Mobile" src="/lovable-uploads/a07dc86e-1a21-4b0c-ac1a-b06b6e61c8d6.jpg" className="rounded-lg shadow-lg w-full h-64 object-contain" />
               </motion.div>
             </div>
           </div>
