@@ -52,8 +52,9 @@ const FoodCard: React.FC<FoodCardProps> = ({ item, onAddToCart }) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
       whileHover={{ y: -5 }}
+      className="h-full"
     >
-      <Card className={`overflow-hidden h-full border border-border/40 ${item.isAvailable === false ? 'opacity-70' : ''}`}>
+      <Card className={`overflow-hidden h-full border border-border/40 ${item.isAvailable === false ? 'opacity-70' : ''} shadow-sm hover:shadow-md transition-all duration-300`}>
         <div className="relative h-48 overflow-hidden">
           <img
             src={item.image || '/placeholder.svg'}
@@ -78,14 +79,20 @@ const FoodCard: React.FC<FoodCardProps> = ({ item, onAddToCart }) => {
               </Badge>
             </div>
           )}
+          
+          {/* Price tag */}
+          <div className="absolute top-2 right-2">
+            <Badge variant="default" className="bg-[#ea384c] text-white font-medium px-3 py-1">
+              ₹{item.price.toFixed(2)}
+            </Badge>
+          </div>
         </div>
         
         <CardContent className="pt-4">
-          <div className="flex justify-between items-start mb-2">
-            <h3 className="text-base font-semibold truncate mr-2">{item.name}</h3>
-            <span className="font-medium whitespace-nowrap">₹{item.price.toFixed(2)}</span>
+          <div className="mb-2">
+            <h3 className="text-base font-semibold truncate">{item.name}</h3>
+            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{item.description}</p>
           </div>
-          <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
         </CardContent>
         
         <CardFooter className="pt-0">
@@ -105,6 +112,7 @@ const FoodCard: React.FC<FoodCardProps> = ({ item, onAddToCart }) => {
                   size="sm" 
                   onClick={decrementQuantity}
                   disabled={quantity <= 1}
+                  className="bg-gray-50 hover:bg-gray-100"
                 >
                   <Minus size={16} />
                 </Button>
@@ -113,6 +121,7 @@ const FoodCard: React.FC<FoodCardProps> = ({ item, onAddToCart }) => {
                   variant="outline" 
                   size="sm" 
                   onClick={incrementQuantity}
+                  className="bg-gray-50 hover:bg-gray-100"
                 >
                   <Plus size={16} />
                 </Button>
@@ -122,7 +131,7 @@ const FoodCard: React.FC<FoodCardProps> = ({ item, onAddToCart }) => {
                 onClick={handleAddToCart}
                 disabled={item.isAvailable === false}
                 variant="default"
-                className="w-full bg-[#ea384c] hover:bg-[#d02e40]"
+                className="w-full bg-[#ea384c] hover:bg-[#d02e40] shadow-sm"
                 size="sm"
               >
                 <Plus size={16} className="mr-1" /> Add to Cart

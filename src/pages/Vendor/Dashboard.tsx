@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,11 +10,18 @@ import { sampleOrders, Order } from "@/data/data";
 import { motion } from "framer-motion";
 import { ArrowLeft, LogOut, Menu, PanelLeft, PanelRight, PieChart, Settings, ShoppingBag, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
+import { useMediaQuery } from "@/hooks/use-mobile";
 
 const VendorDashboard = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>(sampleOrders);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const isMobile = useMediaQuery("(max-width: 1024px)");
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  
+  // Update sidebar state when screen size changes
+  useEffect(() => {
+    setSidebarOpen(!isMobile);
+  }, [isMobile]);
   
   const pendingOrders = orders.filter(order => order.status === 'pending');
   const preparingOrders = orders.filter(order => order.status === 'preparing');

@@ -9,6 +9,7 @@ import { MapPin, Star, Clock, Search, ArrowUpRight } from "lucide-react";
 import StudentHeader from "@/components/StudentHeader";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const StudentRestaurants = () => {
   const [restaurantList, setRestaurantList] = useState<Restaurant[]>([]);
@@ -33,11 +34,11 @@ const StudentRestaurants = () => {
   const categories = ["All", ...Array.from(new Set(restaurantList.flatMap(r => r.tags)))];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <StudentHeader />
       
       {/* Hero Section with Food Delivery Theme */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-[#FEC6A1] to-[#FFDEE2] py-16">
+      <div className="relative bg-gradient-to-r from-[#FEC6A1] to-[#FFDEE2] py-16">
         <div className="container mx-auto px-4 relative z-10">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -89,25 +90,27 @@ const StudentRestaurants = () => {
         </motion.div>
       </div>
       
-      {/* Category Filter */}
+      {/* Category Filter - Make sticky with proper z-index */}
       <div className="bg-white shadow-sm sticky top-16 z-10">
-        <div className="container mx-auto px-4 py-3 overflow-x-auto">
-          <div className="flex space-x-2">
-            {categories.map((category) => (
-              <Button
-                key={category}
-                variant={activeCategory === category ? "default" : "outline"}
-                className={activeCategory === category ? "bg-[#ea384c] hover:bg-[#d02e40]" : ""}
-                onClick={() => setActiveCategory(category)}
-              >
-                {category}
-              </Button>
-            ))}
+        <ScrollArea>
+          <div className="container mx-auto px-4 py-3 overflow-x-auto">
+            <div className="flex space-x-2 min-w-max">
+              {categories.map((category) => (
+                <Button
+                  key={category}
+                  variant={activeCategory === category ? "default" : "outline"}
+                  className={activeCategory === category ? "bg-[#ea384c] hover:bg-[#d02e40]" : ""}
+                  onClick={() => setActiveCategory(category)}
+                >
+                  {category}
+                </Button>
+              ))}
+            </div>
           </div>
-        </div>
+        </ScrollArea>
       </div>
       
-      <div className="container mx-auto p-4">
+      <div className="container mx-auto p-4 flex-1">
         <h2 className="text-2xl font-bold mb-6 mt-4">Campus Restaurants</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -167,7 +170,7 @@ const StudentRestaurants = () => {
           ))}
         </div>
         
-        {/* Food Delivery Visual Section */}
+        {/* Food Delivery Visual Section - Updated with better image */}
         <div className="mt-12 mb-8 bg-gradient-to-r from-[#D3E4FD] to-[#E5DEFF] rounded-2xl overflow-hidden shadow-md">
           <div className="flex flex-col md:flex-row items-center">
             <div className="p-8 md:w-1/2">
@@ -200,8 +203,8 @@ const StudentRestaurants = () => {
                 className="p-4"
               >
                 <img 
-                  src="https://images.unsplash.com/photo-1526367626538-7f24f58c5fce" 
-                  alt="Food Delivery" 
+                  src="https://images.unsplash.com/photo-1622593989708-3eb1b38d8a9f" 
+                  alt="Food Delivery on Mobile" 
                   className="rounded-lg shadow-lg w-full h-64 object-cover"
                 />
               </motion.div>
