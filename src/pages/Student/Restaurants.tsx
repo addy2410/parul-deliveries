@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -136,11 +137,15 @@ const StudentRestaurants = () => {
               <Card key={restaurant.id} className="overflow-hidden h-full hover:shadow-lg transition-shadow duration-300 border border-border/40">
                 <Link to={`/student/restaurant/${restaurant.id}`}>
                   <div className="relative h-48 overflow-hidden">
-                    {/* Use the uploaded image for GREENZY food court */}
+                    {/* Updated image logic to swap GREENZY and Main Food Court images */}
                     <img 
-                      src={restaurant.name === "GREENZY Food Court" 
-                        ? "/lovable-uploads/66a8fbfe-db5c-45b2-a572-42477b6e107e.png" 
-                        : restaurant.coverImage} 
+                      src={
+                        restaurant.name === "GREENZY Food Court" 
+                          ? "/lovable-uploads/6063a852-8cc1-4393-b40f-0703add0cba7.png"
+                          : restaurant.name === "Main Food Court"
+                            ? "/lovable-uploads/66a8fbfe-db5c-45b2-a572-42477b6e107e.png"
+                            : restaurant.coverImage
+                      } 
                       alt={restaurant.name} 
                       className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" 
                     />

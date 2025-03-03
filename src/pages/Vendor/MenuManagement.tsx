@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus, Trash } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -17,57 +17,112 @@ interface MenuItem {
   restaurantId: string;
 }
 
+interface Shop {
+  id: string;
+  name: string;
+}
+
 const VendorMenuManagement = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [newItemName, setNewItemName] = useState("");
   const [newItemPrice, setNewItemPrice] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // For demo purposes, we'll use "Capitol Food Court" as the fixed restaurant
-  const restaurantId = "rest-1"; // Capitol Food Court ID
+  const [shop, setShop] = useState<Shop | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
   
   useEffect(() => {
-    // Load existing menu items
-    const loadMenuItems = async () => {
-      if (isUsingDefaultCredentials()) {
-        // In demo mode, load from localStorage
-        const savedItems = localStorage.getItem('menuItems');
-        if (savedItems) {
-          setMenuItems(JSON.parse(savedItems));
-          console.log("Loaded menu items from localStorage", JSON.parse(savedItems));
-        } else {
-          setMenuItems([]);
-        }
-        return;
-      }
-      
+    // Check authentication and get shop ID
+    const checkVendorAuth = async () => {
       try {
-        const { data, error } = await supabase
-          .from('menu_items')
-          .select('*')
-          .eq('restaurantId', restaurantId);
+        if (isUsingDefaultCredentials()) {
+          // In demo mode, check localStorage
+          const vendorId = localStorage.getItem('currentVendorId');
+          if (!vendorId) {
+            toast.error("You need to login first");
+            navigate("/vendor/login");
+            return;
+          }
           
-        if (error) {
-          console.error("Error loading menu items:", error);
-          toast.error("Failed to load menu items");
+          // Get vendor's shop
+          const shopStr = localStorage.getItem('currentVendorShop');
+          if (!shopStr) {
+            navigate("/vendor/register-shop");
+            return;
+          }
+          
+          const shopData = JSON.parse(shopStr);
+          setShop(shopData);
+          
+          // Load menu items for this shop
+          const savedItems = localStorage.getItem(`menuItems-${shopData.id}`);
+          if (savedItems) {
+            setMenuItems(JSON.parse(savedItems));
+          } else {
+            setMenuItems([]);
+          }
         } else {
-          setMenuItems(data || []);
+          // In production, check Supabase auth
+          const { data, error } = await supabase.auth.getSession();
+          if (error || !data.session) {
+            toast.error("You need to login first");
+            navigate("/vendor/login");
+            return;
+          }
+          
+          const userId = data.session.user.id;
+          
+          // Get vendor's shop
+          const { data: shopData, error: shopError } = await supabase
+            .from('shops')
+            .select('id, name')
+            .eq('vendor_id', userId)
+            .single();
+            
+          if (shopError) {
+            if (shopError.code === 'PGRST116') {
+              // No shop found
+              navigate("/vendor/register-shop");
+              return;
+            }
+            console.error("Error fetching shop:", shopError);
+            toast.error("Failed to load shop data");
+            return;
+          }
+          
+          setShop(shopData);
+          
+          // Load menu items for this shop
+          const { data: menuData, error: menuError } = await supabase
+            .from('menu_items')
+            .select('*')
+            .eq('restaurantId', shopData.id);
+            
+          if (menuError) {
+            console.error("Error loading menu items:", menuError);
+            toast.error("Failed to load menu items");
+          } else {
+            setMenuItems(menuData || []);
+          }
         }
       } catch (error) {
-        console.error("Error:", error);
+        console.error("Auth check error:", error);
+        toast.error("Authentication error");
+        navigate("/vendor/login");
+      } finally {
+        setIsLoading(false);
       }
     };
     
-    loadMenuItems();
-  }, []);
+    checkVendorAuth();
+  }, [navigate]);
   
   // Save menu items to localStorage whenever they change (for demo mode)
   useEffect(() => {
-    if (isUsingDefaultCredentials() && menuItems.length > 0) {
-      localStorage.setItem('menuItems', JSON.stringify(menuItems));
-      console.log("Saved menu items to localStorage", menuItems);
+    if (isUsingDefaultCredentials() && shop && menuItems.length >= 0) {
+      localStorage.setItem(`menuItems-${shop.id}`, JSON.stringify(menuItems));
     }
-  }, [menuItems]);
+  }, [menuItems, shop]);
   
   const handleAddItem = async () => {
     // Validate inputs
@@ -82,6 +137,11 @@ const VendorMenuManagement = () => {
       return;
     }
     
+    if (!shop) {
+      toast.error("Shop information not found");
+      return;
+    }
+    
     setIsSubmitting(true);
     
     // Create new item
@@ -89,7 +149,7 @@ const VendorMenuManagement = () => {
       id: `item-${Date.now()}`, // Generate a unique ID for demo mode
       name: newItemName.trim(),
       price: price,
-      restaurantId: restaurantId,
+      restaurantId: shop.id,
     };
     
     try {
@@ -138,6 +198,14 @@ const VendorMenuManagement = () => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-4">
       <Button variant="ghost" className="mb-4" asChild>
@@ -148,7 +216,7 @@ const VendorMenuManagement = () => {
       
       <h1 className="text-3xl font-bold mb-6">Menu Management</h1>
       <p className="text-muted-foreground mb-8">
-        Add and manage food items for Capitol Food Court.
+        Add and manage food items for {shop?.name || "your shop"}.
       </p>
       
       <Card className="mb-8 border-vendor-200">

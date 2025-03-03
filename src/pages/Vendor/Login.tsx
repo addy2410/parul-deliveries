@@ -27,36 +27,102 @@ const VendorLogin = () => {
     setIsLoading(true);
     
     try {
+      let vendorId;
+      
       // Check if using default credentials (demo mode)
       if (isUsingDefaultCredentials()) {
-        // In demo mode, allow any login with valid format
-        if (pucampid.startsWith("VEN") && password.length >= 6) {
-          toast.success("Demo mode: Login successful");
-          navigate("/vendor/dashboard");
-          return;
+        // In demo mode, use localStorage for user storage
+        const storedVendors = JSON.parse(localStorage.getItem('vendors') || '[]');
+        
+        // Check if vendor exists
+        const existingVendor = storedVendors.find(
+          (v: any) => v.pucampid === pucampid && v.password === password
+        );
+        
+        if (existingVendor) {
+          // Vendor exists, use existing ID
+          vendorId = existingVendor.id;
+          toast.success("Login successful");
+        } else if (pucampid.startsWith("VEN") && password.length >= 6) {
+          // New vendor, create record
+          vendorId = `vendor-${Date.now()}`;
+          const newVendor = { id: vendorId, pucampid, password };
+          localStorage.setItem('vendors', JSON.stringify([...storedVendors, newVendor]));
+          toast.success("Account created and logged in");
         } else {
           throw new Error("Invalid credentials format");
         }
-      }
-      
-      // Real Supabase authentication for production mode
-      const email = `${pucampid.toLowerCase()}@campus-vendor.com`;
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) {
-        console.error("Login error:", error);
-        toast.error(error.message || "Login failed. Please try again.");
-      } else if (data?.user) {
-        toast.success("Login successful");
-        navigate("/vendor/dashboard");
+        
+        // Store current vendor ID
+        localStorage.setItem('currentVendorId', vendorId);
+        
+        // Check if vendor has a shop
+        const shops = JSON.parse(localStorage.getItem('shops') || '[]');
+        const vendorShop = shops.find((shop: any) => shop.vendor_id === vendorId);
+        
+        if (vendorShop) {
+          // Vendor has a shop, store it and redirect to dashboard
+          localStorage.setItem('currentVendorShop', JSON.stringify(vendorShop));
+          navigate("/vendor/dashboard");
+        } else {
+          // Vendor doesn't have a shop yet, redirect to shop registration
+          navigate("/vendor/register-shop");
+        }
+      } else {
+        // Real Supabase authentication for production mode
+        const email = `${pucampid.toLowerCase()}@campus-vendor.com`;
+        
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
+        if (authError) {
+          // If login fails, check if we need to create a new account
+          if (pucampid.startsWith("VEN") && password.length >= 6) {
+            // Try to sign up
+            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+              email,
+              password,
+            });
+            
+            if (signUpError) throw signUpError;
+            
+            vendorId = signUpData.user?.id;
+            toast.success("Account created and logged in");
+          } else {
+            throw authError;
+          }
+        } else {
+          vendorId = authData.user?.id;
+          toast.success("Login successful");
+        }
+        
+        if (!vendorId) throw new Error("Failed to authenticate");
+        
+        // Check if vendor has a shop
+        const { data: shopData, error: shopError } = await supabase
+          .from('shops')
+          .select('*')
+          .eq('vendor_id', vendorId)
+          .single();
+          
+        if (shopError && shopError.code !== 'PGRST116') {
+          // An error other than "no rows returned"
+          console.error("Error checking for shop:", shopError);
+        }
+        
+        if (shopData) {
+          // Vendor has a shop, redirect to dashboard
+          navigate("/vendor/dashboard");
+        } else {
+          // Vendor doesn't have a shop yet, redirect to shop registration
+          navigate("/vendor/register-shop");
+        }
       }
     } catch (error) {
       console.error("Login error:", error);
-      toast.error("Login failed. Please try again.");
+      toast.error("Login failed. Please check your credentials and try again.");
     } finally {
       setIsLoading(false);
     }
