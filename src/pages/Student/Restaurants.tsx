@@ -232,7 +232,8 @@ const StudentRestaurants = () => {
           </div>
         </div>
       </div>
-    </div>;
+    </div>
+  );
 };
 
 export default StudentRestaurants;
