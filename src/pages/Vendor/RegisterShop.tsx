@@ -9,13 +9,16 @@ import { supabase, isUsingDefaultCredentials } from "@/lib/supabase";
 
 const RegisterShop = () => {
   const [vendorId, setVendorId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     const checkVendorAuth = async () => {
       try {
+        setLoading(true);
         if (isUsingDefaultCredentials()) {
           // In demo mode, check localStorage
+          console.log("Using demo mode authentication check");
           const storedVendorId = localStorage.getItem('currentVendorId');
           if (!storedVendorId) {
             toast.error("You need to login first");
@@ -25,8 +28,16 @@ const RegisterShop = () => {
           setVendorId(storedVendorId);
         } else {
           // In production, check Supabase auth
+          console.log("Checking Supabase authentication");
           const { data, error } = await supabase.auth.getSession();
-          if (error || !data.session) {
+          console.log("Auth session data:", data?.session ? "Session exists" : "No session");
+          if (error) {
+            console.error("Auth error:", error.message);
+            toast.error(`Authentication error: ${error.message}`);
+            navigate("/vendor/login");
+            return;
+          }
+          if (!data.session) {
             toast.error("You need to login first");
             navigate("/vendor/login");
             return;
@@ -37,6 +48,8 @@ const RegisterShop = () => {
         console.error("Auth check error:", error);
         toast.error("Authentication error");
         navigate("/vendor/login");
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -44,7 +57,10 @@ const RegisterShop = () => {
   }, [navigate]);
 
   const handleShopRegistrationComplete = () => {
-    navigate("/vendor/dashboard");
+    toast.success("Shop registered successfully! Redirecting to dashboard...");
+    setTimeout(() => {
+      navigate("/vendor/dashboard");
+    }, 1500);
   };
 
   return (
@@ -57,14 +73,18 @@ const RegisterShop = () => {
         <div className="max-w-3xl mx-auto">
           <h1 className="text-3xl font-bold text-center mb-8">Register Your Shop</h1>
           
-          {vendorId ? (
+          {loading ? (
+            <div className="flex justify-center p-8">
+              <p>Loading authentication status...</p>
+            </div>
+          ) : vendorId ? (
             <ShopRegistration 
               vendorId={vendorId} 
               onComplete={handleShopRegistrationComplete} 
             />
           ) : (
             <div className="flex justify-center">
-              <p>Loading...</p>
+              <p>Authentication error. Please try logging in again.</p>
             </div>
           )}
         </div>

@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase';
+import { supabase, isUsingDefaultCredentials } from '@/lib/supabase';
 
 // Define the form schema
 const shopFormSchema = z.object({
@@ -42,30 +42,61 @@ const ShopRegistration: React.FC<ShopRegistrationProps> = ({ vendorId, onComplet
 
   const onSubmit = async (data: ShopFormValues) => {
     setIsSubmitting(true);
+    console.log("Submitting shop data for vendor:", vendorId);
+    
     try {
-      // Insert shop data into Supabase
-      const { data: shop, error } = await supabase
-        .from('shops')
-        .insert([
-          {
-            vendor_id: vendorId,
-            name: data.name,
-            location: data.location,
-            description: data.description || '',
-            cuisine: data.cuisine,
-          },
-        ])
-        .select()
-        .single();
+      if (isUsingDefaultCredentials()) {
+        console.log("Using demo mode for shop registration");
+        // For demo mode, store in localStorage
+        const shopData = {
+          id: `shop-${Date.now()}`,
+          vendor_id: vendorId,
+          name: data.name,
+          location: data.location,
+          description: data.description || '',
+          cuisine: data.cuisine,
+          rating: 4.5,
+          tags: [data.cuisine],
+          delivery_time: "30-45 min",
+          is_open: true,
+        };
+        
+        // Save to localStorage
+        localStorage.setItem('currentVendorShop', JSON.stringify(shopData));
+        
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        toast.success('Shop registered successfully in demo mode!');
+        onComplete();
+      } else {
+        console.log("Using Supabase for shop registration");
+        // Insert shop data into Supabase
+        const { data: shop, error } = await supabase
+          .from('shops')
+          .insert([
+            {
+              vendor_id: vendorId,
+              name: data.name,
+              location: data.location,
+              description: data.description || '',
+              cuisine: data.cuisine,
+              tags: [data.cuisine],
+            },
+          ])
+          .select()
+          .single();
 
-      if (error) {
-        console.error('Error registering shop:', error);
-        toast.error('Failed to register shop. Please try again.');
-        return;
+        if (error) {
+          console.error('Error registering shop:', error);
+          toast.error('Failed to register shop: ' + error.message);
+          return;
+        }
+
+        console.log("Shop registered successfully:", shop);
+        toast.success('Shop registered successfully!');
+        onComplete();
       }
-
-      toast.success('Shop registered successfully!');
-      onComplete();
     } catch (error) {
       console.error('Unexpected error:', error);
       toast.error('An unexpected error occurred. Please try again.');
@@ -139,7 +170,7 @@ const ShopRegistration: React.FC<ShopRegistrationProps> = ({ vendorId, onComplet
           />
 
           <div className="flex justify-end pt-4">
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} className="bg-vendor-600 hover:bg-vendor-700">
               {isSubmitting ? 'Registering...' : 'Register Shop'}
             </Button>
           </div>
