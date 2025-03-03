@@ -7,14 +7,16 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { supabase, isUsingDefaultCredentials } from "@/lib/supabase";
 
 const StudentLogin = () => {
   const navigate = useNavigate();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [showOTP, setShowOTP] = useState(false);
   const [otp, setOTP] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   
-  const handleSendOTP = (e: React.FormEvent) => {
+  const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!phoneNumber || phoneNumber.length < 10) {
@@ -22,11 +24,39 @@ const StudentLogin = () => {
       return;
     }
     
-    toast.success("OTP sent successfully!");
-    setShowOTP(true);
+    setIsLoading(true);
+    
+    try {
+      if (isUsingDefaultCredentials()) {
+        // In demo mode, just simulate the OTP flow
+        toast.success("OTP sent successfully! (Demo Mode)");
+        setShowOTP(true);
+        
+        // Store the phone number in localStorage for demo purposes
+        localStorage.setItem('studentPhone', phoneNumber);
+      } else {
+        // In production, would use Supabase auth
+        // This is a placeholder for real phone auth
+        const { error } = await supabase.auth.signInWithOtp({
+          phone: phoneNumber,
+        });
+        
+        if (error) {
+          throw error;
+        }
+        
+        toast.success("OTP sent successfully!");
+        setShowOTP(true);
+      }
+    } catch (error: any) {
+      console.error("Login error:", error);
+      toast.error(error.message || "Failed to send OTP");
+    } finally {
+      setIsLoading(false);
+    }
   };
   
-  const handleVerifyOTP = (e: React.FormEvent) => {
+  const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!otp || otp.length < 4) {
@@ -34,9 +64,36 @@ const StudentLogin = () => {
       return;
     }
     
-    // In a real app, this would validate the OTP with a backend service
-    toast.success("Login successful!");
-    navigate("/student/restaurants");
+    setIsLoading(true);
+    
+    try {
+      if (isUsingDefaultCredentials()) {
+        // In demo mode, just pretend the OTP is correct
+        localStorage.setItem('currentStudentId', 'demo-student-123');
+        localStorage.setItem('studentName', 'Demo Student');
+        toast.success("Login successful! (Demo Mode)");
+        navigate("/student/restaurants");
+      } else {
+        // In production, would verify with Supabase
+        const { error } = await supabase.auth.verifyOtp({
+          phone: phoneNumber,
+          token: otp,
+          type: 'sms',
+        });
+        
+        if (error) {
+          throw error;
+        }
+        
+        toast.success("Login successful!");
+        navigate("/student/restaurants");
+      }
+    } catch (error: any) {
+      console.error("Verification error:", error);
+      toast.error(error.message || "Failed to verify OTP");
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   return (
@@ -67,11 +124,16 @@ const StudentLogin = () => {
                       placeholder="Enter your phone number"
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
+                      disabled={isLoading}
                     />
                   </div>
                   
-                  <Button type="submit" className="w-full bg-[#ea384c] hover:bg-[#d02e40]">
-                    Send OTP
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-[#ea384c] hover:bg-[#d02e40]"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Sending..." : "Send OTP"}
                   </Button>
                 </div>
               </form>
@@ -86,11 +148,16 @@ const StudentLogin = () => {
                       placeholder="Enter the OTP sent to your phone"
                       value={otp}
                       onChange={(e) => setOTP(e.target.value)}
+                      disabled={isLoading}
                     />
                   </div>
                   
-                  <Button type="submit" className="w-full bg-[#ea384c] hover:bg-[#d02e40]">
-                    Verify OTP
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-[#ea384c] hover:bg-[#d02e40]"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Verifying..." : "Verify OTP"}
                   </Button>
                 </div>
               </form>

@@ -1,17 +1,49 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ShoppingCart, User, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
+import { supabase, isUsingDefaultCredentials } from "@/lib/supabase";
 
 interface StudentHeaderProps {
   studentName?: string;
 }
 
-const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName }) => {
+const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentName }) => {
   const { totalItems } = useCart();
   const navigate = useNavigate();
+  const [studentName, setStudentName] = useState(propStudentName || '');
+
+  useEffect(() => {
+    const getStudentName = async () => {
+      if (propStudentName) {
+        setStudentName(propStudentName);
+        return;
+      }
+
+      try {
+        if (isUsingDefaultCredentials()) {
+          // In demo mode, check localStorage
+          const storedName = localStorage.getItem('studentName');
+          if (storedName) {
+            setStudentName(storedName);
+          }
+        } else {
+          // In production, check Supabase auth
+          const { data } = await supabase.auth.getSession();
+          if (data.session) {
+            // You could fetch more info from a profile table if needed
+            setStudentName(data.session.user.phone || data.session.user.email || '');
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching student name:", error);
+      }
+    };
+
+    getStudentName();
+  }, [propStudentName]);
 
   return (
     <header className="bg-white border-b sticky top-0 z-10">
