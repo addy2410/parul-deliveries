@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import StudentHeader from "@/components/StudentHeader";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
 const StudentRestaurants = () => {
   const navigate = useNavigate();
   const [restaurantList, setRestaurantList] = useState<Restaurant[]>([]);
@@ -22,6 +24,7 @@ const StudentRestaurants = () => {
       behavior: "smooth"
     });
   };
+
   useEffect(() => {
     // In a real app, you would fetch this data from an API
     setRestaurantList(restaurants);
@@ -37,7 +40,14 @@ const StudentRestaurants = () => {
 
   // Extract unique categories from all restaurants
   const categories = ["All", ...Array.from(new Set(restaurantList.flatMap(r => r.tags)))];
-  return <div className="min-h-screen bg-gray-50 flex flex-col">
+
+  // Function to handle Learn More button click
+  const handleLearnMoreClick = () => {
+    navigate("/about");
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Fixed header with proper z-index */}
       <div className="sticky top-0 z-50">
         <StudentHeader />
@@ -127,7 +137,14 @@ const StudentRestaurants = () => {
               <Card key={restaurant.id} className="overflow-hidden h-full hover:shadow-lg transition-shadow duration-300 border border-border/40">
                 <Link to={`/student/restaurant/${restaurant.id}`}>
                   <div className="relative h-48 overflow-hidden">
-                    <img src={restaurant.coverImage} alt={restaurant.name} className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" />
+                    {/* Use the uploaded image for GREENZY food court */}
+                    <img 
+                      src={restaurant.name === "GREENZY Food Court" 
+                        ? "/lovable-uploads/66a8fbfe-db5c-45b2-a572-42477b6e107e.png" 
+                        : restaurant.coverImage} 
+                      alt={restaurant.name} 
+                      className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" 
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                     <div className="absolute top-4 right-4">
                       <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
@@ -190,7 +207,7 @@ const StudentRestaurants = () => {
                   <Button className="bg-[#ea384c] hover:bg-[#d02e40]" onClick={scrollToTop}>
                     Order Now
                   </Button>
-                  <Button variant="outline" onClick={() => navigate("/about")}>
+                  <Button variant="outline" onClick={handleLearnMoreClick}>
                     Learn More
                   </Button>
                 </div>
@@ -217,4 +234,5 @@ const StudentRestaurants = () => {
       </div>
     </div>;
 };
+
 export default StudentRestaurants;
