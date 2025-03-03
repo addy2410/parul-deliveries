@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -226,7 +225,11 @@ const StudentRestaurants = () => {
             }} viewport={{
               once: true
             }} className="p-4">
-                <img alt="Food Delivery on Mobile" src="/lovable-uploads/a07dc86e-1a21-4b0c-ac1a-b06b6e61c8d6.jpg" className="rounded-lg shadow-lg w-full h-64 object-contain" />
+                <img 
+                  alt="Food Delivery on Mobile" 
+                  src="/lovable-uploads/dc6cd078-3194-4336-a771-bbe09a3db8de.jpg" 
+                  className="rounded-lg shadow-lg w-full h-64 object-contain" 
+                />
               </motion.div>
             </div>
           </div>

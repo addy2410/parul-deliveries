@@ -22,6 +22,7 @@ import StudentOrders from "./pages/Student/Orders";
 import OrderTracking from "./pages/Student/OrderTracking";
 import ViewOrder from "./pages/Student/ViewOrder";
 import AddressBook from "./pages/Student/AddressBook";
+import About from "./pages/About";
 
 // Add a custom style to the head for the logo font
 const addLogoFontStyle = () => {
@@ -70,6 +71,9 @@ const App = () => {
               <Route path="/student/order-tracking/:id" element={<OrderTracking />} />
               <Route path="/student/view-order/:id" element={<ViewOrder />} />
               <Route path="/student/address-book" element={<AddressBook />} />
+              
+              {/* About Page */}
+              <Route path="/about" element={<About />} />
               
               {/* Catch-all */}
               <Route path="*" element={<NotFound />} />
