@@ -5,6 +5,7 @@ import { ShoppingCart, User, Clock, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 import { supabase, isUsingDefaultCredentials } from "@/lib/supabase";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,

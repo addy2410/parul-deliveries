@@ -1,169 +1,135 @@
 
 import React, { useEffect } from "react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Truck, Utensils, Clock, MapPin } from "lucide-react";
-import { motion } from "framer-motion";
+import { Truck, Star, Users, ShieldCheck } from "lucide-react";
+import { Link } from "react-router-dom";
+import StudentHeader from "@/components/StudentHeader";
 
-const About = () => {
-  // Fix scroll position issue when page loads
+const AboutPage = () => {
   useEffect(() => {
+    // Scroll to top when the component mounts
     window.scrollTo(0, 0);
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        <Button variant="ghost" size="sm" asChild className="mb-6">
-          <Link to="/" className="flex items-center gap-1">
-            <ArrowLeft size={16} />
-            Back to Home
-          </Link>
-        </Button>
-        
-        <div className="text-center mb-12">
-          <div className="text-3xl font-extrabold text-[#ea384c] fontLogo">
-            CampusGrub
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <StudentHeader />
+      
+      <main className="flex-1 container mx-auto py-12 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-bold mb-4 text-[#ea384c] fontLogo">Campus<span className="text-black">Grub</span></h1>
+            <p className="text-lg text-gray-600">
+              The premier food delivery service for campus students
+            </p>
           </div>
-          <p className="text-gray-600 mt-2">Order food from campus dining venues</p>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <h2 className="text-2xl font-bold mb-4">Our Mission</h2>
-            <p className="text-gray-600 mb-6">
-              CampusGrub aims to make campus dining more accessible for students by providing a convenient platform to order food from various dining venues across campus. No more waiting in long lines or rushing between classes to grab a meal!
-            </p>
-            <p className="text-gray-600">
-              We partner with campus dining venues to bring you a seamless ordering experience, reasonable delivery fees, and fast service to ensure you get your food when you need it.
-            </p>
-          </motion.div>
           
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="flex items-center justify-center"
-          >
-            <img 
-              src="/lovable-uploads/1a77b2d6-5459-48fa-b819-e131f229d72a.png" 
-              alt="Campus food delivery" 
-              className="rounded-lg shadow-md max-w-full h-auto"
-            />
-          </motion.div>
+          <div className="space-y-16">
+            {/* Our Story Section */}
+            <section className="space-y-6">
+              <h2 className="text-3xl font-bold">Our Story</h2>
+              <p className="text-gray-600">
+                CampusGrub was founded in 2023 by a group of hungry college students who were frustrated with the lack of convenient food options on campus. We recognized that students often face challenges accessing quality food due to tight schedules, limited transportation, or simply being too busy studying.
+              </p>
+              <p className="text-gray-600">
+                What began as a simple idea has grown into the leading food delivery service specifically designed for university campuses. Our mission is to connect students with the best food options around campus, delivered quickly and reliably.
+              </p>
+            </section>
+            
+            {/* Features Section */}
+            <section className="space-y-8">
+              <h2 className="text-3xl font-bold">Why Choose CampusGrub</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="flex items-start space-x-4">
+                  <div className="bg-[#ea384c] p-3 rounded-full text-white">
+                    <Truck size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">Quick Delivery</h3>
+                    <p className="text-gray-600">Our network of student delivery partners ensures your food arrives hot and fresh in 30 minutes or less.</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start space-x-4">
+                  <div className="bg-[#ea384c] p-3 rounded-full text-white">
+                    <Star size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">Top Campus Restaurants</h3>
+                    <p className="text-gray-600">We partner with the most loved food vendors and cafeterias across campus.</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start space-x-4">
+                  <div className="bg-[#ea384c] p-3 rounded-full text-white">
+                    <Users size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">By Students, For Students</h3>
+                    <p className="text-gray-600">Our platform is designed specifically for the unique needs and preferences of university students.</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start space-x-4">
+                  <div className="bg-[#ea384c] p-3 rounded-full text-white">
+                    <ShieldCheck size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">Reliable & Secure</h3>
+                    <p className="text-gray-600">Track your order in real-time and pay securely through our platform.</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+            
+            {/* How It Works Section */}
+            <section className="space-y-6">
+              <h2 className="text-3xl font-bold">How It Works</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  <div className="w-12 h-12 flex items-center justify-center bg-[#ffd1d6] text-[#ea384c] font-bold text-xl rounded-full mb-4">1</div>
+                  <h3 className="text-xl font-bold mb-2">Browse Restaurants</h3>
+                  <p className="text-gray-600">Explore food options from various campus vendors and restaurants.</p>
+                </div>
+                
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  <div className="w-12 h-12 flex items-center justify-center bg-[#ffd1d6] text-[#ea384c] font-bold text-xl rounded-full mb-4">2</div>
+                  <h3 className="text-xl font-bold mb-2">Place Your Order</h3>
+                  <p className="text-gray-600">Select your favorite meals and add them to your cart.</p>
+                </div>
+                
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  <div className="w-12 h-12 flex items-center justify-center bg-[#ffd1d6] text-[#ea384c] font-bold text-xl rounded-full mb-4">3</div>
+                  <h3 className="text-xl font-bold mb-2">Enjoy Your Food</h3>
+                  <p className="text-gray-600">Receive your delivery and enjoy your meal without leaving your dorm or study spot.</p>
+                </div>
+              </div>
+            </section>
+            
+            {/* Call to Action */}
+            <section className="bg-gradient-to-r from-[#ffd1d6] to-[#ffb9b1] p-8 rounded-xl text-center">
+              <h2 className="text-2xl font-bold mb-4">Ready to order?</h2>
+              <p className="text-lg mb-6">Get your favorite campus food delivered in minutes!</p>
+              <Button asChild className="bg-[#ea384c] hover:bg-[#d02e40]">
+                <Link to="/student/restaurants">Order Now</Link>
+              </Button>
+            </section>
+          </div>
         </div>
-        
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="mb-16"
-        >
-          <h2 className="text-2xl font-bold mb-6 text-center">How It Works</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <div className="flex justify-center mb-4">
-                <Utensils className="w-12 h-12 text-[#ea384c]" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2 text-center">Browse & Order</h3>
-              <p className="text-gray-600 text-center">
-                Browse menus from various campus dining venues and place your order with just a few taps.
-              </p>
-            </div>
-            
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <div className="flex justify-center mb-4">
-                <Truck className="w-12 h-12 text-[#ea384c]" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2 text-center">Track Delivery</h3>
-              <p className="text-gray-600 text-center">
-                Track your order in real-time as it's prepared and delivered to your specified campus location.
-              </p>
-            </div>
-            
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <div className="flex justify-center mb-4">
-                <Clock className="w-12 h-12 text-[#ea384c]" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2 text-center">Enjoy Your Meal</h3>
-              <p className="text-gray-600 text-center">
-                Receive your food fresh and hot, without having to leave your dorm, library, or classroom.
-              </p>
-            </div>
+      </main>
+      
+      <footer className="bg-gray-900 text-white py-8">
+        <div className="container mx-auto px-4">
+          <div className="text-center">
+            <p className="text-2xl font-bold mb-4 fontLogo">Campus<span className="text-[#ea384c]">Grub</span></p>
+            <p className="text-sm text-gray-400">© {new Date().getFullYear()} CampusGrub. All rights reserved.</p>
           </div>
-        </motion.div>
-        
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="mb-16"
-        >
-          <h2 className="text-2xl font-bold mb-6 text-center">Why Choose CampusGrub?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="flex items-start space-x-4">
-              <MapPin className="w-6 h-6 text-[#ea384c] flex-shrink-0 mt-1" />
-              <div>
-                <h3 className="text-xl font-semibold mb-2">Campus-Specific</h3>
-                <p className="text-gray-600">
-                  Unlike other food delivery apps, we focus exclusively on campus dining options, ensuring faster delivery times and more relevant choices.
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-start space-x-4">
-              <Clock className="w-6 h-6 text-[#ea384c] flex-shrink-0 mt-1" />
-              <div>
-                <h3 className="text-xl font-semibold mb-2">Time-Saving</h3>
-                <p className="text-gray-600">
-                  Save valuable time between classes or study sessions by having food delivered directly to you on campus.
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-start space-x-4">
-              <Utensils className="w-6 h-6 text-[#ea384c] flex-shrink-0 mt-1" />
-              <div>
-                <h3 className="text-xl font-semibold mb-2">More Choices</h3>
-                <p className="text-gray-600">
-                  Access menus from dining venues across campus that you might not normally have time to visit.
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-start space-x-4">
-              <Truck className="w-6 h-6 text-[#ea384c] flex-shrink-0 mt-1" />
-              <div>
-                <h3 className="text-xl font-semibold mb-2">Reliable Delivery</h3>
-                <p className="text-gray-600">
-                  Our student delivery partners know the campus well and ensure your food arrives promptly.
-                </p>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-        
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-          className="text-center"
-        >
-          <h2 className="text-2xl font-bold mb-4">Ready to Order?</h2>
-          <p className="text-gray-600 mb-8">
-            Download the app or use our website to start ordering from your favorite campus dining venues today!
-          </p>
-          <Button className="bg-[#ea384c] hover:bg-[#d02e40]" asChild>
-            <Link to="/">Get Started</Link>
-          </Button>
-        </motion.div>
-      </div>
+        </div>
+      </footer>
     </div>
   );
 };
 
-export default About;
+export default AboutPage;

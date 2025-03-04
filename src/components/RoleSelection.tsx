@@ -39,7 +39,7 @@ const RoleCard: React.FC<RoleCardProps> = ({ title, description, route, classNam
       whileTap={{ scale: 0.98 }}
     >
       <Card 
-        className={`cursor-pointer overflow-hidden ${className} transition-all duration-300 hover:border-2 hover:shadow-xl`}
+        className={`cursor-pointer overflow-hidden ${className} transition-all duration-300 border-2 hover:shadow-xl`}
         onClick={handleCardClick}
       >
         <CardContent className="p-8">
@@ -59,14 +59,14 @@ const RoleSelection: React.FC = () => {
         <RoleCard
           title="I'm a Vendor"
           description="Manage your menu, accept orders, and track deliveries."
-          route="/vendor/login"
+          route="/vendor/auth"
           className="border-primary/50 hover:border-primary"
           delay={0.2}
         />
         <RoleCard
           title="I'm a Student"
           description="Browse restaurants, order food, and enjoy campus delivery."
-          route="/student/restaurants"
+          route="/student/auth"
           className="border-secondary/50 hover:border-secondary"
           delay={0.4}
         />
