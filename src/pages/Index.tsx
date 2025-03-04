@@ -3,6 +3,18 @@ import React from "react";
 import { motion } from "framer-motion";
 import RoleSelection from "@/components/RoleSelection";
 
+// Create a CampusGrub logo component for the header
+const HeaderLogo = () => (
+  <motion.div 
+    initial={{ opacity: 0, y: -20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5 }}
+    className="text-5xl md:text-6xl font-extrabold text-[#ea384c]"
+  >
+    CampusGrub
+  </motion.div>
+);
+
 const Index = () => {
   return (
     <div className="min-h-screen indian-pattern flex flex-col relative overflow-hidden">
@@ -29,14 +41,9 @@ const Index = () => {
       </div>
 
       <header className="py-8 container mx-auto relative z-10">
-        <motion.h1 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-4xl md:text-6xl font-bold text-center text-[#ea384c]"
-        >
-          Parul In-Campus Delivery
-        </motion.h1>
+        <div className="flex justify-center">
+          <HeaderLogo />
+        </div>
         <motion.p 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -59,7 +66,7 @@ const Index = () => {
       </main>
 
       <footer className="py-6 text-center text-sm text-muted-foreground relative z-10">
-        <p>© {new Date().getFullYear()} Parul In-Campus Delivery. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} CampusGrub. All rights reserved.</p>
       </footer>
     </div>
   );

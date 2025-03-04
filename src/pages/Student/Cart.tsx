@@ -6,13 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { useCart } from "@/context/CartContext";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trash2, ArrowLeft, Home } from "lucide-react";
+import { Trash2, ArrowLeft, Home, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import StudentHeader from "@/components/StudentHeader";
 
 const StudentCart = () => {
   const navigate = useNavigate();
-  const { cartItems, removeFromCart, clearCart } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, clearCart } = useCart();
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -54,6 +54,14 @@ const StudentCart = () => {
     toast.success("Order placed successfully!");
     clearCart();
     navigate("/student/order-success");
+  };
+
+  const handleUpdateQuantity = (itemId: string, newQuantity: number) => {
+    if (newQuantity > 0) {
+      updateQuantity(itemId, newQuantity);
+    } else {
+      removeFromCart(itemId);
+    }
   };
 
   return (
@@ -106,18 +114,38 @@ const StudentCart = () => {
                       </CardHeader>
                       <CardContent className="p-4">
                         <ul className="space-y-2">
-                          {items.map(item => (
-                            <li key={item.menuItemId} className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm">{item.name}</span>
-                                <span className="text-xs text-muted-foreground">x{item.quantity}</span>
+                          {items.map((item: any) => (
+                            <li key={item.id} className="flex items-center justify-between py-2">
+                              <div className="flex-1">
+                                <span className="font-medium">{item.name}</span>
+                                <p className="text-sm text-muted-foreground">₹{item.price.toFixed(2)} each</p>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">₹{(item.price * item.quantity).toFixed(2)}</span>
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center border rounded-md">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 rounded-none"
+                                    onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                                  >
+                                    <Minus size={14} />
+                                  </Button>
+                                  <span className="w-8 text-center">{item.quantity}</span>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 rounded-none"
+                                    onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                                  >
+                                    <Plus size={14} />
+                                  </Button>
+                                </div>
+                                <span className="w-20 text-right font-medium">₹{(item.price * item.quantity).toFixed(2)}</span>
                                 <Button 
                                   variant="ghost" 
                                   size="icon"
-                                  onClick={() => handleRemoveFromCart(item.menuItemId)}
+                                  onClick={() => handleRemoveFromCart(item.id)}
+                                  className="text-gray-500 hover:text-red-500"
                                 >
                                   <Trash2 size={16} />
                                 </Button>

@@ -1,136 +1,191 @@
 
-import React from "react";
-import { motion } from "framer-motion";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Heart, GraduationCap, Coffee, Star, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ArrowLeft, Utensils, TruckFast, Clock, Star } from "lucide-react";
+import { motion } from "framer-motion";
+import StudentHeader from "@/components/StudentHeader";
+import CampusGrubLogo from "@/components/CampusGrubLogo";
 
 const About = () => {
-  return (
-    <div className="min-h-screen purple-pattern flex flex-col">
-      {/* Header with back button */}
-      <header className="bg-white/80 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto py-4 px-4 flex justify-between items-center">
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/student/restaurants">
-              <ArrowLeft size={16} className="mr-1" /> Back to Restaurants
-            </Link>
-          </Button>
-          <h1 className="text-xl font-bold text-purple-800">Campus Eats</h1>
-        </div>
-      </header>
+  // Ensure page scrolls to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
-      {/* Hero Section with fun animated elements */}
-      <section className="py-16 px-4 bg-gradient-to-br from-purple-50 to-purple-100">
-        <div className="container mx-auto">
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <StudentHeader />
+      
+      <div className="container mx-auto px-4 py-8">
+        <Button variant="ghost" className="mb-4" asChild>
+          <Link to="/" className="flex items-center gap-1">
+            <ArrowLeft size={16} />
+            Back
+          </Link>
+        </Button>
+        
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <CampusGrubLogo size="lg" className="mx-auto" />
+            <p className="text-gray-600 mt-4 text-lg">
+              Bringing your favorite campus foods straight to you
+            </p>
+          </div>
+          
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="text-center max-w-3xl mx-auto relative"
+            className="space-y-16"
           >
-            {/* Decorative elements */}
-            <motion.div 
-              className="absolute -top-10 -left-10 w-20 h-20 bg-purple-200 rounded-full opacity-40"
-              animate={{ 
-                scale: [1, 1.1, 1],
-                rotate: [0, 5, 0]
-              }}
-              transition={{
-                repeat: Infinity,
-                duration: 5
-              }}
-            />
-            <motion.div 
-              className="absolute -bottom-10 -right-10 w-24 h-24 bg-pink-200 rounded-full opacity-30"
-              animate={{ 
-                scale: [1, 1.2, 1],
-                rotate: [0, -5, 0]
-              }}
-              transition={{
-                repeat: Infinity,
-                duration: 6,
-                delay: 0.5
-              }}
-            />
+            {/* Our Story Section */}
+            <section className="bg-white rounded-lg shadow-md p-8">
+              <h2 className="text-3xl font-bold mb-6">Our Story</h2>
+              <p className="text-gray-700 leading-relaxed mb-4">
+                CampusGrub was founded by a group of university students who were tired of limited food options and long wait times at campus eateries. We believe that busy students deserve convenient access to delicious food without sacrificing their valuable study time.
+              </p>
+              <p className="text-gray-700 leading-relaxed">
+                What started as a small delivery service between classes has grown into a full-fledged platform connecting students with all the best food options across campus. Our mission is to make campus dining more accessible, efficient, and enjoyable for everyone.
+              </p>
+            </section>
             
-            <div className="inline-block mb-6 bg-purple-200 p-3 rounded-2xl">
-              <GraduationCap className="h-10 w-10 text-purple-700" />
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-6 text-purple-900">
-              About Campus Eats
-            </h1>
-            <motion.p 
-              className="text-xl text-purple-800 mb-8 font-medium"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-            >
-              Made by a Parul University dropout student named Aditya Mishra
-            </motion.p>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="inline-flex items-center justify-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-full font-medium shadow-lg"
-            >
-              <Heart className="h-5 w-5" />
-              Made with love in Vadodara
-            </motion.div>
+            {/* How It Works Section */}
+            <section>
+              <h2 className="text-3xl font-bold mb-8 text-center">How It Works</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                  viewport={{ once: true }}
+                  className="bg-white rounded-lg shadow-md p-6 text-center"
+                >
+                  <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Utensils className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-3">Choose Your Food</h3>
+                  <p className="text-gray-600">
+                    Browse through various campus eateries and select your favorite meals
+                  </p>
+                </motion.div>
+                
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  viewport={{ once: true }}
+                  className="bg-white rounded-lg shadow-md p-6 text-center"
+                >
+                  <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Clock className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-3">Place Your Order</h3>
+                  <p className="text-gray-600">
+                    Securely pay online and receive immediate order confirmation
+                  </p>
+                </motion.div>
+                
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                  viewport={{ once: true }}
+                  className="bg-white rounded-lg shadow-md p-6 text-center"
+                >
+                  <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <TruckFast className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-3">Fast Delivery</h3>
+                  <p className="text-gray-600">
+                    Track your order in real-time as it's delivered to your campus location
+                  </p>
+                </motion.div>
+              </div>
+            </section>
+            
+            {/* Testimonials Section */}
+            <section className="bg-white rounded-lg shadow-md p-8">
+              <h2 className="text-3xl font-bold mb-8 text-center">What Students Say</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5 }}
+                  viewport={{ once: true }}
+                  className="bg-gray-50 p-6 rounded-lg relative"
+                >
+                  <div className="flex items-center mb-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
+                        RK
+                      </div>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="font-semibold">Rahul Kumar</h3>
+                      <div className="flex items-center">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-gray-600 italic">
+                    "CampusGrub has been a lifesaver during exam season! I can study without interruption and have food delivered right to the library."
+                  </p>
+                </motion.div>
+                
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                  viewport={{ once: true }}
+                  className="bg-gray-50 p-6 rounded-lg relative"
+                >
+                  <div className="flex items-center mb-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-bold">
+                        PJ
+                      </div>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="font-semibold">Priya Joshi</h3>
+                      <div className="flex items-center">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 text-gray-300" />
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-gray-600 italic">
+                    "I love being able to order from different food courts without having to walk across campus. The app is super easy to use!"
+                  </p>
+                </motion.div>
+              </div>
+            </section>
+            
+            {/* Join Us Section */}
+            <section className="text-center">
+              <h2 className="text-3xl font-bold mb-4">Ready to Try CampusGrub?</h2>
+              <p className="text-gray-600 mb-6">
+                Enjoy the convenience of campus food delivery today
+              </p>
+              <div className="flex justify-center gap-4">
+                <Button className="bg-[#ea384c] hover:bg-[#d02e40]" asChild>
+                  <Link to="/student/restaurants">Order Now</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link to="/vendor/login">Partner With Us</Link>
+                </Button>
+              </div>
+            </section>
           </motion.div>
         </div>
-      </section>
-
-      {/* Fun Facts Section */}
-      <section className="py-12 px-4">
-        <div className="container mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                icon: <Coffee className="h-8 w-8 text-purple-600" />,
-                title: "Coffee Powered",
-                description: "This app was fueled by approximately 137 cups of coffee during development."
-              },
-              {
-                icon: <Star className="h-8 w-8 text-purple-600" />,
-                title: "Student Favorite",
-                description: "Most popular amongst engineering and business students at Parul University."
-              },
-              {
-                icon: <Users className="h-8 w-8 text-purple-600" />,
-                title: "Created For Students",
-                description: "Understanding the needs of hungry students was our primary motivation."
-              }
-            ].map((feature, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                viewport={{ once: true }}
-                whileHover={{ y: -5 }}
-                className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-purple-100"
-              >
-                <div className="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mb-4">
-                  {feature.icon}
-                </div>
-                <h3 className="text-xl font-semibold mb-2 text-purple-900">{feature.title}</h3>
-                <p className="text-purple-700">{feature.description}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-purple-900 text-white py-8 px-4 mt-auto">
-        <div className="container mx-auto text-center">
-          <p className="mb-4">© 2024 Campus Eats - By Aditya Mishra</p>
-          <div className="flex justify-center space-x-4">
-            <Link to="/student/restaurants" className="hover:text-purple-300 transition-colors">Home</Link>
-            <Link to="/" className="hover:text-purple-300 transition-colors">Sign In</Link>
-          </div>
-        </div>
-      </footer>
+      </div>
     </div>
   );
 };

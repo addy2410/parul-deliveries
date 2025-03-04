@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { supabase, isUsingDefaultCredentials } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 interface Shop {
   id: string;
@@ -32,75 +32,69 @@ interface Shop {
   isOpen?: boolean;
 }
 
+interface OrderSummary {
+  pending: number;
+  completed: number;
+  cancelled: number;
+  totalSales: number;
+}
+
 const VendorDashboard = () => {
   const [vendorName, setVendorName] = useState("");
   const [shop, setShop] = useState<Shop | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const navigate = useNavigate();
-
-  // Stats for demonstration
-  const stats = {
-    pendingOrders: 3,
-    completedToday: 12,
-    cancelledToday: 1,
+  const [orderStats, setOrderStats] = useState<OrderSummary>({
+    pending: 3,
+    completed: 12,
+    cancelled: 1,
     totalSales: 2546.00
-  };
+  });
+  const [recentOrders, setRecentOrders] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const checkVendorAuth = async () => {
       try {
-        if (isUsingDefaultCredentials()) {
-          // In demo mode, check localStorage
-          const vendorId = localStorage.getItem('currentVendorId');
-          if (!vendorId) {
-            toast.error("You need to login first");
-            navigate("/vendor/login");
-            return;
-          }
+        // Always check Supabase auth
+        const { data, error } = await supabase.auth.getSession();
+        if (error || !data.session) {
+          toast.error("You need to login first");
+          navigate("/vendor/login");
+          return;
+        }
+        
+        const userId = data.session.user.id;
+        const email = data.session.user.email;
+        setVendorName(email?.split('@')[0].replace("-vendor", "") || "Vendor");
+        
+        // Get vendor's shop
+        const { data: shopData, error: shopError } = await supabase
+          .from('shops')
+          .select('*')
+          .eq('vendor_id', userId)
+          .single();
           
-          // Get vendor's shop
-          const shopStr = localStorage.getItem('currentVendorShop');
-          if (!shopStr) {
+        if (shopError) {
+          if (shopError.code === 'PGRST116') {
+            // No shop found
             navigate("/vendor/register-shop");
             return;
           }
-          
-          const shopData = JSON.parse(shopStr);
-          setShop(shopData);
-          setVendorName(vendorId.replace('vendor-', 'Vendor ')); // For display purposes
-        } else {
-          // In production, check Supabase auth
-          const { data, error } = await supabase.auth.getSession();
-          if (error || !data.session) {
-            toast.error("You need to login first");
-            navigate("/vendor/login");
-            return;
-          }
-          
-          const userId = data.session.user.id;
-          const email = data.session.user.email;
-          setVendorName(email?.split('@')[0] || "Vendor");
-          
-          // Get vendor's shop
-          const { data: shopData, error: shopError } = await supabase
-            .from('shops')
-            .select('*')
-            .eq('vendor_id', userId)
-            .single();
-            
-          if (shopError) {
-            if (shopError.code === 'PGRST116') {
-              // No shop found
-              navigate("/vendor/register-shop");
-              return;
-            }
-            console.error("Error fetching shop:", shopError);
-            toast.error("Failed to load shop data");
-            return;
-          }
-          
-          setShop(shopData);
+          console.error("Error fetching shop:", shopError);
+          toast.error("Failed to load shop data");
+          return;
         }
+        
+        setShop(shopData);
+        
+        // Get order stats (using demo data for now)
+        // TODO: Replace with real Supabase queries when more data is available
+        setOrderStats({
+          pending: Math.floor(Math.random() * 5) + 1,
+          completed: Math.floor(Math.random() * 15) + 5,
+          cancelled: Math.floor(Math.random() * 3),
+          totalSales: Math.floor(Math.random() * 5000) + 1000
+        });
       } catch (error) {
         console.error("Auth check error:", error);
         toast.error("Authentication error");
@@ -114,17 +108,33 @@ const VendorDashboard = () => {
   }, [navigate]);
 
   const handleLogout = async () => {
-    if (isUsingDefaultCredentials()) {
-      // In demo mode, clear localStorage
-      localStorage.removeItem('currentVendorId');
-      localStorage.removeItem('currentVendorShop');
-    } else {
-      // In production, sign out from Supabase
-      await supabase.auth.signOut();
-    }
-    
+    // Sign out from Supabase
+    await supabase.auth.signOut();
     toast.success("Logged out successfully");
     navigate("/vendor/login");
+  };
+
+  const handleViewOrders = (type: string) => {
+    // This would normally navigate to a filtered orders page
+    toast.info(`Viewing ${type} orders`);
+    
+    // For demo, we'll just show a message
+    switch(type) {
+      case 'pending':
+        toast.info(`You have ${orderStats.pending} pending orders to process`);
+        break;
+      case 'completed':
+        toast.info(`You have completed ${orderStats.completed} orders today`);
+        break;
+      case 'cancelled':
+        toast.info(`${orderStats.cancelled} orders were cancelled today`);
+        break;
+      case 'sales':
+        toast.info(`Today's sales total: ₹${orderStats.totalSales.toFixed(2)}`);
+        break;
+      default:
+        toast.info("Order view not implemented yet");
+    }
   };
 
   if (isLoading) {
@@ -192,13 +202,19 @@ const VendorDashboard = () => {
             <div className="flex justify-between items-start mb-2">
               <div>
                 <p className="text-muted-foreground text-sm">Pending Orders</p>
-                <h3 className="text-3xl font-bold">{stats.pendingOrders}</h3>
+                <h3 className="text-3xl font-bold">{orderStats.pending}</h3>
               </div>
               <div className="bg-orange-100 p-2 rounded-lg">
                 <Clock size={24} className="text-orange-500" />
               </div>
             </div>
-            <Link to="#" className="text-sm text-vendor-600 hover:underline">View pending orders</Link>
+            <Button 
+              variant="link" 
+              className="text-sm text-vendor-600 hover:underline p-0"
+              onClick={() => handleViewOrders('pending')}
+            >
+              View pending orders
+            </Button>
           </CardContent>
         </Card>
         
@@ -207,13 +223,19 @@ const VendorDashboard = () => {
             <div className="flex justify-between items-start mb-2">
               <div>
                 <p className="text-muted-foreground text-sm">Completed Today</p>
-                <h3 className="text-3xl font-bold">{stats.completedToday}</h3>
+                <h3 className="text-3xl font-bold">{orderStats.completed}</h3>
               </div>
               <div className="bg-green-100 p-2 rounded-lg">
                 <CheckCircle2 size={24} className="text-green-500" />
               </div>
             </div>
-            <Link to="#" className="text-sm text-vendor-600 hover:underline">View completed orders</Link>
+            <Button 
+              variant="link" 
+              className="text-sm text-vendor-600 hover:underline p-0"
+              onClick={() => handleViewOrders('completed')}
+            >
+              View completed orders
+            </Button>
           </CardContent>
         </Card>
         
@@ -222,13 +244,19 @@ const VendorDashboard = () => {
             <div className="flex justify-between items-start mb-2">
               <div>
                 <p className="text-muted-foreground text-sm">Cancelled Today</p>
-                <h3 className="text-3xl font-bold">{stats.cancelledToday}</h3>
+                <h3 className="text-3xl font-bold">{orderStats.cancelled}</h3>
               </div>
               <div className="bg-red-100 p-2 rounded-lg">
                 <XCircle size={24} className="text-red-500" />
               </div>
             </div>
-            <Link to="#" className="text-sm text-vendor-600 hover:underline">View cancelled orders</Link>
+            <Button 
+              variant="link" 
+              className="text-sm text-vendor-600 hover:underline p-0"
+              onClick={() => handleViewOrders('cancelled')}
+            >
+              View cancelled orders
+            </Button>
           </CardContent>
         </Card>
         
@@ -237,13 +265,19 @@ const VendorDashboard = () => {
             <div className="flex justify-between items-start mb-2">
               <div>
                 <p className="text-muted-foreground text-sm">Today's Sales (₹)</p>
-                <h3 className="text-3xl font-bold">{stats.totalSales.toFixed(2)}</h3>
+                <h3 className="text-3xl font-bold">{orderStats.totalSales.toFixed(2)}</h3>
               </div>
               <div className="bg-blue-100 p-2 rounded-lg">
                 <ShoppingBag size={24} className="text-blue-500" />
               </div>
             </div>
-            <Link to="#" className="text-sm text-vendor-600 hover:underline">View sales report</Link>
+            <Button 
+              variant="link" 
+              className="text-sm text-vendor-600 hover:underline p-0"
+              onClick={() => handleViewOrders('sales')}
+            >
+              View sales report
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -261,7 +295,7 @@ const VendorDashboard = () => {
           </div>
         </CardContent>
         <CardFooter className="flex justify-end">
-          <Button variant="outline">View All Orders</Button>
+          <Button variant="outline" onClick={() => toast.info("All orders functionality coming soon!")}>View All Orders</Button>
         </CardFooter>
       </Card>
     </div>
