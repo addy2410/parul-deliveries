@@ -9,7 +9,7 @@ import { toast } from "sonner";
 // Create a CampusGrub logo component
 const CampusGrubLogo = () => (
   <div className="flex items-center justify-center mb-8">
-    <div className="text-3xl font-extrabold text-[#ea384c]">
+    <div className="text-3xl font-extrabold text-[#ea384c] fontLogo">
       CampusGrub
     </div>
   </div>
@@ -39,7 +39,7 @@ const RoleCard: React.FC<RoleCardProps> = ({ title, description, route, classNam
       whileTap={{ scale: 0.98 }}
     >
       <Card 
-        className={`cursor-pointer overflow-hidden ${className} shadow-lg hover:border-2 hover:shadow-xl transition-all duration-300`}
+        className={`cursor-pointer overflow-hidden ${className} transition-all duration-300 hover:border-2 hover:shadow-xl`}
         onClick={handleCardClick}
       >
         <CardContent className="p-8">
@@ -60,14 +60,14 @@ const RoleSelection: React.FC = () => {
           title="I'm a Vendor"
           description="Manage your menu, accept orders, and track deliveries."
           route="/vendor/login"
-          className="border-primary hover:border-primary/80"
+          className="border-primary/50 hover:border-primary"
           delay={0.2}
         />
         <RoleCard
           title="I'm a Student"
           description="Browse restaurants, order food, and enjoy campus delivery."
           route="/student/restaurants"
-          className="border-secondary hover:border-secondary/80"
+          className="border-secondary/50 hover:border-secondary"
           delay={0.4}
         />
       </div>

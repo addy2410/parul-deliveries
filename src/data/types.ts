@@ -9,3 +9,10 @@ export interface MenuItem {
   category: string;
   isAvailable?: boolean;
 }
+
+export interface StudentUser {
+  id: string;
+  phone: string;
+  name: string;
+  createdAt: string;
+}
