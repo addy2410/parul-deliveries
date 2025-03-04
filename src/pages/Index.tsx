@@ -66,7 +66,7 @@ const Index = () => {
       </main>
 
       <footer className="py-6 text-center text-sm text-muted-foreground relative z-10">
-        <p>© {new Date().getFullYear()} Campus<span className="text-[#ea384c]">Grub</span>. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} Campus<span className="text-black">Grub</span>. All rights reserved.</p>
       </footer>
     </div>
   );
