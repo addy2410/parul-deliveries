@@ -138,15 +138,12 @@ serve(async (req) => {
       );
     }
     
-    // Hash the password - Fixed for Deno environment
+    // Hash the password - Simplified approach for Deno environment
     let password_hash;
     try {
       console.log("Hashing password");
-      
-      // Using 10 rounds for salt (typical default)
-      const salt = await bcrypt.genSalt(10);
-      password_hash = await bcrypt.hash(password, salt);
-      
+      // Use a fixed salt - simpler approach that works better in Deno
+      password_hash = await bcrypt.hash(password, 8); // Using 8 rounds (less CPU intensive)
       console.log("Password hashed successfully");
     } catch (hashError) {
       console.error('Error hashing password:', hashError);

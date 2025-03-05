@@ -53,9 +53,11 @@ serve(async (req) => {
       );
     }
     
-    // Verify the password
+    // Verify the password with improved error handling
     try {
+      console.log("Comparing password with stored hash");
       const passwordMatches = await bcrypt.compare(password, student.password_hash);
+      console.log("Password comparison result:", passwordMatches);
       
       if (!passwordMatches) {
         return new Response(
