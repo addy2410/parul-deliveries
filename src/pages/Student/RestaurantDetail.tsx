@@ -1,35 +1,138 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import StudentHeader from "@/components/StudentHeader";
-import { restaurants, menuItems } from "@/data/data";
+import { restaurants, menuItems as sampleMenuItems } from "@/data/data";
 import FoodCard from "@/components/FoodCard";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Clock, MapPin, Star, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+import { isUsingDefaultCredentials } from "@/lib/supabase";
 
 const StudentRestaurantDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { addToCart, items } = useCart();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [restaurant, setRestaurant] = useState<any>(null);
+  const [menuItems, setMenuItems] = useState<any[]>([]);
   
-  // Find the restaurant by id
-  const restaurant = restaurants.find((r) => r.id === id);
-  
-  // Filter menu items by restaurant id
-  const restaurantMenuItems = menuItems.filter((item) => item.restaurantId === id);
+  // Fetch restaurant and menu items data
+  useEffect(() => {
+    const fetchRestaurantData = async () => {
+      try {
+        setLoading(true);
+        
+        // If using demo credentials or the ID is from sample data, use sample data
+        if (isUsingDefaultCredentials() || id?.startsWith('rest-')) {
+          console.info("Using sample data (demo mode)");
+          const sampleRestaurant = restaurants.find((r) => r.id === id);
+          if (!sampleRestaurant) {
+            toast.error("Restaurant not found");
+            return;
+          }
+          
+          setRestaurant(sampleRestaurant);
+          setMenuItems(sampleMenuItems.filter((item) => item.restaurantId === id));
+          setLoading(false);
+          return;
+        }
+        
+        // Otherwise fetch from Supabase
+        console.info("Fetching real restaurant data from Supabase");
+        
+        // Fetch restaurant details
+        const { data: shopData, error: shopError } = await supabase
+          .from('shops')
+          .select('*')
+          .eq('id', id)
+          .single();
+          
+        if (shopError) {
+          console.error("Error fetching restaurant:", shopError);
+          toast.error("Could not load restaurant details");
+          
+          // Try to fall back to sample data
+          const fallbackRestaurant = restaurants.find((r) => r.id === id);
+          if (fallbackRestaurant) {
+            setRestaurant(fallbackRestaurant);
+            setMenuItems(sampleMenuItems.filter((item) => item.restaurantId === id));
+          } else {
+            toast.error("Restaurant not found");
+          }
+          setLoading(false);
+          return;
+        }
+        
+        // Transform shop data to match Restaurant interface
+        const transformedShop = {
+          id: shopData.id,
+          name: shopData.name,
+          description: shopData.description || '',
+          logo: shopData.logo || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352',
+          coverImage: shopData.cover_image || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352',
+          location: shopData.location,
+          rating: shopData.rating,
+          cuisine: shopData.cuisine,
+          tags: shopData.tags || [shopData.cuisine || 'Food'],
+          deliveryFee: 30.00,
+          deliveryTime: shopData.delivery_time || '30-45 min',
+          isOpen: true
+        };
+        
+        setRestaurant(transformedShop);
+        
+        // Fetch menu items for this restaurant
+        const { data: menuData, error: menuError } = await supabase
+          .from('menu_items')
+          .select('*')
+          .eq('shop_id', id);
+          
+        if (menuError) {
+          console.error("Error fetching menu items:", menuError);
+          toast.error("Could not load menu items");
+          setLoading(false);
+          return;
+        }
+        
+        // Transform menu items data
+        const transformedMenuItems = menuData.map(item => ({
+          id: item.id,
+          name: item.name,
+          description: item.description || `Delicious ${item.name}`,
+          price: item.price,
+          image: item.image || 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd',
+          restaurantId: item.shop_id,
+          category: item.category || 'Main Course',
+          isAvailable: true
+        }));
+        
+        setMenuItems(transformedMenuItems);
+      } catch (err) {
+        console.error("Unexpected error:", err);
+        toast.error("An unexpected error occurred");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (id) {
+      fetchRestaurantData();
+    }
+  }, [id]);
   
   // Extract unique categories
   const categories = Array.from(
-    new Set(restaurantMenuItems.map((item) => item.category))
+    new Set(menuItems.map((item) => item.category))
   );
   
   // Filter menu items by selected category
   const filteredMenuItems = selectedCategory
-    ? restaurantMenuItems.filter((item) => item.category === selectedCategory)
-    : restaurantMenuItems;
+    ? menuItems.filter((item) => item.category === selectedCategory)
+    : menuItems;
   
   // Set first category as selected by default
   useEffect(() => {
@@ -49,8 +152,26 @@ const StudentRestaurantDetail = () => {
   // Calculate number of items already in cart for this restaurant
   const itemsInCart = items.filter(item => item.restaurantId === id).length;
   
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <StudentHeader />
+        <div className="container mx-auto p-8 flex justify-center items-center">
+          <p>Loading restaurant details...</p>
+        </div>
+      </div>
+    );
+  }
+  
   if (!restaurant) {
-    return <div>Restaurant not found</div>;
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <StudentHeader />
+        <div className="container mx-auto p-8 flex justify-center items-center">
+          <p>Restaurant not found</p>
+        </div>
+      </div>
+    );
   }
   
   return (
@@ -80,7 +201,7 @@ const StudentRestaurantDetail = () => {
           className="absolute bottom-4 left-4 right-4 text-white"
         >
           <div className="flex items-center gap-2 mb-1">
-            {restaurant.tags.map((tag, index) => (
+            {restaurant.tags.map((tag: string, index: number) => (
               <Badge key={index} className="bg-[#ea384c]/90 hover:bg-[#ea384c] border-none">
                 {tag}
               </Badge>
@@ -150,25 +271,29 @@ const StudentRestaurantDetail = () => {
           {selectedCategory ? selectedCategory : "All Items"}
         </h2>
         
-        <div className="mt-4 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredMenuItems.map((food, index) => (
-            <motion.div
-              key={food.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: index * 0.1 }}
-            >
-              <FoodCard
-                item={food}
-                onAddToCart={(quantity) => handleAddToCart(food, quantity)}
-              />
-            </motion.div>
-          ))}
-        </div>
-        
-        {filteredMenuItems.length === 0 && (
+        {menuItems.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No menu items available for this restaurant.</p>
+          </div>
+        ) : filteredMenuItems.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500">No items found in this category.</p>
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {filteredMenuItems.map((food, index) => (
+              <motion.div
+                key={food.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: index * 0.1 }}
+              >
+                <FoodCard
+                  item={food}
+                  onAddToCart={(quantity) => handleAddToCart(food, quantity)}
+                />
+              </motion.div>
+            ))}
           </div>
         )}
       </div>
