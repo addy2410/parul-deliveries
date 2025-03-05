@@ -44,7 +44,7 @@ export interface Order {
   deliveryLocation: string;
 }
 
-// Export data collections
+// Export data collections - Only keeping BlueZ Biryani
 export const restaurants: Restaurant[] = [
   {
     id: 'rest-1',
@@ -62,7 +62,7 @@ export const restaurants: Restaurant[] = [
   }
 ];
 
-// Update menu items to only keep BlueZ Biryani items
+// Keep only BlueZ Biryani menu items
 export const menuItems: MenuItem[] = [
   {
     id: 'item-1',
@@ -116,7 +116,7 @@ export const menuItems: MenuItem[] = [
   }
 ];
 
-// Keep the rest of the file unchanged
+// Keep the sample orders
 export const sampleOrders: Order[] = [
   {
     id: 'order-1001',

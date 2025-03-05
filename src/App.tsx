@@ -45,11 +45,11 @@ const clearAllTestOrders = async () => {
   try {
     console.log("Clearing all test orders from the database...");
     
-    // Using a more reliable approach to clear orders
+    // Delete all orders (without using the UUID comparison that was causing errors)
     const { error } = await supabase
       .from('orders')
       .delete()
-      .gte('id', '0'); // This will delete all orders since all UUIDs are greater than '0'
+      .neq('id', ''); // This will delete all orders
     
     if (error) {
       console.error("Error clearing test orders:", error);

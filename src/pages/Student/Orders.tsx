@@ -125,9 +125,9 @@ const Orders = () => {
         setLoading(true);
 
         // Check if user is authenticated
-        const { data: sessionData } = await supabase.auth.getSession();
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-        if (!sessionData.session) {
+        if (!sessionData?.session) {
           toast.error("Please login to view your orders");
           navigate("/student/login");
           return;
@@ -182,60 +182,64 @@ const Orders = () => {
     fetchOrders();
 
     // Subscribe to real-time updates
-    const { data: sessionData } = supabase.auth.getSession();
-    const userId = sessionData.session?.user?.id;
-    
-    if (userId) {
-      const channel = supabase
-        .channel("student-orders")
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "orders",
-            filter: `student_id=eq.${userId}`,
-          },
-          (payload) => {
-            console.log("Student received real-time order update:", payload);
+    const fetchSession = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user?.id) {
+        const userId = sessionData.session.user.id;
+        
+        const channel = supabase
+          .channel("student-orders")
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "orders",
+              filter: `student_id=eq.${userId}`,
+            },
+            (payload) => {
+              console.log("Student received real-time order update:", payload);
 
-            if (payload.eventType === "INSERT") {
-              setActiveOrders((prev) => [payload.new as Order, ...prev]);
-            } else if (payload.eventType === "UPDATE") {
-              const updated = payload.new as Order;
-              if (
-                updated.status === "delivered" ||
-                updated.status === "cancelled"
-              ) {
+              if (payload.eventType === "INSERT") {
+                setActiveOrders((prev) => [payload.new as Order, ...prev]);
+              } else if (payload.eventType === "UPDATE") {
+                const updated = payload.new as Order;
+                if (
+                  updated.status === "delivered" ||
+                  updated.status === "cancelled"
+                ) {
+                  setActiveOrders((prev) =>
+                    prev.filter((order) => order.id !== updated.id)
+                  );
+                  setPastOrders((prev) => [updated, ...prev]);
+                } else {
+                  setActiveOrders((prev) =>
+                    prev.map((order) =>
+                      order.id === updated.id
+                        ? { ...updated, items: order.items }
+                        : order
+                    )
+                  );
+                }
+              } else if (payload.eventType === "DELETE") {
                 setActiveOrders((prev) =>
-                  prev.filter((order) => order.id !== updated.id)
+                  prev.filter((order) => order.id !== payload.old.id)
                 );
-                setPastOrders((prev) => [updated, ...prev]);
-              } else {
-                setActiveOrders((prev) =>
-                  prev.map((order) =>
-                    order.id === updated.id
-                      ? { ...updated, items: order.items }
-                      : order
-                  )
+                setPastOrders((prev) =>
+                  prev.filter((order) => order.id !== payload.old.id)
                 );
               }
-            } else if (payload.eventType === "DELETE") {
-              setActiveOrders((prev) =>
-                prev.filter((order) => order.id !== payload.old.id)
-              );
-              setPastOrders((prev) =>
-                prev.filter((order) => order.id !== payload.old.id)
-              );
             }
-          }
-        )
-        .subscribe();
+          )
+          .subscribe();
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
+        return () => {
+          supabase.removeChannel(channel);
+        };
+      }
+    };
+    
+    fetchSession();
   }, [navigate]);
 
   const renderOrderCard = (order) => (
