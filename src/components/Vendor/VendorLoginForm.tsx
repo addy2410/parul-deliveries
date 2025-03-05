@@ -50,12 +50,16 @@ const VendorLoginForm: React.FC<VendorLoginFormProps> = ({
       
       toast.success("Login successful");
       
+      // Store user info in localStorage
+      localStorage.setItem('currentVendorId', authData.user.id);
+      localStorage.setItem('vendorPUCAMPID', pucampid);
+      
       // Check if vendor has a shop
       const { data: shopData, error: shopError } = await supabase
         .from('shops')
         .select('*')
         .eq('vendor_id', authData?.user?.id)
-        .single();
+        .maybeSingle();
         
       if (shopError && shopError.code !== 'PGRST116') {
         console.error("Error checking for shop:", shopError);
@@ -68,7 +72,7 @@ const VendorLoginForm: React.FC<VendorLoginFormProps> = ({
         // Vendor doesn't have a shop yet, redirect to shop registration
         navigate("/vendor/register-shop");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
       toast.error("Login failed. Please check your credentials and try again.");
     } finally {

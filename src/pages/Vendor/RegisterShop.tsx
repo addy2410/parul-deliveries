@@ -16,21 +16,33 @@ const RegisterShop = () => {
     const checkVendorAuth = async () => {
       try {
         setLoading(true);
-        // Always check Supabase auth
-        console.log("Checking Supabase authentication");
+        // Check if we have vendor info in localStorage
+        const storedVendorId = localStorage.getItem('currentVendorId');
+        
+        if (storedVendorId) {
+          setVendorId(storedVendorId);
+          setLoading(false);
+          return;
+        }
+        
+        // If not in localStorage, check Supabase auth
         const { data, error } = await supabase.auth.getSession();
-        console.log("Auth session data:", data?.session ? "Session exists" : "No session");
+        
         if (error) {
           console.error("Auth error:", error.message);
           toast.error(`Authentication error: ${error.message}`);
           navigate("/vendor/login");
           return;
         }
+        
         if (!data.session) {
           toast.error("You need to login first");
           navigate("/vendor/login");
           return;
         }
+        
+        // Store vendor ID in localStorage for future use
+        localStorage.setItem('currentVendorId', data.session.user.id);
         setVendorId(data.session.user.id);
       } catch (error) {
         console.error("Auth check error:", error);

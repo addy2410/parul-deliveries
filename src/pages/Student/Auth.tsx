@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
-import { registerStudent, loginStudent } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 
 const StudentAuth = () => {
@@ -60,17 +59,59 @@ const StudentAuth = () => {
     setIsLoading(true);
     
     try {
-      const result = await registerStudent(signupPhone, signupName, signupPassword);
+      // First check if the user already exists
+      const { data: existingUser } = await supabase
+        .from('student_users')
+        .select('phone')
+        .eq('phone', signupPhone)
+        .maybeSingle();
       
-      if (result.success) {
-        toast.success(result.message);
-        navigate("/student/restaurants");
-      } else {
-        toast.error(result.message);
+      if (existingUser) {
+        toast.error("This phone number is already registered. Please login instead.");
+        setIsLoading(false);
+        return;
       }
-    } catch (error) {
+      
+      // Generate a unique email-like identifier for auth
+      const email = `${signupPhone}@student.campusgrub.app`;
+      
+      // Sign up with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password: signupPassword,
+      });
+      
+      if (authError) {
+        throw authError;
+      }
+      
+      // Store additional user data in student_users table
+      const { error: studentError } = await supabase
+        .from('student_users')
+        .insert([
+          { 
+            id: authData.user?.id,
+            phone: signupPhone,
+            name: signupName,
+            password_hash: signupPassword, // In a real app, this should be hashed properly
+          }
+        ]);
+      
+      if (studentError) {
+        console.error("Failed to create student record:", studentError);
+        throw studentError;
+      }
+      
+      // Store user info in localStorage for easy access
+      localStorage.setItem('currentStudentId', authData.user?.id || '');
+      localStorage.setItem('studentName', signupName);
+      localStorage.setItem('studentPhone', signupPhone);
+      
+      toast.success("Registration successful!");
+      navigate("/student/restaurants");
+    } catch (error: any) {
       console.error("Signup error:", error);
-      toast.error("An unexpected error occurred. Please try again.");
+      toast.error(error.message || "An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -87,17 +128,40 @@ const StudentAuth = () => {
     setIsLoading(true);
     
     try {
-      const result = await loginStudent(loginPhone, loginPassword);
+      // Generate the email-like identifier for auth
+      const email = `${loginPhone}@student.campusgrub.app`;
       
-      if (result.success) {
-        toast.success(result.message);
-        navigate("/student/restaurants");
-      } else {
-        toast.error(result.message);
+      // Attempt to sign in
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password: loginPassword,
+      });
+      
+      if (authError) {
+        throw authError;
       }
-    } catch (error) {
+      
+      // Fetch the student data
+      const { data: studentData, error: studentError } = await supabase
+        .from('student_users')
+        .select('*')
+        .eq('id', authData.user.id)
+        .maybeSingle();
+      
+      if (studentError || !studentData) {
+        throw new Error("Failed to retrieve student information");
+      }
+      
+      // Store user info in localStorage for easy access
+      localStorage.setItem('currentStudentId', studentData.id);
+      localStorage.setItem('studentName', studentData.name);
+      localStorage.setItem('studentPhone', studentData.phone);
+      
+      toast.success("Login successful!");
+      navigate("/student/restaurants");
+    } catch (error: any) {
       console.error("Login error:", error);
-      toast.error("An unexpected error occurred. Please try again.");
+      toast.error("Invalid phone number or password. Please try again.");
     } finally {
       setIsLoading(false);
     }

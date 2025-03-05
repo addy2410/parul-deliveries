@@ -3,14 +3,13 @@ import React from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-import { supabase } from "@/lib/supabase";
-import { toast } from "sonner";
 
 // Create a CampusGrub logo component
 const CampusGrubLogo = () => (
   <div className="flex items-center justify-center mb-8">
-    <div className="text-3xl font-extrabold text-[#ea384c] fontLogo">
-      CampusGrub
+    <div className="text-3xl font-extrabold">
+      <span className="text-[#ea384c]">Campus</span>
+      <span className="text-black">Grub</span>
     </div>
   </div>
 );
@@ -66,7 +65,7 @@ const RoleSelection: React.FC = () => {
         <RoleCard
           title="I'm a Student"
           description="Browse restaurants, order food, and enjoy campus delivery."
-          route="/student/auth"
+          route="/student/restaurants"
           className="border-secondary/50 hover:border-secondary"
           delay={0.4}
         />

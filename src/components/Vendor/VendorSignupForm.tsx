@@ -40,35 +40,58 @@ const VendorSignupForm: React.FC<VendorSignupFormProps> = ({
       const email = `${pucampid.toLowerCase()}@campus-vendor.com`;
       
       // Check if user already exists
-      const { data: existingUser, error: checkError } = await supabase.auth.signInWithPassword({
-        email,
-        password: password + "dummy", // Use a dummy password to avoid correct login
-      });
+      const { data: existingUser, error: checkError } = await supabase
+        .from('vendors')
+        .select('pucampid')
+        .eq('pucampid', pucampid.toUpperCase())
+        .maybeSingle();
       
-      if (!checkError) {
-        // User exists
+      if (existingUser) {
         toast.error("This PUCAMPID is already registered. Please login instead.");
+        setIsLoading(false);
         return;
       }
       
       // User doesn't exist, continue with signup
       if (pucampid.startsWith("VEN") && password.length >= 6) {
-        // Try to sign up
+        // Try to sign up with Supabase auth
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
         });
         
-        if (signUpError) throw signUpError;
+        if (signUpError) {
+          throw signUpError;
+        }
         
-        toast.success("Account created successfully. Please login.");
+        // Store additional vendor data
+        const { error: vendorError } = await supabase
+          .from('vendors')
+          .insert([
+            { 
+              id: signUpData.user?.id,
+              pucampid: pucampid.toUpperCase(),
+              email,
+            }
+          ]);
+        
+        if (vendorError) {
+          console.error("Failed to create vendor record:", vendorError);
+          throw vendorError;
+        }
+        
+        // Store user info in localStorage
+        localStorage.setItem('currentVendorId', signUpData.user?.id || '');
+        localStorage.setItem('vendorPUCAMPID', pucampid);
+        
+        toast.success("Account created successfully. Redirecting to shop registration...");
         navigate("/vendor/register-shop");
       } else {
         toast.error("PUCAMPID must start with 'VEN' and password must be at least 6 characters");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Signup error:", error);
-      toast.error("Signup failed. Please try again.");
+      toast.error(error.message || "Signup failed. Please try again.");
     } finally {
       setIsLoading(false);
     }

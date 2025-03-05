@@ -45,7 +45,6 @@ const ShopRegistration: React.FC<ShopRegistrationProps> = ({ vendorId, onComplet
     console.log("Submitting shop data for vendor:", vendorId);
     
     try {
-      // Always use Supabase for shop registration
       console.log("Using Supabase for shop registration");
       // Insert shop data into Supabase
       const { data: shop, error } = await supabase
@@ -58,6 +57,9 @@ const ShopRegistration: React.FC<ShopRegistrationProps> = ({ vendorId, onComplet
             description: data.description || '',
             cuisine: data.cuisine,
             tags: [data.cuisine],
+            rating: 4.5, // Default rating
+            deliveryTime: '15-25 min', // Default delivery time
+            coverImage: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836', // Default image
           },
         ])
         .select()
