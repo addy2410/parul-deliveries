@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,15 +14,6 @@ type MenuItem = {
   category?: string;
   image?: string;
   description?: string;
-};
-
-type CartItem = {
-  id: string;
-  name: string;
-  price: number;
-  restaurantId: string;
-  restaurantName: string;
-  quantity?: number;
 };
 
 type RestaurantMenuProps = {
@@ -61,15 +51,16 @@ const RestaurantMenu: React.FC<RestaurantMenuProps> = ({
     const quantity = itemQuantities[item.id] || 1;
     
     // Create a cart item with all required properties
-    const cartItem: CartItem = {
+    addItem({
       id: item.id,
       name: item.name,
       price: item.price,
       restaurantId,
       restaurantName,
-    };
-    
-    addItem(cartItem, quantity);
+      // Add the missing properties required by MenuItem type
+      description: item.description || "",
+      image: item.image || ""
+    }, quantity);
     
     toast.success(`Added ${quantity} ${item.name} to cart`);
     
