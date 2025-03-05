@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2 } from "lucide-react";
 
 const StudentLogin = () => {
   const [activeTab, setActiveTab] = useState("login");
@@ -16,6 +17,7 @@ const StudentLogin = () => {
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
 
   // Check if user is already logged in
@@ -23,9 +25,14 @@ const StudentLogin = () => {
     const checkStudentSession = async () => {
       const studentSession = localStorage.getItem('studentSession');
       if (studentSession) {
-        const { userId, name } = JSON.parse(studentSession);
-        if (userId && name) {
-          navigate('/student/restaurants');
+        try {
+          const { userId, name } = JSON.parse(studentSession);
+          if (userId && name) {
+            navigate('/student/restaurants');
+          }
+        } catch (error) {
+          console.error("Invalid session data", error);
+          localStorage.removeItem('studentSession');
         }
       }
     };
@@ -35,8 +42,10 @@ const StudentLogin = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage("");
     
     if (!loginEmail || !loginPassword) {
+      setErrorMessage("Please enter your email and password");
       toast.error("Please enter your email and password");
       return;
     }
@@ -44,28 +53,42 @@ const StudentLogin = () => {
     setIsLoading(true);
     
     try {
+      console.log("Attempting login with email:", loginEmail);
       const { data, error } = await supabase.functions.invoke('verify-student-password', {
         body: { email: loginEmail, password: loginPassword }
       });
       
-      if (error || !data.success) {
-        console.error("Login error:", error || data.error);
-        toast.error(data?.error || "Login failed. Please check your credentials.");
+      console.log("Login response:", data);
+      
+      if (error) {
+        console.error("Login error from function invocation:", error);
+        setErrorMessage(error.message || "Login failed. Please try again.");
+        toast.error(error.message || "Login failed. Please try again.");
+        return;
+      }
+      
+      if (!data.success) {
+        console.error("Login failed:", data.error);
+        setErrorMessage(data.error || "Login failed. Please check your credentials.");
+        toast.error(data.error || "Login failed. Please check your credentials.");
         return;
       }
       
       // Store user session
-      localStorage.setItem('studentSession', JSON.stringify({
+      const sessionData = {
         userId: data.userId,
         name: data.name,
         email: loginEmail,
-      }));
+      };
+      
+      localStorage.setItem('studentSession', JSON.stringify(sessionData));
       
       toast.success("Login successful!");
       navigate('/student/restaurants');
       
     } catch (error: any) {
       console.error("Login error:", error);
+      setErrorMessage("An unexpected error occurred. Please try again.");
       toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
@@ -74,15 +97,24 @@ const StudentLogin = () => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage("");
     
     if (!registerName || !registerEmail || !registerPassword) {
+      setErrorMessage("Name, email, and password are required");
       toast.error("Name, email, and password are required");
+      return;
+    }
+    
+    if (registerPassword.length < 6) {
+      setErrorMessage("Password must be at least 6 characters");
+      toast.error("Password must be at least 6 characters");
       return;
     }
     
     setIsLoading(true);
     
     try {
+      console.log("Attempting registration with email:", registerEmail);
       const { data, error } = await supabase.functions.invoke('create-student-user', {
         body: { 
           name: registerName, 
@@ -91,24 +123,37 @@ const StudentLogin = () => {
         }
       });
       
-      if (error || !data.success) {
-        console.error("Registration error:", error || data.error);
-        toast.error(data?.error || "Registration failed. Please try again.");
+      console.log("Registration response:", data);
+      
+      if (error) {
+        console.error("Registration error from function invocation:", error);
+        setErrorMessage(error.message || "Registration failed. Please try again.");
+        toast.error(error.message || "Registration failed. Please try again.");
+        return;
+      }
+      
+      if (!data.success) {
+        console.error("Registration failed:", data.error);
+        setErrorMessage(data.error || "Registration failed. Please try again.");
+        toast.error(data.error || "Registration failed. Please try again.");
         return;
       }
       
       // Store user session
-      localStorage.setItem('studentSession', JSON.stringify({
+      const sessionData = {
         userId: data.userId,
         name: data.name,
         email: registerEmail,
-      }));
+      };
+      
+      localStorage.setItem('studentSession', JSON.stringify(sessionData));
       
       toast.success("Registration successful!");
       navigate('/student/restaurants');
       
     } catch (error: any) {
       console.error("Registration error:", error);
+      setErrorMessage("An unexpected error occurred. Please try again.");
       toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
@@ -131,6 +176,12 @@ const StudentLogin = () => {
                 <TabsTrigger value="register">Register</TabsTrigger>
               </TabsList>
               
+              {errorMessage && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-md text-sm">
+                  {errorMessage}
+                </div>
+              )}
+              
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4 mt-4">
                   <div className="space-y-2">
@@ -142,6 +193,7 @@ const StudentLogin = () => {
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
                       required
+                      disabled={isLoading}
                     />
                   </div>
                   
@@ -154,11 +206,18 @@ const StudentLogin = () => {
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       required
+                      disabled={isLoading}
                     />
                   </div>
                   
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Logging in..." : "Login"}
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging in...
+                      </>
+                    ) : (
+                      "Login"
+                    )}
                   </Button>
                   
                   <p className="text-sm text-center text-gray-500 mt-4">
@@ -167,6 +226,7 @@ const StudentLogin = () => {
                       type="button"
                       className="text-primary hover:underline"
                       onClick={() => setActiveTab("register")}
+                      disabled={isLoading}
                     >
                       Register
                     </button>
@@ -185,6 +245,7 @@ const StudentLogin = () => {
                       value={registerName}
                       onChange={(e) => setRegisterName(e.target.value)}
                       required
+                      disabled={isLoading}
                     />
                   </div>
                   
@@ -197,6 +258,7 @@ const StudentLogin = () => {
                       value={registerEmail}
                       onChange={(e) => setRegisterEmail(e.target.value)}
                       required
+                      disabled={isLoading}
                     />
                   </div>
                   
@@ -205,15 +267,23 @@ const StudentLogin = () => {
                     <Input
                       id="register-password"
                       type="password"
-                      placeholder="Create a password"
+                      placeholder="Create a password (min 6 characters)"
                       value={registerPassword}
                       onChange={(e) => setRegisterPassword(e.target.value)}
                       required
+                      disabled={isLoading}
+                      minLength={6}
                     />
                   </div>
                   
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Registering..." : "Register"}
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Registering...
+                      </>
+                    ) : (
+                      "Register"
+                    )}
                   </Button>
                   
                   <p className="text-sm text-center text-gray-500 mt-4">
@@ -222,6 +292,7 @@ const StudentLogin = () => {
                       type="button"
                       className="text-primary hover:underline"
                       onClick={() => setActiveTab("login")}
+                      disabled={isLoading}
                     >
                       Login
                     </button>

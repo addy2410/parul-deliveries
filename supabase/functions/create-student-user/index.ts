@@ -15,18 +15,31 @@ serve(async (req) => {
   }
   
   try {
+    console.log("Starting create-student-user function");
     console.log("SUPABASE_SERVICE_ROLE_KEY available:", !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
+    console.log("SUPABASE_URL available:", !!Deno.env.get('SUPABASE_URL'));
     
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("Missing Supabase credentials");
+      return new Response(
+        JSON.stringify({ success: false, error: 'Server configuration error' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const { email, name, password } = await req.json();
+    // Parse request body
+    const requestData = await req.json();
+    const { email, name, password } = requestData;
     
     console.log(`Creating new student user with email: ${email}, name: ${name}`);
     
     if (!email || !name || !password) {
+      console.error("Missing required fields:", { email: !!email, name: !!name, password: !!password });
       return new Response(
         JSON.stringify({ success: false, error: 'Email, name, and password are required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -48,6 +61,7 @@ serve(async (req) => {
     }
     
     if (existingStudents && existingStudents.length > 0) {
+      console.error('Email already registered as student');
       return new Response(
         JSON.stringify({ success: false, error: 'Email already registered' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
@@ -69,43 +83,69 @@ serve(async (req) => {
     }
     
     if (existingVendors && existingVendors.length > 0) {
+      console.error('Email already registered as vendor');
       return new Response(
         JSON.stringify({ success: false, error: 'Email already registered as a vendor' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
       );
     }
     
-    // Hash the password
-    const salt = await bcrypt.genSalt(10);
-    const password_hash = await bcrypt.hash(password, salt);
-    
-    // Create the user with a default phone number
-    const { data: newUser, error: insertError } = await supabaseClient
-      .from('student_users')
-      .insert([
-        { email, name, password_hash, phone: '1234567890' }
-      ])
-      .select()
-      .single();
+    try {
+      // Hash the password
+      console.log("Hashing password");
+      const salt = await bcrypt.genSalt(10);
+      const password_hash = await bcrypt.hash(password, salt);
       
-    if (insertError) {
-      console.error('Error creating user:', insertError);
+      // Create the user with a default phone number
+      console.log("Inserting new student user");
+      const { data: newUser, error: insertError } = await supabaseClient
+        .from('student_users')
+        .insert([
+          { 
+            id: crypto.randomUUID(), // Explicitly generate UUID
+            email, 
+            name, 
+            password_hash, 
+            phone: '1234567890' 
+          }
+        ])
+        .select();
+        
+      if (insertError) {
+        console.error('Error creating user:', insertError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to create user account: ' + insertError.message }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
+      
+      if (!newUser || newUser.length === 0) {
+        console.error('User created but no data returned');
+        return new Response(
+          JSON.stringify({ success: false, error: 'User created but no data returned' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
+      
+      console.log("Student user created successfully:", newUser[0].id);
+      
+      // Return success with the new user ID
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to create user account: ' + insertError.message }),
+        JSON.stringify({ 
+          success: true, 
+          userId: newUser[0].id,
+          name: newUser[0].name,
+          message: 'User created successfully'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } catch (hashingError) {
+      console.error('Error during password hashing or user creation:', hashingError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to create user: ' + hashingError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
-    
-    // Return success with the new user ID
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        userId: newUser.id,
-        name: newUser.name,
-        message: 'User created successfully'
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
     
   } catch (error) {
     console.error('Edge function error:', error);
