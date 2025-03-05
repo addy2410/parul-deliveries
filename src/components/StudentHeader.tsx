@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+
+import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
@@ -11,9 +12,13 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import Cart from "@/components/Cart";
+import Cart from "@/components/Cart"; // This import should work now that we've created the file
 
-const StudentHeader = () => {
+interface StudentHeaderProps {
+  studentName?: string; // Make the prop optional
+}
+
+const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName }) => {
   const { items } = useCart();
   const navigate = useNavigate();
   const totalItemsInCart = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -34,6 +39,11 @@ const StudentHeader = () => {
           </div>
           
           <div className="flex items-center space-x-4">
+            {studentName && (
+              <span className="text-sm font-medium hidden md:inline-block">
+                Welcome, {studentName}
+              </span>
+            )}
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="outline" className="relative">
