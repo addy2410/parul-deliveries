@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -302,60 +303,60 @@ const OrderTracking = () => {
                   </div>
                 </div>
               </div>
-            )}
-            
-            <Card className="mb-6">
-              <CardContent className="p-6">
-                <h2 className="text-lg font-medium mb-4">Order Details</h2>
-                
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm font-medium mb-2">Delivery Address:</p>
-                    <div className="flex items-start text-sm">
-                      <span>{order.delivery_location}</span>
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div>
-                    <p className="text-sm font-medium mb-2">Items:</p>
-                    <ul className="space-y-2">
-                      {order.items.map((item, index) => (
-                        <li key={index} className="flex justify-between text-sm">
-                          <span className="flex items-center gap-2">
-                            <span className="bg-gray-100 w-6 h-6 rounded-full flex items-center justify-center text-xs">
-                              {item.quantity}
-                            </span>
-                            {item.name}
-                          </span>
-                          <span>₹{(item.price * item.quantity).toFixed(2)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div>
-                    <div className="flex justify-between text-sm">
-                      <span>Subtotal</span>
-                      <span>₹{(order.total_amount - 30).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm mt-1">
-                      <span>Delivery Fee</span>
-                      <span>₹30.00</span>
-                    </div>
-                    <div className="flex justify-between font-medium mt-3 text-base">
-                      <span>Total</span>
-                      <span>₹{order.total_amount.toFixed(2)}</span>
-                    </div>
+            </div>
+          )}
+          
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <h2 className="text-lg font-medium mb-4">Order Details</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium mb-2">Delivery Address:</p>
+                  <div className="flex items-start text-sm">
+                    <span>{order.delivery_location}</span>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                
+                <Separator />
+                
+                <div>
+                  <p className="text-sm font-medium mb-2">Items:</p>
+                  <ul className="space-y-2">
+                    {order.items.map((item, index) => (
+                      <li key={index} className="flex justify-between text-sm">
+                        <span className="flex items-center gap-2">
+                          <span className="bg-gray-100 w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                            {item.quantity}
+                          </span>
+                          {item.name}
+                        </span>
+                        <span>₹{(item.price * item.quantity).toFixed(2)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                
+                <Separator />
+                
+                <div>
+                  <div className="flex justify-between text-sm">
+                    <span>Subtotal</span>
+                    <span>₹{(order.total_amount - 30).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm mt-1">
+                    <span>Delivery Fee</span>
+                    <span>₹30.00</span>
+                  </div>
+                  <div className="flex justify-between font-medium mt-3 text-base">
+                    <span>Total</span>
+                    <span>₹{order.total_amount.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
