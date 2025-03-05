@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Clock, MapPin, Star, Utensils } from "lucide-react";
+import { Clock, MapPin, Star, Utensils, PlusCircle } from "lucide-react";
 import RestaurantMenu from "@/components/RestaurantMenu";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
