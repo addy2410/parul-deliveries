@@ -147,12 +147,12 @@ serve(async (req) => {
       );
     }
     
-    // Hash the password with bcryptjs
+    // Hash the password with bcryptjs - using a fixed number of rounds (6)
+    // instead of generating a separate salt for better compatibility
     let password_hash;
     try {
-      console.log("Starting password hashing");
-      // Use bcryptjs instead of bcrypt for better compatibility
-      password_hash = await bcrypt.hash(password, 8);
+      console.log("Starting password hashing with fixed rounds (6)");
+      password_hash = await bcrypt.hash(password, 6);
       console.log("Password hashed successfully:", !!password_hash);
       
       if (!password_hash) {
