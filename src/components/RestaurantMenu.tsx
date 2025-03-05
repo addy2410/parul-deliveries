@@ -50,16 +50,14 @@ const RestaurantMenu: React.FC<RestaurantMenuProps> = ({
   const handleAddToCart = (item: MenuItem) => {
     const quantity = itemQuantities[item.id] || 1;
     
-    // Create a cart item with all required properties
+    // Create a cart item with all required properties for MenuItem type
     addItem({
       id: item.id,
       name: item.name,
       price: item.price,
-      restaurantId,
-      restaurantName,
-      // Add the missing properties required by MenuItem type
       description: item.description || "",
-      image: item.image || ""
+      image: item.image || "",
+      restaurantId: restaurantId
     }, quantity);
     
     toast.success(`Added ${quantity} ${item.name} to cart`);
