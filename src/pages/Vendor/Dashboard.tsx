@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -18,11 +17,23 @@ import {
   CheckCircle2, 
   XCircle, 
   LogOut,
-  Store 
+  Store,
+  Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Shop {
   id: string;
@@ -36,6 +47,7 @@ const VendorDashboard = () => {
   const [vendorEmail, setVendorEmail] = useState("");
   const [shop, setShop] = useState<Shop | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
 
   // Stats for demonstration
@@ -127,6 +139,49 @@ const VendorDashboard = () => {
     }
   };
 
+  const handleDeleteShopAndAccount = async () => {
+    if (!shop) return;
+    
+    try {
+      setIsDeleting(true);
+      
+      // First delete all menu items associated with the shop
+      const { error: menuItemsError } = await supabase
+        .from('menu_items')
+        .delete()
+        .eq('shop_id', shop.id);
+        
+      if (menuItemsError) {
+        console.error("Error deleting menu items:", menuItemsError);
+        toast.error("Failed to delete menu items");
+        return;
+      }
+      
+      // Then delete the shop itself
+      const { error: shopError } = await supabase
+        .from('shops')
+        .delete()
+        .eq('id', shop.id);
+        
+      if (shopError) {
+        console.error("Error deleting shop:", shopError);
+        toast.error("Failed to delete shop");
+        return;
+      }
+      
+      // Sign out the user
+      await supabase.auth.signOut();
+      
+      toast.success("Shop successfully deleted and you've been logged out");
+      navigate("/");
+    } catch (error) {
+      console.error("Error during deletion process:", error);
+      toast.error("An unexpected error occurred during deletion");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -144,9 +199,38 @@ const VendorDashboard = () => {
             Welcome back, <span className="font-medium">{vendorEmail}</span>
           </p>
         </div>
-        <Button variant="outline" className="mt-4 md:mt-0" onClick={handleLogout}>
-          <LogOut size={16} className="mr-2" /> Logout
-        </Button>
+        <div className="flex flex-col md:flex-row gap-2 mt-4 md:mt-0">
+          <Button variant="outline" onClick={handleLogout}>
+            <LogOut size={16} className="mr-2" /> Logout
+          </Button>
+          
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">
+                <Trash2 size={16} className="mr-2" /> Delete Shop & Account
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete your shop, 
+                  all menu items, and your vendor account from our servers.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={handleDeleteShopAndAccount} 
+                  disabled={isDeleting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {isDeleting ? "Deleting..." : "Yes, delete everything"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
 
       {/* Shop Information Card */}

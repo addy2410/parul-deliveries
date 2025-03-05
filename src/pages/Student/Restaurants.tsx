@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,15 +46,15 @@ const StudentRestaurants = () => {
         console.info("Fetching real restaurant data from Supabase");
         const { data, error } = await supabase
           .from('shops')
-          .select('*')
-          .eq('is_open', true);
+          .select('*');
           
         if (error) {
           console.error("Error fetching restaurants:", error);
           toast.error("Could not load restaurants");
           // Fallback to sample data if there's an error
           setRestaurantList(sampleRestaurants);
-        } else {
+        } else if (data && data.length > 0) {
+          console.log("Fetched shops from Supabase:", data);
           // Transform the Supabase data to match the Restaurant interface
           const transformedData = data.map(shop => ({
             id: shop.id,
@@ -63,17 +64,21 @@ const StudentRestaurants = () => {
             logo: shop.logo || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352',
             coverImage: shop.cover_image || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352',
             location: shop.location,
-            rating: shop.rating,
+            rating: shop.rating || 4.5,
             cuisine: shop.cuisine,
             tags: shop.tags || [shop.cuisine || 'Food'],
             deliveryFee: 30.00, // Default delivery fee
             deliveryTime: shop.delivery_time || '30-45 min',
-            isOpen: true
+            isOpen: shop.is_open
           }));
           
-          // Combine real data with sample data during development
-          const combinedData = [...transformedData, ...sampleRestaurants];
-          setRestaurantList(combinedData);
+          console.log("Transformed data:", transformedData);
+          
+          // Use only real data if available, otherwise combine with sample
+          setRestaurantList([...transformedData, ...sampleRestaurants]);
+        } else {
+          console.log("No shop data found, using sample data");
+          setRestaurantList(sampleRestaurants);
         }
       } catch (err) {
         console.error("Unexpected error fetching restaurants:", err);
