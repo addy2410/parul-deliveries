@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Clock, MapPin, Star } from "lucide-react";
+import { Clock, MapPin, Star, Utensils } from "lucide-react";
 import RestaurantMenu from "@/components/RestaurantMenu";
 
 // Types
@@ -16,6 +16,8 @@ type MenuItem = {
   name: string;
   price: number;
   category?: string;
+  image?: string;
+  description?: string;
 };
 
 type Restaurant = {
@@ -119,48 +121,70 @@ const RestaurantDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white">
       <StudentHeader />
+      
+      {/* Hero Banner */}
+      <div 
+        className="h-48 md:h-64 w-full bg-cover bg-center relative" 
+        style={{ 
+          backgroundImage: `url(${
+            restaurant.name === "GREENZY Food Court" 
+              ? "/lovable-uploads/6063a852-8cc1-4393-b40f-0703add0cba7.png"
+              : restaurant.name === "Main Food Court"
+                ? "/lovable-uploads/66a8fbfe-db5c-45b2-a572-42477b6e107e.png"
+                : "https://images.unsplash.com/photo-1493770348161-369560ae357d"
+          })` 
+        }}
+      >
+        <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+        <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+          <div className="container mx-auto">
+            <h1 className="text-3xl md:text-4xl font-bold text-white drop-shadow-md">
+              {restaurant.name}
+            </h1>
+            <p className="text-white text-opacity-90 mt-2 max-w-2xl drop-shadow-md">
+              {restaurant.description}
+            </p>
+          </div>
+        </div>
+      </div>
+      
       <div className="container mx-auto px-4 py-8">
-        <Card className="mb-8">
-          <CardHeader className="pb-4">
-            <div className="flex justify-between items-start">
-              <div>
-                <h1 className="text-2xl font-bold">{restaurant.name}</h1>
-                <p className="text-gray-600 mt-1">{restaurant.description}</p>
+        <Card className="mb-8 border-orange-100 shadow-md">
+          <CardContent className="p-6">
+            <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-4">
+              <div className="flex items-center bg-orange-50 px-3 py-2 rounded-full">
+                <MapPin size={16} className="mr-1 text-orange-600" />
+                {restaurant.location}
+              </div>
+              <div className="flex items-center bg-orange-50 px-3 py-2 rounded-full">
+                <Clock size={16} className="mr-1 text-orange-600" />
+                {restaurant.delivery_time}
+              </div>
+              <div className="flex items-center bg-yellow-50 px-3 py-2 rounded-full">
+                <Star size={16} className="mr-1 text-yellow-500 fill-yellow-500" />
+                {restaurant.rating} Rating
               </div>
               {restaurant.is_open ? (
-                <Badge className="bg-green-500">Open Now</Badge>
+                <Badge className="bg-green-500 px-3 py-2 rounded-full">Open Now</Badge>
               ) : (
-                <Badge variant="outline" className="text-red-500 border-red-500">
+                <Badge variant="outline" className="text-red-500 border-red-500 px-3 py-2 rounded-full">
                   Closed
                 </Badge>
               )}
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-4">
-              <div className="flex items-center">
-                <MapPin size={16} className="mr-1" />
-                {restaurant.location}
-              </div>
-              <div className="flex items-center">
-                <Clock size={16} className="mr-1" />
-                {restaurant.delivery_time}
-              </div>
-              <div className="flex items-center">
-                <Star size={16} className="mr-1 text-yellow-500" />
-                {restaurant.rating} Rating
-              </div>
-            </div>
             
             <div className="flex flex-wrap gap-2 mt-4">
               {restaurant.cuisine && (
-                <Badge variant="secondary">{restaurant.cuisine}</Badge>
+                <Badge variant="secondary" className="bg-[#FEC6A1] text-orange-900 hover:bg-[#FEC6A1]/80">
+                  <Utensils size={14} className="mr-1" />
+                  {restaurant.cuisine}
+                </Badge>
               )}
               {restaurant.tags &&
                 restaurant.tags.map((tag, idx) => (
-                  <Badge key={idx} variant="outline">
+                  <Badge key={idx} variant="outline" className="border-orange-200 text-orange-700 bg-orange-50">
                     {tag}
                   </Badge>
                 ))}
@@ -168,7 +192,14 @@ const RestaurantDetail = () => {
           </CardContent>
         </Card>
 
-        <h2 className="text-xl font-bold mb-4">Menu</h2>
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-orange-200"></div>
+          </div>
+          <div className="relative flex justify-center">
+            <span className="bg-white px-4 text-xl font-bold text-orange-800">Menu</span>
+          </div>
+        </div>
         
         {isLoadingMenu ? (
           <div className="space-y-4">
@@ -177,15 +208,20 @@ const RestaurantDetail = () => {
             <Skeleton className="h-24 w-full" />
           </div>
         ) : menuError ? (
-          <p className="text-red-500">
+          <p className="text-red-500 text-center py-8">
             Error loading menu items. Please try again later.
           </p>
-        ) : (
+        ) : menuItems && menuItems.length > 0 ? (
           <RestaurantMenu 
             menuItems={menuItems || []} 
             restaurantId={restaurant.id} 
             restaurantName={restaurant.name} 
           />
+        ) : (
+          <div className="text-center py-10 bg-orange-50 rounded-lg border border-orange-100">
+            <Utensils size={48} className="mx-auto text-orange-300 mb-4" />
+            <p className="text-gray-600">No menu items available for this restaurant yet.</p>
+          </div>
         )}
       </div>
     </div>
