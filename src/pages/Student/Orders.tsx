@@ -119,59 +119,77 @@ const StudentOrders = () => {
           table: 'orders',
           filter: `student_id=eq.${studentId}`
         }, async (payload) => {
-          // Fetch restaurant name for this order
-          let restaurantName = 'Unknown Restaurant';
-          try {
-            const { data } = await supabase
-              .from('shops')
-              .select('name')
-              .eq('id', payload.new.shop_id)
-              .single();
-              
-            if (data) {
-              restaurantName = data.name;
+          // Ensure we have a completely formed order object before updating state
+          const getCompleteOrderData = async (orderData: any): Promise<Order | null> => {
+            // If this is a new order or updated order, ensure it has a shop_id
+            if (!orderData || !orderData.shop_id) {
+              console.error("Order data missing shop_id:", orderData);
+              return null;
             }
-          } catch (e) {
-            console.error("Error fetching shop name:", e);
-          }
+            
+            try {
+              // Fetch shop name
+              const { data } = await supabase
+                .from('shops')
+                .select('name')
+                .eq('id', orderData.shop_id)
+                .single();
+                
+              // Create a complete order object with all required fields
+              const completeOrder: Order = {
+                id: orderData.id,
+                student_id: orderData.student_id,
+                vendor_id: orderData.vendor_id,
+                shop_id: orderData.shop_id,
+                items: Array.isArray(orderData.items) ? orderData.items : [],
+                total_amount: orderData.total_amount,
+                status: orderData.status,
+                delivery_location: orderData.delivery_location,
+                student_name: orderData.student_name,
+                created_at: orderData.created_at,
+                estimated_delivery_time: orderData.estimated_delivery_time,
+                restaurantName: data?.name || 'Unknown Restaurant'
+              };
+              
+              return completeOrder;
+            } catch (e) {
+              console.error("Error fetching shop name:", e);
+              return null;
+            }
+          };
           
           if (payload.eventType === 'INSERT') {
-            const newOrder = {
-              ...payload.new,
-              items: Array.isArray(payload.new.items) ? payload.new.items : [],
-              restaurantName
-            };
-            
-            // Only add to list if it matches the current filter
-            const isActive = ['pending', 'preparing', 'ready', 'delivering'].includes(newOrder.status);
-            if ((type === 'active' && isActive) || (type === 'previous' && !isActive)) {
-              setOrders(prev => [newOrder, ...prev]);
+            const newOrder = await getCompleteOrderData(payload.new);
+            if (newOrder) {
+              // Only add to list if it matches the current filter
+              const isActive = ['pending', 'preparing', 'ready', 'delivering'].includes(newOrder.status);
+              if ((type === 'active' && isActive) || (type === 'previous' && !isActive)) {
+                setOrders(prev => [newOrder, ...prev]);
+              }
             }
           } else if (payload.eventType === 'UPDATE') {
-            const updatedOrder = {
-              ...payload.new,
-              items: Array.isArray(payload.new.items) ? payload.new.items : [],
-              restaurantName
-            };
+            const updatedOrder = await getCompleteOrderData(payload.new);
             
-            // Check if status changed from active to completed/cancelled or vice versa
-            const wasActive = ['pending', 'preparing', 'ready', 'delivering'].includes(payload.old.status);
-            const isActive = ['pending', 'preparing', 'ready', 'delivering'].includes(updatedOrder.status);
-            
-            if (wasActive !== isActive) {
-              // Order moved between active and previous
-              if ((type === 'active' && !isActive) || (type === 'previous' && isActive)) {
-                // Order should be removed from current view
-                setOrders(prev => prev.filter(o => o.id !== updatedOrder.id));
+            if (updatedOrder) {
+              // Check if status changed from active to completed/cancelled or vice versa
+              const wasActive = ['pending', 'preparing', 'ready', 'delivering'].includes(payload.old.status);
+              const isActive = ['pending', 'preparing', 'ready', 'delivering'].includes(updatedOrder.status);
+              
+              if (wasActive !== isActive) {
+                // Order moved between active and previous
+                if ((type === 'active' && !isActive) || (type === 'previous' && isActive)) {
+                  // Order should be removed from current view
+                  setOrders(prev => prev.filter(o => o.id !== updatedOrder.id));
+                } else {
+                  // Order should be added to current view
+                  setOrders(prev => [updatedOrder, ...prev]);
+                }
               } else {
-                // Order should be added to current view
-                setOrders(prev => [updatedOrder, ...prev]);
+                // Just update the order in the current view
+                setOrders(prev => prev.map(o => 
+                  o.id === updatedOrder.id ? updatedOrder : o
+                ));
               }
-            } else {
-              // Just update the order in the current view
-              setOrders(prev => prev.map(o => 
-                o.id === updatedOrder.id ? updatedOrder : o
-              ));
             }
           }
         })
