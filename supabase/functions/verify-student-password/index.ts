@@ -76,7 +76,11 @@ serve(async (req) => {
     } catch (bcryptError) {
       console.error('Error in password comparison:', bcryptError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Error verifying password' }),
+        JSON.stringify({ 
+          success: false, 
+          error: 'Error verifying password',
+          details: bcryptError.message || 'Unknown bcrypt error'
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
@@ -84,7 +88,11 @@ serve(async (req) => {
   } catch (error) {
     console.error('Edge function error:', error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message || 'Unknown server error' }),
+      JSON.stringify({ 
+        success: false, 
+        error: error.message || 'Unknown server error',
+        stack: error.stack
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   }

@@ -138,12 +138,15 @@ serve(async (req) => {
       );
     }
     
-    // Hash the password - FIXED THIS SECTION for better error handling
+    // Hash the password - Fixed for Deno environment
     let password_hash;
     try {
       console.log("Hashing password");
-      // Using a simpler method to generate salt and hash password
-      password_hash = await bcrypt.hash(password);
+      
+      // Using 10 rounds for salt (typical default)
+      const salt = await bcrypt.genSalt(10);
+      password_hash = await bcrypt.hash(password, salt);
+      
       console.log("Password hashed successfully");
     } catch (hashError) {
       console.error('Error hashing password:', hashError);
