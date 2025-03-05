@@ -1,10 +1,10 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, MinusCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useCart } from "@/context/CartContext";
 
@@ -27,6 +27,7 @@ const RestaurantMenu: React.FC<RestaurantMenuProps> = ({
   restaurantName,
 }) => {
   const { addItem } = useCart();
+  const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
 
   // Group menu items by category
   const groupedItems = menuItems.reduce((acc, item) => {
@@ -46,16 +47,37 @@ const RestaurantMenu: React.FC<RestaurantMenuProps> = ({
   });
 
   const handleAddToCart = (item: MenuItem) => {
+    const quantity = itemQuantities[item.id] || 1;
+    
     // Create a cart item with all required properties
     addItem({
       id: item.id,
       name: item.name,
       price: item.price,
-      quantity: 1,
       restaurantId,
       restaurantName,
-    });
-    toast.success(`Added ${item.name} to cart`);
+    }, quantity);
+    
+    toast.success(`Added ${quantity} ${item.name} to cart`);
+    
+    // Reset quantity after adding to cart
+    const updatedQuantities = { ...itemQuantities };
+    delete updatedQuantities[item.id];
+    setItemQuantities(updatedQuantities);
+  };
+
+  const incrementQuantity = (itemId: string) => {
+    setItemQuantities(prev => ({
+      ...prev,
+      [itemId]: (prev[itemId] || 0) + 1
+    }));
+  };
+
+  const decrementQuantity = (itemId: string) => {
+    setItemQuantities(prev => ({
+      ...prev,
+      [itemId]: Math.max((prev[itemId] || 1) - 1, 1)
+    }));
   };
 
   if (menuItems.length === 0) {
@@ -81,15 +103,50 @@ const RestaurantMenu: React.FC<RestaurantMenuProps> = ({
                       ₹{item.price.toFixed(2)}
                     </Badge>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex items-center"
-                    onClick={() => handleAddToCart(item)}
-                  >
-                    <PlusCircle size={16} className="mr-1" />
-                    Add
-                  </Button>
+                  <div className="flex items-center space-x-2">
+                    {(itemQuantities[item.id] && itemQuantities[item.id] > 0) ? (
+                      <>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-8 w-8"
+                          onClick={() => decrementQuantity(item.id)}
+                        >
+                          <MinusCircle size={16} />
+                        </Button>
+                        <span className="w-6 text-center">
+                          {itemQuantities[item.id] || 1}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-8 w-8"
+                          onClick={() => incrementQuantity(item.id)}
+                        >
+                          <PlusCircle size={16} />
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex items-center"
+                        onClick={() => incrementQuantity(item.id)}
+                      >
+                        <PlusCircle size={16} className="mr-1" />
+                        Add
+                      </Button>
+                    )}
+                    {(itemQuantities[item.id] && itemQuantities[item.id] > 0) && (
+                      <Button
+                        size="sm"
+                        className="ml-2 bg-primary hover:bg-primary/90"
+                        onClick={() => handleAddToCart(item)}
+                      >
+                        Add to Cart
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))}

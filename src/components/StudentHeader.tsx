@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ShoppingBag, User, LogOut, LogIn } from "lucide-react";
@@ -71,7 +72,7 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentN
       <div className="container mx-auto px-4 flex justify-between items-center">
         <Link to="/student/restaurants" className="flex items-center">
           <span className="text-xl font-bold fontLogo text-primary">
-            Campus Eats
+            CampusGrub
           </span>
         </Link>
 

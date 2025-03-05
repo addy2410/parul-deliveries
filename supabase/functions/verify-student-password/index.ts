@@ -20,22 +20,22 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { phone, password } = await req.json();
+    const { email, password } = await req.json();
     
-    console.log(`Attempting to verify password for phone: ${phone}`);
+    console.log(`Attempting to verify password for email: ${email}`);
     
-    if (!phone || !password) {
+    if (!email || !password) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Phone and password are required' }),
+        JSON.stringify({ success: false, error: 'Email and password are required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
     
-    // Get the user with the phone number
+    // Get the user with the email
     const { data: student, error: fetchError } = await supabaseClient
       .from('student_users')
       .select('id, password_hash, name')
-      .eq('phone', phone)
+      .eq('email', email)
       .maybeSingle();
       
     if (fetchError) {

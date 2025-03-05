@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -9,12 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const StudentLogin = () => {
   const [activeTab, setActiveTab] = useState("login");
-  const [loginPhone, setLoginPhone] = useState("");
+  const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [registerName, setRegisterName] = useState("");
-  const [registerPhone, setRegisterPhone] = useState("");
-  const [registerPassword, setRegisterPassword] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -36,8 +36,8 @@ const StudentLogin = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!loginPhone || !loginPassword) {
-      toast.error("Please enter your phone number and password");
+    if (!loginEmail || !loginPassword) {
+      toast.error("Please enter your email and password");
       return;
     }
     
@@ -45,7 +45,7 @@ const StudentLogin = () => {
     
     try {
       const { data, error } = await supabase.functions.invoke('verify-student-password', {
-        body: { phone: loginPhone, password: loginPassword }
+        body: { email: loginEmail, password: loginPassword }
       });
       
       if (error || !data.success) {
@@ -58,7 +58,7 @@ const StudentLogin = () => {
       localStorage.setItem('studentSession', JSON.stringify({
         userId: data.userId,
         name: data.name,
-        phone: loginPhone,
+        email: loginEmail,
       }));
       
       toast.success("Login successful!");
@@ -75,8 +75,8 @@ const StudentLogin = () => {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!registerName || !registerPhone || !registerPassword) {
-      toast.error("Name, phone number, and password are required");
+    if (!registerName || !registerEmail || !registerPassword) {
+      toast.error("Name, email, and password are required");
       return;
     }
     
@@ -86,9 +86,8 @@ const StudentLogin = () => {
       const { data, error } = await supabase.functions.invoke('create-student-user', {
         body: { 
           name: registerName, 
-          phone: registerPhone, 
-          password: registerPassword,
-          email: registerEmail || undefined
+          email: registerEmail, 
+          password: registerPassword
         }
       });
       
@@ -102,7 +101,7 @@ const StudentLogin = () => {
       localStorage.setItem('studentSession', JSON.stringify({
         userId: data.userId,
         name: data.name,
-        phone: registerPhone,
+        email: registerEmail,
       }));
       
       toast.success("Registration successful!");
@@ -119,7 +118,7 @@ const StudentLogin = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <h1 className="text-2xl font-bold text-center mb-6">Campus Food Delivery</h1>
+        <h1 className="text-2xl font-bold text-center mb-6">CampusGrub Food Delivery</h1>
         
         <Card>
           <CardHeader>
@@ -135,13 +134,13 @@ const StudentLogin = () => {
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <label htmlFor="phone" className="text-sm font-medium">Phone Number</label>
+                    <label htmlFor="email" className="text-sm font-medium">Email</label>
                     <Input
-                      id="phone"
-                      type="text"
-                      placeholder="Enter your phone number"
-                      value={loginPhone}
-                      onChange={(e) => setLoginPhone(e.target.value)}
+                      id="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
                       required
                     />
                   </div>
@@ -190,25 +189,14 @@ const StudentLogin = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <label htmlFor="register-phone" className="text-sm font-medium">Phone Number</label>
-                    <Input
-                      id="register-phone"
-                      type="text"
-                      placeholder="Enter your phone number"
-                      value={registerPhone}
-                      onChange={(e) => setRegisterPhone(e.target.value)}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label htmlFor="register-email" className="text-sm font-medium">Email (Optional)</label>
+                    <label htmlFor="register-email" className="text-sm font-medium">Email</label>
                     <Input
                       id="register-email"
                       type="email"
                       placeholder="Enter your email"
                       value={registerEmail}
                       onChange={(e) => setRegisterEmail(e.target.value)}
+                      required
                     />
                   </div>
                   

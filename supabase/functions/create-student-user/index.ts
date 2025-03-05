@@ -20,22 +20,22 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { phone, name, password, email } = await req.json();
+    const { email, name, password } = await req.json();
     
-    console.log(`Creating new student user with phone: ${phone}, name: ${name}`);
+    console.log(`Creating new student user with email: ${email}, name: ${name}`);
     
-    if (!phone || !name || !password) {
+    if (!email || !name || !password) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Phone, name, and password are required' }),
+        JSON.stringify({ success: false, error: 'Email, name, and password are required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
     
-    // Check if user with this phone already exists in student_users
+    // Check if user with this email already exists in student_users
     const { data: existingStudents, error: checkStudentError } = await supabaseClient
       .from('student_users')
-      .select('phone')
-      .eq('phone', phone);
+      .select('email')
+      .eq('email', email);
       
     if (checkStudentError) {
       console.error('Error checking existing student:', checkStudentError);
@@ -47,32 +47,30 @@ serve(async (req) => {
     
     if (existingStudents && existingStudents.length > 0) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Phone number already registered' }),
+        JSON.stringify({ success: false, error: 'Email already registered' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
       );
     }
     
-    // If email is provided, check if it's used by a vendor
-    if (email) {
-      const { data: existingVendors, error: checkVendorError } = await supabaseClient
-        .from('vendors')
-        .select('email')
-        .eq('email', email);
-        
-      if (checkVendorError) {
-        console.error('Error checking existing vendor:', checkVendorError);
-        return new Response(
-          JSON.stringify({ success: false, error: 'Failed to check if email is used by a vendor' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        );
-      }
+    // Check if this email is used by a vendor
+    const { data: existingVendors, error: checkVendorError } = await supabaseClient
+      .from('vendors')
+      .select('email')
+      .eq('email', email);
       
-      if (existingVendors && existingVendors.length > 0) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Email already registered as a vendor' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
-        );
-      }
+    if (checkVendorError) {
+      console.error('Error checking existing vendor:', checkVendorError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to check if email is used by a vendor' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    if (existingVendors && existingVendors.length > 0) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Email already registered as a vendor' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
+      );
     }
     
     // Hash the password
@@ -83,7 +81,7 @@ serve(async (req) => {
     const { data: newUser, error: insertError } = await supabaseClient
       .from('student_users')
       .insert([
-        { phone, name, password_hash, email }
+        { email, name, password_hash }
       ])
       .select()
       .single();
