@@ -19,20 +19,41 @@ const Cart = () => {
   const { studentId, studentName, studentAddress } = useStudentAuth();
   const navigate = useNavigate();
   const [shopData, setShopData] = useState(null);
-  const [loading, setLoading] = useState(false); // Changed to false by default
+  const [loading, setLoading] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState(studentAddress || "");
   const [orderCreated, setOrderCreated] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState(null);
   const total = totalPrice;
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  // Check authentication status on mount
   useEffect(() => {
-    // Only attempt to fetch shop data if we have a shopId
+    // Verify student authentication
+    const checkAuth = () => {
+      const session = localStorage.getItem('studentSession');
+      if (session) {
+        try {
+          const parsedSession = JSON.parse(session);
+          if (parsedSession && parsedSession.userId) {
+            setIsAuthenticated(true);
+          }
+        } catch (error) {
+          console.error("Error parsing student session:", error);
+        }
+      }
+    };
+    
+    checkAuth();
+  }, []);
+
+  // Only attempt to fetch shop data if we have a shopId
+  useEffect(() => {
     if (!shopId) {
       setLoading(false);
       return;
     }
 
-    setLoading(true); // Set loading to true only when we're fetching
+    setLoading(true);
     
     const fetchShopData = async () => {
       try {
@@ -80,7 +101,7 @@ const Cart = () => {
   };
 
   const handleCheckout = async () => {
-    if (!studentId) {
+    if (!isAuthenticated || !studentId) {
       toast.error("You need to be logged in to checkout");
       navigate("/student/login");
       return;
@@ -353,9 +374,9 @@ const Cart = () => {
                       className="w-full bg-primary"
                       size="lg"
                       onClick={handleCheckout}
-                      disabled={items.length === 0 || !studentId}
+                      disabled={items.length === 0}
                     >
-                      Place Order
+                      Checkout
                     </Button>
                   ) : (
                     <Button
@@ -368,7 +389,7 @@ const Cart = () => {
                     </Button>
                   )}
 
-                  {!studentId && (
+                  {!isAuthenticated && (
                     <p className="text-sm text-muted-foreground text-center">
                       Please{" "}
                       <a
