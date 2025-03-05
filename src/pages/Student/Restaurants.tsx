@@ -47,7 +47,7 @@ const StudentRestaurants = () => {
           console.log("Successfully fetched shops from Supabase:", shopsData);
           
           // Transform the Supabase data to match the Restaurant interface
-          const transformedData = shopsData.map(shop => ({
+          const transformedData: Restaurant[] = shopsData.map(shop => ({
             id: shop.id,
             name: shop.name,
             description: shop.description || '',
@@ -55,7 +55,7 @@ const StudentRestaurants = () => {
             coverImage: shop.cover_image || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352',
             location: shop.location,
             rating: shop.rating || 4.5,
-            cuisine: shop.cuisine || 'Food',
+            cuisine: shop.cuisine || 'Food', // Add default value since cuisine is optional in Restaurant
             tags: shop.tags || [shop.cuisine || 'Food'],
             deliveryFee: 30.00,
             deliveryTime: shop.delivery_time || '30-45 min',
@@ -66,7 +66,7 @@ const StudentRestaurants = () => {
           
           // Combine with sample restaurants to ensure we always have data to display
           // Use a Set to deduplicate by ID if there are any overlaps
-          const combinedRestaurants = [...transformedData];
+          const combinedRestaurants: Restaurant[] = [...transformedData];
           
           // Add sample restaurants but only those that don't have the same name as real ones
           const existingNames = new Set(transformedData.map(r => r.name));
