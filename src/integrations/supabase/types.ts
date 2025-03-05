@@ -9,6 +9,88 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      menu_items: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          price: number
+          shop_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          price: number
+          shop_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          price?: number
+          shop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_items_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shops: {
+        Row: {
+          created_at: string
+          cuisine: string | null
+          delivery_time: string | null
+          description: string | null
+          id: string
+          is_open: boolean | null
+          location: string
+          name: string
+          rating: number | null
+          tags: string[] | null
+          vendor_id: string
+        }
+        Insert: {
+          created_at?: string
+          cuisine?: string | null
+          delivery_time?: string | null
+          description?: string | null
+          id?: string
+          is_open?: boolean | null
+          location: string
+          name: string
+          rating?: number | null
+          tags?: string[] | null
+          vendor_id: string
+        }
+        Update: {
+          created_at?: string
+          cuisine?: string | null
+          delivery_time?: string | null
+          description?: string | null
+          id?: string
+          is_open?: boolean | null
+          location?: string
+          name?: string
+          rating?: number | null
+          tags?: string[] | null
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shops_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_users: {
         Row: {
           created_at: string | null
@@ -33,12 +115,41 @@ export type Database = {
         }
         Relationships: []
       }
+      vendors: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_shop_owner: {
+        Args: {
+          menu_item_id: string
+        }
+        Returns: boolean
+      }
+      is_shop_owner_by_shop_id: {
+        Args: {
+          shop_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { supabase, isUsingDefaultCredentials } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // Define the form schema
 const shopFormSchema = z.object({
@@ -45,61 +45,31 @@ const ShopRegistration: React.FC<ShopRegistrationProps> = ({ vendorId, onComplet
     console.log("Submitting shop data for vendor:", vendorId);
     
     try {
-      if (isUsingDefaultCredentials()) {
-        console.log("Using demo mode for shop registration");
-        // For demo mode, store in localStorage
-        const shopData = {
-          id: `shop-${Date.now()}`,
-          vendor_id: vendorId,
-          name: data.name,
-          location: data.location,
-          description: data.description || '',
-          cuisine: data.cuisine,
-          rating: 4.5,
-          tags: [data.cuisine],
-          delivery_time: "30-45 min",
-          is_open: true,
-        };
-        
-        // Save to localStorage
-        const shops = JSON.parse(localStorage.getItem('shops') || '[]');
-        shops.push(shopData);
-        localStorage.setItem('shops', JSON.stringify(shops));
-        localStorage.setItem('currentVendorShop', JSON.stringify(shopData));
-        
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        toast.success('Shop registered successfully in demo mode!');
-        onComplete();
-      } else {
-        console.log("Using Supabase for shop registration");
-        // Insert shop data into Supabase
-        const { data: shop, error } = await supabase
-          .from('shops')
-          .insert([
-            {
-              vendor_id: vendorId,
-              name: data.name,
-              location: data.location,
-              description: data.description || '',
-              cuisine: data.cuisine,
-              tags: [data.cuisine],
-            },
-          ])
-          .select()
-          .single();
+      // Insert shop data into Supabase
+      const { data: shop, error } = await supabase
+        .from('shops')
+        .insert([
+          {
+            vendor_id: vendorId,
+            name: data.name,
+            location: data.location,
+            description: data.description || '',
+            cuisine: data.cuisine,
+            tags: [data.cuisine],
+          },
+        ])
+        .select()
+        .single();
 
-        if (error) {
-          console.error('Error registering shop:', error);
-          toast.error('Failed to register shop: ' + error.message);
-          return;
-        }
-
-        console.log("Shop registered successfully:", shop);
-        toast.success('Shop registered successfully!');
-        onComplete();
+      if (error) {
+        console.error('Error registering shop:', error);
+        toast.error('Failed to register shop: ' + error.message);
+        return;
       }
+
+      console.log("Shop registered successfully:", shop);
+      toast.success('Shop registered successfully!');
+      onComplete();
     } catch (error: any) {
       console.error('Unexpected error:', error);
       toast.error('An unexpected error occurred. Please try again.');

@@ -22,18 +22,18 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { supabase, isUsingDefaultCredentials } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 interface Shop {
   id: string;
   name: string;
   location: string;
   description?: string;
-  isOpen?: boolean;
+  is_open?: boolean;
 }
 
 const VendorDashboard = () => {
-  const [vendorName, setVendorName] = useState("");
+  const [vendorEmail, setVendorEmail] = useState("");
   const [shop, setShop] = useState<Shop | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
@@ -49,58 +49,42 @@ const VendorDashboard = () => {
   useEffect(() => {
     const checkVendorAuth = async () => {
       try {
-        if (isUsingDefaultCredentials()) {
-          // In demo mode, check localStorage
-          const vendorId = localStorage.getItem('currentVendorId');
-          if (!vendorId) {
-            toast.error("You need to login first");
-            navigate("/vendor/login");
-            return;
-          }
+        // Check Supabase auth
+        const { data, error } = await supabase.auth.getSession();
+        if (error || !data.session) {
+          toast.error("You need to login first");
+          navigate("/vendor/login");
+          return;
+        }
+        
+        const userId = data.session.user.id;
+        const email = data.session.user.email;
+        setVendorEmail(email || "Vendor");
+        
+        // Get vendor's shop
+        const { data: shopData, error: shopError } = await supabase
+          .from('shops')
+          .select('*')
+          .eq('vendor_id', userId)
+          .maybeSingle();
           
-          // Get vendor's shop
-          const shopStr = localStorage.getItem('currentVendorShop');
-          if (!shopStr) {
+        if (shopError) {
+          if (shopError.code === 'PGRST116' || !shopData) {
+            // No shop found
             navigate("/vendor/register-shop");
             return;
           }
-          
-          const shopData = JSON.parse(shopStr);
-          setShop(shopData);
-          setVendorName(vendorId.replace('vendor-', 'Vendor ')); // For display purposes
-        } else {
-          // In production, check Supabase auth
-          const { data, error } = await supabase.auth.getSession();
-          if (error || !data.session) {
-            toast.error("You need to login first");
-            navigate("/vendor/login");
-            return;
-          }
-          
-          const userId = data.session.user.id;
-          const email = data.session.user.email;
-          setVendorName(email?.split('@')[0] || "Vendor");
-          
-          // Get vendor's shop
-          const { data: shopData, error: shopError } = await supabase
-            .from('shops')
-            .select('*')
-            .eq('vendor_id', userId)
-            .single();
-            
-          if (shopError) {
-            if (shopError.code === 'PGRST116') {
-              // No shop found
-              navigate("/vendor/register-shop");
-              return;
-            }
-            console.error("Error fetching shop:", shopError);
-            toast.error("Failed to load shop data");
-            return;
-          }
-          
-          setShop(shopData);
+          console.error("Error fetching shop:", shopError);
+          toast.error("Failed to load shop data");
+          return;
         }
+        
+        if (!shopData) {
+          navigate("/vendor/register-shop");
+          return;
+        }
+        
+        setShop(shopData);
       } catch (error) {
         console.error("Auth check error:", error);
         toast.error("Authentication error");
@@ -114,17 +98,33 @@ const VendorDashboard = () => {
   }, [navigate]);
 
   const handleLogout = async () => {
-    if (isUsingDefaultCredentials()) {
-      // In demo mode, clear localStorage
-      localStorage.removeItem('currentVendorId');
-      localStorage.removeItem('currentVendorShop');
-    } else {
-      // In production, sign out from Supabase
-      await supabase.auth.signOut();
-    }
-    
+    // Sign out from Supabase
+    await supabase.auth.signOut();
     toast.success("Logged out successfully");
     navigate("/vendor/login");
+  };
+  
+  const handleShopStatusChange = async (newStatus: boolean) => {
+    if (!shop) return;
+    
+    try {
+      const { error } = await supabase
+        .from('shops')
+        .update({ is_open: newStatus })
+        .eq('id', shop.id);
+        
+      if (error) {
+        console.error("Error updating shop status:", error);
+        toast.error("Failed to update shop status");
+        return;
+      }
+      
+      setShop(prev => prev ? {...prev, is_open: newStatus} : null);
+      toast.success(`Shop is now ${newStatus ? 'open' : 'closed'}`);
+    } catch (error) {
+      console.error("Error updating shop status:", error);
+      toast.error("An error occurred while updating shop status");
+    }
   };
 
   if (isLoading) {
@@ -141,7 +141,7 @@ const VendorDashboard = () => {
         <div>
           <h1 className="text-3xl font-bold mb-2">Vendor Dashboard</h1>
           <p className="text-muted-foreground">
-            Welcome back, <span className="font-medium">{vendorName}</span>
+            Welcome back, <span className="font-medium">{vendorEmail}</span>
           </p>
         </div>
         <Button variant="outline" className="mt-4 md:mt-0" onClick={handleLogout}>
@@ -170,15 +170,11 @@ const VendorDashboard = () => {
                 <Utensils size={16} className="mr-2" /> Manage Menu
               </Button>
               <Button 
-                variant={shop?.isOpen ? "destructive" : "default"}
-                className={shop?.isOpen ? "" : "bg-green-600 hover:bg-green-700"}
-                onClick={() => {
-                  const newStatus = !shop?.isOpen;
-                  setShop(prev => prev ? {...prev, isOpen: newStatus} : null);
-                  toast.success(`Shop is now ${newStatus ? 'open' : 'closed'}`);
-                }}
+                variant={shop?.is_open ? "destructive" : "default"}
+                className={shop?.is_open ? "" : "bg-green-600 hover:bg-green-700"}
+                onClick={() => handleShopStatusChange(!shop?.is_open)}
               >
-                {shop?.isOpen ? "Close Shop" : "Open Shop"}
+                {shop?.is_open ? "Close Shop" : "Open Shop"}
               </Button>
             </div>
           </div>

@@ -8,21 +8,5 @@ const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 // Initialize the Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Function to check if we're using default credentials (always false now that we've set real credentials)
-export const isUsingDefaultCredentials = () => {
-  return false; // We're now using real credentials
-};
-
-// For debugging purposes
-console.log("Supabase Mode: Production Mode");
-console.log("Using URL:", supabaseUrl);
-
-// Initialize default vendors for demo mode
-export const initializeDefaultVendors = async () => {
-  if (!isUsingDefaultCredentials()) {
-    // Skip initialization in production mode since we now have real Supabase instance
-    console.log("Using production Supabase instance - no need to initialize demo vendors");
-  }
-};
-
-// Skip initialization of default data in production mode
+// Log for debugging purposes
+console.log("Supabase initialized with URL:", supabaseUrl);

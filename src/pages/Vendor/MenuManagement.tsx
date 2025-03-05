@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { supabase, isUsingDefaultCredentials } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 interface MenuItem {
   id: string;
@@ -35,71 +35,47 @@ const VendorMenuManagement = () => {
     // Check authentication and get shop ID
     const checkVendorAuth = async () => {
       try {
-        if (isUsingDefaultCredentials()) {
-          // In demo mode, check localStorage
-          const vendorId = localStorage.getItem('currentVendorId');
-          if (!vendorId) {
-            toast.error("You need to login first");
-            navigate("/vendor/login");
-            return;
-          }
+        // Check Supabase auth
+        const { data, error } = await supabase.auth.getSession();
+        if (error || !data.session) {
+          toast.error("You need to login first");
+          navigate("/vendor/login");
+          return;
+        }
+        
+        const userId = data.session.user.id;
+        
+        // Get vendor's shop
+        const { data: shopData, error: shopError } = await supabase
+          .from('shops')
+          .select('id, name')
+          .eq('vendor_id', userId)
+          .maybeSingle();
           
-          // Get vendor's shop
-          const shopStr = localStorage.getItem('currentVendorShop');
-          if (!shopStr) {
-            navigate("/vendor/register-shop");
-            return;
-          }
+        if (shopError) {
+          console.error("Error fetching shop:", shopError);
+          toast.error("Failed to load shop data");
+          return;
+        }
+        
+        if (!shopData) {
+          navigate("/vendor/register-shop");
+          return;
+        }
+        
+        setShop(shopData);
+        
+        // Load menu items for this shop
+        const { data: menuData, error: menuError } = await supabase
+          .from('menu_items')
+          .select('*')
+          .eq('shop_id', shopData.id);
           
-          const shopData = JSON.parse(shopStr);
-          setShop(shopData);
-          
-          // Load menu items for this shop
-          const savedItems = JSON.parse(localStorage.getItem(`menuItems-${shopData.id}`) || '[]');
-          setMenuItems(savedItems);
+        if (menuError) {
+          console.error("Error loading menu items:", menuError);
+          toast.error("Failed to load menu items");
         } else {
-          // In production, check Supabase auth
-          const { data, error } = await supabase.auth.getSession();
-          if (error || !data.session) {
-            toast.error("You need to login first");
-            navigate("/vendor/login");
-            return;
-          }
-          
-          const userId = data.session.user.id;
-          
-          // Get vendor's shop
-          const { data: shopData, error: shopError } = await supabase
-            .from('shops')
-            .select('id, name')
-            .eq('vendor_id', userId)
-            .maybeSingle();
-            
-          if (shopError) {
-            console.error("Error fetching shop:", shopError);
-            toast.error("Failed to load shop data");
-            return;
-          }
-          
-          if (!shopData) {
-            navigate("/vendor/register-shop");
-            return;
-          }
-          
-          setShop(shopData);
-          
-          // Load menu items for this shop
-          const { data: menuData, error: menuError } = await supabase
-            .from('menu_items')
-            .select('*')
-            .eq('shop_id', shopData.id);
-            
-          if (menuError) {
-            console.error("Error loading menu items:", menuError);
-            toast.error("Failed to load menu items");
-          } else {
-            setMenuItems(menuData || []);
-          }
+          setMenuItems(menuData || []);
         }
       } catch (error) {
         console.error("Auth check error:", error);
@@ -112,13 +88,6 @@ const VendorMenuManagement = () => {
     
     checkVendorAuth();
   }, [navigate]);
-  
-  // Save menu items to localStorage whenever they change (for demo mode)
-  useEffect(() => {
-    if (isUsingDefaultCredentials() && shop && menuItems.length >= 0) {
-      localStorage.setItem(`menuItems-${shop.id}`, JSON.stringify(menuItems));
-    }
-  }, [menuItems, shop]);
   
   const handleAddItem = async () => {
     // Validate inputs
@@ -141,38 +110,25 @@ const VendorMenuManagement = () => {
     setIsSubmitting(true);
     
     try {
-      if (isUsingDefaultCredentials()) {
-        // In demo mode, just update state
-        const newItem = {
-          id: `item-${Date.now()}`,
+      // Store in Supabase
+      const { data: newItem, error } = await supabase
+        .from('menu_items')
+        .insert([{
+          shop_id: shop.id,
           name: newItemName.trim(),
           price: price,
-          shop_id: shop.id,
-        };
+        }])
+        .select()
+        .single();
         
-        setMenuItems([...menuItems, newItem]);
-        toast.success("Food item added successfully");
-      } else {
-        // In production mode, store in Supabase
-        const { data: newItem, error } = await supabase
-          .from('menu_items')
-          .insert([{
-            shop_id: shop.id,
-            name: newItemName.trim(),
-            price: price,
-          }])
-          .select()
-          .single();
-          
-        if (error) {
-          console.error("Error adding item:", error);
-          toast.error("Failed to add food item");
-          return;
-        }
-        
-        setMenuItems([...menuItems, newItem]);
-        toast.success("Food item added successfully");
+      if (error) {
+        console.error("Error adding item:", error);
+        toast.error("Failed to add food item");
+        return;
       }
+      
+      setMenuItems([...menuItems, newItem]);
+      toast.success("Food item added successfully");
       
       // Clear form
       setNewItemName("");
@@ -187,26 +143,20 @@ const VendorMenuManagement = () => {
   
   const handleDeleteItem = async (itemId: string) => {
     try {
-      if (isUsingDefaultCredentials()) {
-        // In demo mode, just update state
-        setMenuItems(menuItems.filter(item => item.id !== itemId));
-        toast.success("Food item removed");
-      } else {
-        // In production mode, delete from Supabase
-        const { error } = await supabase
-          .from('menu_items')
-          .delete()
-          .eq('id', itemId);
-          
-        if (error) {
-          console.error("Error removing item:", error);
-          toast.error("Failed to remove food item");
-          return;
-        }
+      // Delete from Supabase
+      const { error } = await supabase
+        .from('menu_items')
+        .delete()
+        .eq('id', itemId);
         
-        setMenuItems(menuItems.filter(item => item.id !== itemId));
-        toast.success("Food item removed");
+      if (error) {
+        console.error("Error removing item:", error);
+        toast.error("Failed to remove food item");
+        return;
       }
+      
+      setMenuItems(menuItems.filter(item => item.id !== itemId));
+      toast.success("Food item removed");
     } catch (error) {
       console.error("Error removing item:", error);
       toast.error("Failed to remove food item");
