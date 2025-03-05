@@ -1,7 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -70,8 +69,39 @@ serve(async (req) => {
     console.log('Found student with ID:', student.id);
     
     try {
-      // Verify the password using a more reliable approach
-      const passwordMatches = await bcrypt.compare(password, student.password_hash);
+      // Verify the password using the same approach as in create-student-user
+      const passwordHash = student.password_hash;
+      
+      // Split the stored hash into salt and hash
+      const [storedSaltHex, storedHashHex] = passwordHash.split(':');
+      
+      if (!storedSaltHex || !storedHashHex) {
+        console.error('Invalid password hash format');
+        return new Response(
+          JSON.stringify({ success: false, error: 'Invalid password hash format' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
+      
+      // Convert hex string to Uint8Array
+      const storedSalt = new Uint8Array(storedSaltHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+      
+      // Hash the provided password with the stored salt
+      const encoder = new TextEncoder();
+      const passwordBytes = encoder.encode(password);
+      
+      // Generate the hash with the same salt
+      const hashBuffer = await crypto.subtle.digest(
+        'SHA-256',
+        new Uint8Array([...storedSalt, ...passwordBytes])
+      );
+      
+      // Convert to hex for comparison
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const calculatedHashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      // Compare the hashes
+      const passwordMatches = calculatedHashHex === storedHashHex;
       
       console.log('Password verification result:', passwordMatches);
       
@@ -92,10 +122,10 @@ serve(async (req) => {
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    } catch (bcryptError) {
-      console.error('Bcrypt verification error:', bcryptError);
+    } catch (verificationError) {
+      console.error('Password verification error:', verificationError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Password verification failed', details: bcryptError.message }),
+        JSON.stringify({ success: false, error: 'Password verification failed', details: verificationError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }

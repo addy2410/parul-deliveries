@@ -1,8 +1,8 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
+// Using native crypto instead of bcrypt which was causing issues
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -80,15 +80,34 @@ serve(async (req) => {
       }
     }
     
-    // Hash the password with bcrypt
+    // Hash the password using native crypto instead of bcrypt
     let password_hash;
     try {
-      password_hash = await bcrypt.hash(password);
+      // Convert password string to bytes
+      const encoder = new TextEncoder();
+      const passwordBytes = encoder.encode(password);
+      
+      // Generate a salt
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      
+      // Hash the password with the salt using SHA-256
+      const hashBuffer = await crypto.subtle.digest(
+        'SHA-256', 
+        new Uint8Array([...salt, ...passwordBytes])
+      );
+      
+      // Convert the hash to a string for storage
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const saltArray = Array.from(salt);
+      
+      // Store salt:hash
+      password_hash = `${saltArray.map(b => b.toString(16).padStart(2, '0')).join('')}:${hashArray.map(b => b.toString(16).padStart(2, '0')).join('')}`;
+      
       console.log('Password hashed successfully');
-    } catch (bcryptError) {
-      console.error('Bcrypt hashing error:', bcryptError);
+    } catch (hashError) {
+      console.error('Password hashing error:', hashError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Password hashing failed' }),
+        JSON.stringify({ success: false, error: 'Password hashing failed', details: hashError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
