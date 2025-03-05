@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
@@ -128,7 +127,7 @@ const Cart = () => {
       console.log("Creating order with data:", {
         student_id: currentStudentId,
         vendor_id: vendorId,
-        restaurant_id: activeRestaurantId,
+        shop_id: activeRestaurantId,
         items: orderItems,
         total_amount: total,
         status: "pending",
@@ -141,7 +140,7 @@ const Cart = () => {
         .insert([{
           student_id: currentStudentId,
           vendor_id: vendorId,
-          restaurant_id: activeRestaurantId,
+          shop_id: activeRestaurantId,
           items: orderItems,
           total_amount: total,
           status: "pending",
@@ -162,6 +161,7 @@ const Cart = () => {
       // Order created successfully, now create notification for the vendor
       if (orderData && orderData.length > 0) {
         const order = orderData[0];
+        setCreatedOrderId(order.id);
         
         // Create notification
         console.log("Creating notification for vendor:", vendorId);
@@ -188,6 +188,9 @@ const Cart = () => {
         // Show success toast and enable Proceed to Payment button
         toast.success("Order sent to vendor for confirmation!");
         setOrderCreated(true);
+        
+        // Ensure we have the order ID stored correctly
+        console.log("Setting created order ID:", order.id);
         setCreatedOrderId(order.id);
       }
     } catch (e) {
@@ -200,7 +203,13 @@ const Cart = () => {
 
   const handleProceedToPayment = () => {
     if (createdOrderId) {
+      console.log("Navigating to order tracking for ID:", createdOrderId);
+      // Clear the cart after successful order placement and navigation
+      clearCart();
       navigate(`/student/order-tracking/${createdOrderId}`);
+    } else {
+      console.error("Cannot proceed to payment: order ID is missing");
+      toast.error("Order ID is missing. Please try again.");
     }
   };
 

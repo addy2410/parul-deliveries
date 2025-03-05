@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Package, Check, ChefHat, Truck, AlertTriangle, Clock } from "lucide-react";
 import { motion } from "framer-motion";
@@ -20,7 +20,8 @@ interface OrderItem {
 interface Order {
   id: string;
   student_id: string;
-  restaurant_id: string;
+  vendor_id: string;
+  shop_id: string;
   items: OrderItem[];
   total_amount: number;
   status: string;
@@ -32,6 +33,7 @@ interface Order {
 
 const OrderTracking = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [progressValue, setProgressValue] = useState(0);
@@ -50,7 +52,14 @@ const OrderTracking = () => {
   };
   
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      console.error("No order ID provided in URL");
+      toast.error("Order ID is missing");
+      navigate("/student/orders/active");
+      return;
+    }
+    
+    console.log("OrderTracking component mounted with order ID:", id);
     
     const fetchOrder = async () => {
       try {
@@ -59,21 +68,32 @@ const OrderTracking = () => {
         // Check if user is authenticated
         const { data: session } = await supabase.auth.getSession();
         if (!session.session) {
+          console.error("User not authenticated");
           toast.error("Please login to view your order");
+          navigate("/student/login");
           return;
         }
+        
+        console.log("Fetching order with ID:", id);
         
         // Get the order
         const { data, error } = await supabase
           .from('orders')
           .select('*')
           .eq('id', id)
-          .eq('student_id', session.session.user.id)
           .single();
           
         if (error) {
           console.error("Error fetching order:", error);
           toast.error("Failed to load order");
+          return;
+        }
+        
+        console.log("Order data received:", data);
+        
+        if (!data) {
+          console.error("No order found with ID:", id);
+          toast.error("Order not found");
           return;
         }
         
@@ -85,10 +105,12 @@ const OrderTracking = () => {
         setOrder(orderData);
         
         // Update progress value based on current status
-        setProgressValue(getOrderProgress(orderData.status));
-        console.log("Initial order status:", orderData.status, "Progress value:", getOrderProgress(orderData.status));
+        const newProgressValue = getOrderProgress(orderData.status);
+        setProgressValue(newProgressValue);
+        console.log("Initial order status:", orderData.status, "Progress value:", newProgressValue);
       } catch (error) {
         console.error("Error fetching order:", error);
+        toast.error("Failed to load order data");
       } finally {
         setLoading(false);
       }
@@ -96,8 +118,8 @@ const OrderTracking = () => {
     
     fetchOrder();
     
-    // Set up real-time subscription with a custom channel name to ensure uniqueness
-    const channelName = `order-tracking-${id}-${Math.random().toString(36).substring(2, 15)}`;
+    // Set up real-time subscription with a unique channel name
+    const channelName = `order-tracking-${id}-${Date.now()}`;
     console.log(`Setting up real-time channel: ${channelName}`);
     
     const channel = supabase
@@ -115,7 +137,6 @@ const OrderTracking = () => {
         const newProgressValue = getOrderProgress(updatedOrder.status);
         console.log("Status updated to:", updatedOrder.status, "New progress value:", newProgressValue);
         
-        // Force a state update for both order and progress value
         setProgressValue(newProgressValue);
         
         setOrder(prev => {
@@ -152,7 +173,7 @@ const OrderTracking = () => {
       console.log("Cleaning up real-time subscription");
       supabase.removeChannel(channel);
     };
-  }, [id]);
+  }, [id, navigate]);
   
   // Add a separate effect to update progress when order changes
   useEffect(() => {
@@ -200,7 +221,7 @@ const OrderTracking = () => {
     );
   }
   
-  console.log("Rendering OrderTracking with status:", order.status, "Progress value:", progressValue);
+  console.log("Rendering OrderTracking with status:", order?.status, "Progress value:", progressValue);
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -281,60 +302,60 @@ const OrderTracking = () => {
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-          
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <h2 className="text-lg font-medium mb-4">Order Details</h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium mb-2">Delivery Address:</p>
-                  <div className="flex items-start text-sm">
-                    <span>{order.delivery_location}</span>
+            )}
+            
+            <Card className="mb-6">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-medium mb-4">Order Details</h2>
+                
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium mb-2">Delivery Address:</p>
+                    <div className="flex items-start text-sm">
+                      <span>{order.delivery_location}</span>
+                    </div>
                   </div>
-                </div>
-                
-                <Separator />
-                
-                <div>
-                  <p className="text-sm font-medium mb-2">Items:</p>
-                  <ul className="space-y-2">
-                    {order.items.map((item, index) => (
-                      <li key={index} className="flex justify-between text-sm">
-                        <span className="flex items-center gap-2">
-                          <span className="bg-gray-100 w-6 h-6 rounded-full flex items-center justify-center text-xs">
-                            {item.quantity}
+                  
+                  <Separator />
+                  
+                  <div>
+                    <p className="text-sm font-medium mb-2">Items:</p>
+                    <ul className="space-y-2">
+                      {order.items.map((item, index) => (
+                        <li key={index} className="flex justify-between text-sm">
+                          <span className="flex items-center gap-2">
+                            <span className="bg-gray-100 w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                              {item.quantity}
+                            </span>
+                            {item.name}
                           </span>
-                          {item.name}
-                        </span>
-                        <span>₹{(item.price * item.quantity).toFixed(2)}</span>
-                      </li>
-                    ))}
-                  </ul>
+                          <span>₹{(item.price * item.quantity).toFixed(2)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div>
+                    <div className="flex justify-between text-sm">
+                      <span>Subtotal</span>
+                      <span>₹{(order.total_amount - 30).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm mt-1">
+                      <span>Delivery Fee</span>
+                      <span>₹30.00</span>
+                    </div>
+                    <div className="flex justify-between font-medium mt-3 text-base">
+                      <span>Total</span>
+                      <span>₹{order.total_amount.toFixed(2)}</span>
+                    </div>
+                  </div>
                 </div>
-                
-                <Separator />
-                
-                <div>
-                  <div className="flex justify-between text-sm">
-                    <span>Subtotal</span>
-                    <span>₹{(order.total_amount - 30).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm mt-1">
-                    <span>Delivery Fee</span>
-                    <span>₹30.00</span>
-                  </div>
-                  <div className="flex justify-between font-medium mt-3 text-base">
-                    <span>Total</span>
-                    <span>₹{order.total_amount.toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
