@@ -45,6 +45,11 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentN
     getStudentName();
   }, [propStudentName]);
 
+  // Function to handle account button click
+  const handleAccountClick = () => {
+    navigate("/student/login");
+  };
+
   return (
     <header className="bg-white border-b sticky top-0 z-10">
       <div className="container mx-auto py-3 px-4 flex items-center justify-between">
@@ -66,7 +71,7 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentN
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={() => navigate("/student/login")}
+            onClick={handleAccountClick}
             className="flex items-center text-sm text-muted-foreground"
           >
             <User className="w-4 h-4 mr-1" />
