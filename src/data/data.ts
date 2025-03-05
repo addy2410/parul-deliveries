@@ -46,20 +46,7 @@ export interface Order {
 
 // Export data collections
 export const restaurants: Restaurant[] = [
-  {
-    id: 'rest-1',
-    name: 'CAPITOL Food Court',
-    description: 'Authentic Indian cuisine with a modern twist. From spicy curries to fresh tandoor items.',
-    logo: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4',
-    coverImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4',
-    location: 'CAPITOL Building',
-    cuisine: 'Indian',
-    rating: 4.5,
-    tags: ['North Indian', 'South Indian', 'Snacks'],
-    deliveryFee: 30.00,
-    deliveryTime: '15-20 min',
-    isOpen: true
-  },
+  // CAPITOL Restaurant removed from here
   {
     id: 'rest-2',
     name: 'GREENZY Food Court',
@@ -92,57 +79,7 @@ export const restaurants: Restaurant[] = [
 
 // Update menu items with proper images for better visibility
 export const menuItems: MenuItem[] = [
-  // CAPITOL Food Court Items (rest-1)
-  {
-    id: 'item-1',
-    name: 'Butter Chicken',
-    description: 'Tender chicken cooked in a creamy tomato sauce with Indian spices and butter.',
-    price: 220,
-    image: 'https://images.unsplash.com/photo-1588166524941-3bf61a9c41db',
-    restaurantId: 'rest-1',
-    category: 'Main Course',
-    isAvailable: true
-  },
-  {
-    id: 'item-2',
-    name: 'Paneer Tikka',
-    description: 'Chunks of paneer marinated in spices and grilled in a tandoor.',
-    price: 180,
-    image: 'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8',
-    restaurantId: 'rest-1',
-    category: 'Starters',
-    isAvailable: true
-  },
-  {
-    id: 'item-7',
-    name: 'Dal Makhani',
-    description: 'Creamy black lentils slow-cooked with butter and spices.',
-    price: 160,
-    image: 'https://images.unsplash.com/photo-1585937421612-70a008356570',
-    restaurantId: 'rest-1',
-    category: 'Main Course',
-    isAvailable: true
-  },
-  {
-    id: 'item-8',
-    name: 'Naan Bread',
-    description: 'Soft, leavened flatbread baked in a tandoor.',
-    price: 40,
-    image: 'https://images.unsplash.com/photo-1565557623262-b51c2513a641',
-    restaurantId: 'rest-1',
-    category: 'Breads',
-    isAvailable: true
-  },
-  {
-    id: 'item-9',
-    name: 'Gulab Jamun',
-    description: 'Sweet milk solids balls soaked in sugar syrup.',
-    price: 80,
-    image: 'https://images.unsplash.com/photo-1566635445547-f3c54421e02c',
-    restaurantId: 'rest-1',
-    category: 'Desserts',
-    isAvailable: true
-  },
+  // Remove CAPITOL Food Court Items (rest-1)
   
   // GREENZY Food Court Items (rest-2)
   {

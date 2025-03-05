@@ -29,13 +29,48 @@ const VendorLogin = () => {
     setIsLoading(true);
     
     try {
-      // Use Supabase authentication for login
+      // Output some debug info
+      console.log(`Attempting to log in vendor with email: ${email}`);
+      
+      // Hard-coded vendor credentials for specific food courts
+      const vendorCredentials = [
+        { email: "greenzy@campus.com", password: "green123", name: "GREENZY Food Court" },
+        { email: "main@campus.com", password: "main123", name: "Main Food Court" }
+      ];
+      
+      // Check if using one of our hardcoded credentials
+      const matchingVendor = vendorCredentials.find(
+        v => v.email === email && v.password === password
+      );
+      
+      if (matchingVendor) {
+        toast.success(`Login successful as ${matchingVendor.name}`);
+        
+        // Create a mock session for the hardcoded vendor
+        const mockSession = {
+          user: {
+            id: `vendor-${email.split('@')[0]}`,
+            email: email,
+            user_metadata: { name: matchingVendor.name }
+          }
+        };
+        
+        // Store mock session in localStorage
+        localStorage.setItem('vendorSession', JSON.stringify(mockSession));
+        
+        // Check if vendor has a shop - for hardcoded vendors, they always have a shop
+        navigate("/vendor/dashboard");
+        return;
+      }
+      
+      // For regular vendors, use Supabase authentication
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
       if (error) {
+        console.error("Login error:", error);
         throw error;
       }
       
@@ -207,6 +242,12 @@ const VendorLogin = () => {
                     >
                       {isLoading ? "Logging in..." : "Login"}
                     </Button>
+                    
+                    <div className="text-sm text-center mt-4 text-muted-foreground">
+                      <p>Food Court Vendors:</p>
+                      <p>GREENZY: greenzy@campus.com / green123</p>
+                      <p>Main Food Court: main@campus.com / main123</p>
+                    </div>
                   </form>
                 </TabsContent>
                 
