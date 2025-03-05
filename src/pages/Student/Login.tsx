@@ -54,23 +54,33 @@ const StudentLogin = () => {
     
     try {
       console.log("Attempting login with email:", loginEmail);
-      const { data, error } = await supabase.functions.invoke('verify-student-password', {
+      
+      // Show a persistent toast while login is in progress
+      const pendingToast = toast.loading("Logging in...");
+      
+      // Call the edge function with proper error handling
+      const response = await supabase.functions.invoke('verify-student-password', {
         body: { email: loginEmail, password: loginPassword }
       });
       
-      console.log("Login response:", data);
+      // Dismiss the loading toast
+      toast.dismiss(pendingToast);
       
-      if (error) {
-        console.error("Login error from function invocation:", error);
-        setErrorMessage(error.message || "Login failed. Please try again.");
-        toast.error(error.message || "Login failed. Please try again.");
+      console.log("Login response:", response);
+      
+      if (response.error) {
+        console.error("Login error from function invocation:", response.error);
+        setErrorMessage(response.error.message || "Login failed. Please try again.");
+        toast.error(response.error.message || "Login failed. Please try again.");
         return;
       }
       
-      if (!data.success) {
-        console.error("Login failed:", data.error);
-        setErrorMessage(data.error || "Login failed. Please check your credentials.");
-        toast.error(data.error || "Login failed. Please check your credentials.");
+      const { data } = response;
+      
+      if (!data || !data.success) {
+        console.error("Login failed:", data?.error);
+        setErrorMessage(data?.error || "Login failed. Please check your credentials.");
+        toast.error(data?.error || "Login failed. Please check your credentials.");
         return;
       }
       
@@ -119,6 +129,7 @@ const StudentLogin = () => {
       // Show a persistent toast while registration is in progress
       const pendingToast = toast.loading("Creating your account...");
       
+      // Call the edge function with proper error handling
       const response = await supabase.functions.invoke('create-student-user', {
         body: { 
           name: registerName, 
@@ -132,6 +143,7 @@ const StudentLogin = () => {
       
       console.log("Registration complete. Full response:", response);
       
+      // Check for error in the response object itself (network/invocation error)
       if (response.error) {
         console.error("Registration error from function invocation:", response.error);
         setErrorMessage(`Registration failed: ${response.error.message || "Unknown error"}`);
@@ -141,6 +153,7 @@ const StudentLogin = () => {
       
       const { data } = response;
       
+      // Check for error in the data (logical error from the function)
       if (!data || !data.success) {
         console.error("Registration failed with data:", data);
         setErrorMessage(data?.error || "Registration failed. Please try again.");

@@ -27,7 +27,7 @@ serve(async (req) => {
     if (!email || !password) {
       return new Response(
         JSON.stringify({ success: false, error: 'Email and password are required' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
     
@@ -42,14 +42,14 @@ serve(async (req) => {
       console.error('Error fetching student:', fetchError);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to fetch user data' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
     
     if (!student) {
       return new Response(
         JSON.stringify({ success: false, error: 'User not found' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
     
@@ -59,7 +59,7 @@ serve(async (req) => {
     if (!passwordMatches) {
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid credentials' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
     
@@ -70,14 +70,14 @@ serve(async (req) => {
         userId: student.id,
         name: student.name
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
     
   } catch (error) {
     console.error('Edge function error:', error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      JSON.stringify({ success: false, error: error.message || 'Unknown server error' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   }
 });
