@@ -20,7 +20,7 @@ const RoleCard: React.FC<RoleCardProps> = ({ title, description, route, classNam
   const handleCardClick = () => {
     // Always navigate, even with default credentials - just show a toast warning
     if (isUsingDefaultCredentials()) {
-      toast.warning("Using demo mode with sample data. Set up Supabase for full functionality.");
+      toast.info("Using demo mode with sample data. Set up Supabase for full functionality.");
       console.log("Using demo mode with sample data");
     }
     navigate(route);

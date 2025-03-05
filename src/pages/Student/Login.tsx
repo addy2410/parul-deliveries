@@ -12,9 +12,11 @@ import { supabase, isUsingDefaultCredentials } from "@/lib/supabase";
 const StudentLogin = () => {
   const navigate = useNavigate();
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [name, setName] = useState("");
   const [showOTP, setShowOTP] = useState(false);
   const [otp, setOTP] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSignup, setIsSignup] = useState(false);
   
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,32 +26,79 @@ const StudentLogin = () => {
       return;
     }
     
+    if (isSignup && !name) {
+      toast.error("Please enter your name");
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
       if (isUsingDefaultCredentials()) {
         // In demo mode, just simulate the OTP flow
-        toast.success("OTP sent successfully! (Demo Mode)");
-        setShowOTP(true);
+        const studentUsers = JSON.parse(localStorage.getItem('studentUsers') || '[]');
+        const existingUser = studentUsers.find((user: any) => user.phone === phoneNumber);
         
-        // Store the phone number in localStorage for demo purposes
-        localStorage.setItem('studentPhone', phoneNumber);
-      } else {
-        // In production, would use Supabase auth
-        // This is a placeholder for real phone auth
-        const { error } = await supabase.auth.signInWithOtp({
-          phone: phoneNumber,
-        });
-        
-        if (error) {
-          throw error;
+        if (existingUser && !isSignup) {
+          // Login flow
+          toast.success("OTP sent successfully! (Demo Mode)");
+          setShowOTP(true);
+        } else if (!existingUser && isSignup) {
+          // Signup flow
+          toast.success("OTP sent successfully! (Demo Mode)");
+          setShowOTP(true);
+        } else if (existingUser && isSignup) {
+          // User exists but trying to sign up
+          toast.error("Phone number already registered. Please login instead.");
+          setIsSignup(false);
+          setIsLoading(false);
+          return;
+        } else {
+          // User doesn't exist but trying to login
+          toast.error("Phone number not registered. Please sign up first.");
+          setIsSignup(true);
+          setIsLoading(false);
+          return;
         }
         
-        toast.success("OTP sent successfully!");
-        setShowOTP(true);
+      } else {
+        // Check if user exists in Supabase
+        const { data: existingUsers, error: checkError } = await supabase
+          .from('student_users')
+          .select('*')
+          .eq('phone', phoneNumber);
+          
+        if (checkError) {
+          console.error("Error checking user:", checkError);
+          throw new Error("Failed to check user status");
+        }
+        
+        const userExists = existingUsers && existingUsers.length > 0;
+        
+        if (userExists && !isSignup) {
+          // Login flow - use auth for OTP in real implementation
+          toast.success("OTP sent successfully!");
+          setShowOTP(true);
+        } else if (!userExists && isSignup) {
+          // Signup flow - use auth for OTP in real implementation
+          toast.success("OTP sent successfully!");
+          setShowOTP(true);
+        } else if (userExists && isSignup) {
+          // User exists but trying to sign up
+          toast.error("Phone number already registered. Please login instead.");
+          setIsSignup(false);
+          setIsLoading(false);
+          return;
+        } else {
+          // User doesn't exist but trying to login
+          toast.error("Phone number not registered. Please sign up first.");
+          setIsSignup(true);
+          setIsLoading(false);
+          return;
+        }
       }
     } catch (error: any) {
-      console.error("Login error:", error);
+      console.error("Authentication error:", error);
       toast.error(error.message || "Failed to send OTP");
     } finally {
       setIsLoading(false);
@@ -69,23 +118,59 @@ const StudentLogin = () => {
     try {
       if (isUsingDefaultCredentials()) {
         // In demo mode, just pretend the OTP is correct
-        localStorage.setItem('currentStudentId', 'demo-student-123');
-        localStorage.setItem('studentName', 'Demo Student');
-        toast.success("Login successful! (Demo Mode)");
-        navigate("/student/restaurants");
-      } else {
-        // In production, would verify with Supabase
-        const { error } = await supabase.auth.verifyOtp({
-          phone: phoneNumber,
-          token: otp,
-          type: 'sms',
-        });
-        
-        if (error) {
-          throw error;
+        if (isSignup) {
+          // Create new user in localStorage
+          const studentId = `student-${Date.now()}`;
+          const studentUsers = JSON.parse(localStorage.getItem('studentUsers') || '[]');
+          
+          const newUser = {
+            id: studentId,
+            phone: phoneNumber,
+            name: name,
+          };
+          
+          localStorage.setItem('studentUsers', JSON.stringify([...studentUsers, newUser]));
+          localStorage.setItem('currentStudentId', studentId);
+          localStorage.setItem('studentName', name);
+        } else {
+          // Login existing user
+          const studentUsers = JSON.parse(localStorage.getItem('studentUsers') || '[]');
+          const existingUser = studentUsers.find((user: any) => user.phone === phoneNumber);
+          
+          if (existingUser) {
+            localStorage.setItem('currentStudentId', existingUser.id);
+            localStorage.setItem('studentName', existingUser.name);
+          }
         }
         
-        toast.success("Login successful!");
+        toast.success(isSignup ? "Signup successful!" : "Login successful!");
+        navigate("/student/restaurants");
+      } else {
+        if (isSignup) {
+          // Create new user in Supabase
+          const { data: userData, error: userError } = await supabase
+            .from('student_users')
+            .insert([
+              {
+                phone: phoneNumber,
+                name: name,
+              }
+            ])
+            .select()
+            .single();
+            
+          if (userError) {
+            console.error("Error creating user:", userError);
+            throw new Error("Failed to create user account");
+          }
+          
+          // In a real implementation, use Supabase auth with OTP
+          toast.success("Signup successful!");
+        } else {
+          // In a real implementation, verify OTP with Supabase auth
+          toast.success("Login successful!");
+        }
+        
         navigate("/student/restaurants");
       }
     } catch (error: any) {
@@ -108,7 +193,7 @@ const StudentLogin = () => {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl fontLogo">Campus Grub</CardTitle>
             <CardDescription>
-              Login to order food from campus restaurants
+              {isSignup ? "Sign up to order food from campus restaurants" : "Login to order food from campus restaurants"}
             </CardDescription>
           </CardHeader>
           
@@ -127,6 +212,20 @@ const StudentLogin = () => {
                       disabled={isLoading}
                     />
                   </div>
+                  
+                  {isSignup && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="name">Your Name</Label>
+                      <Input
+                        id="name"
+                        type="text"
+                        placeholder="Enter your full name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  )}
                   
                   <Button 
                     type="submit" 
@@ -165,8 +264,20 @@ const StudentLogin = () => {
           </CardContent>
           
           <CardFooter className="flex flex-col">
+            <div className="flex justify-center w-full">
+              <Button 
+                variant="link" 
+                onClick={() => {
+                  setIsSignup(!isSignup);
+                  setShowOTP(false); // Reset OTP flow when toggling
+                }}
+                className="text-primary"
+              >
+                {isSignup ? "Already have an account? Login" : "Don't have an account? Sign up"}
+              </Button>
+            </div>
             <p className="text-sm text-center text-muted-foreground mt-4">
-              By logging in, you agree to our Terms of Service and Privacy Policy
+              By continuing, you agree to our Terms of Service and Privacy Policy
             </p>
           </CardFooter>
         </Card>

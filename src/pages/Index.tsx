@@ -33,7 +33,7 @@ const Index = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="text-4xl md:text-6xl font-bold text-center text-[#ea384c]"
+          className="text-4xl md:text-5xl font-semibold text-center text-[#ea384c] px-2"
         >
           Parul In-Campus Delivery
         </motion.h1>

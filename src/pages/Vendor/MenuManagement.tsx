@@ -14,7 +14,7 @@ interface MenuItem {
   id: string;
   name: string;
   price: number;
-  restaurantId: string;
+  shop_id: string;
 }
 
 interface Shop {
@@ -55,12 +55,8 @@ const VendorMenuManagement = () => {
           setShop(shopData);
           
           // Load menu items for this shop
-          const savedItems = localStorage.getItem(`menuItems-${shopData.id}`);
-          if (savedItems) {
-            setMenuItems(JSON.parse(savedItems));
-          } else {
-            setMenuItems([]);
-          }
+          const savedItems = JSON.parse(localStorage.getItem(`menuItems-${shopData.id}`) || '[]');
+          setMenuItems(savedItems);
         } else {
           // In production, check Supabase auth
           const { data, error } = await supabase.auth.getSession();
@@ -77,16 +73,16 @@ const VendorMenuManagement = () => {
             .from('shops')
             .select('id, name')
             .eq('vendor_id', userId)
-            .single();
+            .maybeSingle();
             
           if (shopError) {
-            if (shopError.code === 'PGRST116') {
-              // No shop found
-              navigate("/vendor/register-shop");
-              return;
-            }
             console.error("Error fetching shop:", shopError);
             toast.error("Failed to load shop data");
+            return;
+          }
+          
+          if (!shopData) {
+            navigate("/vendor/register-shop");
             return;
           }
           
@@ -96,7 +92,7 @@ const VendorMenuManagement = () => {
           const { data: menuData, error: menuError } = await supabase
             .from('menu_items')
             .select('*')
-            .eq('restaurantId', shopData.id);
+            .eq('shop_id', shopData.id);
             
           if (menuError) {
             console.error("Error loading menu items:", menuError);
@@ -144,30 +140,43 @@ const VendorMenuManagement = () => {
     
     setIsSubmitting(true);
     
-    // Create new item
-    const newItem: MenuItem = {
-      id: `item-${Date.now()}`, // Generate a unique ID for demo mode
-      name: newItemName.trim(),
-      price: price,
-      restaurantId: shop.id,
-    };
-    
     try {
-      if (!isUsingDefaultCredentials()) {
+      if (isUsingDefaultCredentials()) {
+        // In demo mode, just update state
+        const newItem = {
+          id: `item-${Date.now()}`,
+          name: newItemName.trim(),
+          price: price,
+          shop_id: shop.id,
+        };
+        
+        setMenuItems([...menuItems, newItem]);
+        toast.success("Food item added successfully");
+      } else {
         // In production mode, store in Supabase
-        const { error } = await supabase
+        const { data: newItem, error } = await supabase
           .from('menu_items')
-          .insert([newItem]);
+          .insert([{
+            shop_id: shop.id,
+            name: newItemName.trim(),
+            price: price,
+          }])
+          .select()
+          .single();
           
-        if (error) throw error;
+        if (error) {
+          console.error("Error adding item:", error);
+          toast.error("Failed to add food item");
+          return;
+        }
+        
+        setMenuItems([...menuItems, newItem]);
+        toast.success("Food item added successfully");
       }
       
-      // Update local state
-      setMenuItems([...menuItems, newItem]);
+      // Clear form
       setNewItemName("");
       setNewItemPrice("");
-      toast.success("Food item added successfully");
-      
     } catch (error) {
       console.error("Error adding item:", error);
       toast.error("Failed to add food item");
@@ -178,20 +187,26 @@ const VendorMenuManagement = () => {
   
   const handleDeleteItem = async (itemId: string) => {
     try {
-      if (!isUsingDefaultCredentials()) {
+      if (isUsingDefaultCredentials()) {
+        // In demo mode, just update state
+        setMenuItems(menuItems.filter(item => item.id !== itemId));
+        toast.success("Food item removed");
+      } else {
         // In production mode, delete from Supabase
         const { error } = await supabase
           .from('menu_items')
           .delete()
           .eq('id', itemId);
           
-        if (error) throw error;
+        if (error) {
+          console.error("Error removing item:", error);
+          toast.error("Failed to remove food item");
+          return;
+        }
+        
+        setMenuItems(menuItems.filter(item => item.id !== itemId));
+        toast.success("Food item removed");
       }
-      
-      // Update local state
-      setMenuItems(menuItems.filter(item => item.id !== itemId));
-      toast.success("Food item removed");
-      
     } catch (error) {
       console.error("Error removing item:", error);
       toast.error("Failed to remove food item");

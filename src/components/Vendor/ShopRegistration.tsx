@@ -62,6 +62,9 @@ const ShopRegistration: React.FC<ShopRegistrationProps> = ({ vendorId, onComplet
         };
         
         // Save to localStorage
+        const shops = JSON.parse(localStorage.getItem('shops') || '[]');
+        shops.push(shopData);
+        localStorage.setItem('shops', JSON.stringify(shops));
         localStorage.setItem('currentVendorShop', JSON.stringify(shopData));
         
         // Simulate API delay
@@ -97,7 +100,7 @@ const ShopRegistration: React.FC<ShopRegistrationProps> = ({ vendorId, onComplet
         toast.success('Shop registered successfully!');
         onComplete();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Unexpected error:', error);
       toast.error('An unexpected error occurred. Please try again.');
     } finally {
