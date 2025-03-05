@@ -68,6 +68,15 @@ serve(async (req) => {
       );
     }
     
+    // Enhanced password validation
+    if (typeof password !== 'string') {
+      console.error("Password is not a string");
+      return new Response(
+        JSON.stringify({ success: false, error: 'Password must be a string' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+    
     console.log(`Attempting to create new student user. Name: ${name}, Email: ${email}`);
     
     // Validate password length
@@ -138,20 +147,35 @@ serve(async (req) => {
       );
     }
     
-    // Hash the password - Simplified approach for Deno environment
+    // Hash the password - Improved approach with explicit salt generation
     let password_hash;
     try {
-      console.log("Hashing password");
-      // Use a fixed salt - simpler approach that works better in Deno
-      password_hash = await bcrypt.hash(password, 8); // Using 8 rounds (less CPU intensive)
-      console.log("Password hashed successfully");
+      console.log("Starting password hashing process");
+      
+      // Generate salt explicitly - important for Deno compatibility
+      console.log("Generating salt");
+      const salt = await bcrypt.genSalt(10);
+      console.log("Salt generated successfully");
+      
+      // Hash with the generated salt
+      console.log("Hashing password with generated salt");
+      password_hash = await bcrypt.hash(password, salt);
+      console.log("Password hashed successfully:", !!password_hash);
+      
+      if (!password_hash) {
+        throw new Error("Password hash is undefined after hashing operation");
+      }
     } catch (hashError) {
       console.error('Error hashing password:', hashError);
+      console.error('Error details:', hashError.message || 'No error message');
+      console.error('Error stack:', hashError.stack || 'No stack trace');
+      
       return new Response(
         JSON.stringify({ 
           success: false, 
           error: 'Password processing failed', 
-          details: hashError.message || 'Unknown hashing error'
+          details: hashError.message || 'Unknown hashing error',
+          suggestion: 'Please try again or contact support'
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );

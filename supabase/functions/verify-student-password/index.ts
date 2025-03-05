@@ -31,6 +31,15 @@ serve(async (req) => {
       );
     }
     
+    // Enhanced password validation
+    if (typeof password !== 'string') {
+      console.error("Password is not a string");
+      return new Response(
+        JSON.stringify({ success: false, error: 'Password must be a string' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+    
     // Get the user with the email
     const { data: student, error: fetchError } = await supabaseClient
       .from('student_users')
@@ -53,9 +62,22 @@ serve(async (req) => {
       );
     }
     
+    if (!student.password_hash) {
+      console.error('Student account has no password hash');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Account password not set properly' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+    
     // Verify the password with improved error handling
     try {
       console.log("Comparing password with stored hash");
+      
+      if (typeof student.password_hash !== 'string') {
+        throw new Error("Stored password hash is not a string");
+      }
+      
       const passwordMatches = await bcrypt.compare(password, student.password_hash);
       console.log("Password comparison result:", passwordMatches);
       
@@ -77,6 +99,9 @@ serve(async (req) => {
       );
     } catch (bcryptError) {
       console.error('Error in password comparison:', bcryptError);
+      console.error('Error details:', bcryptError.message || 'No error message');
+      console.error('Error stack:', bcryptError.stack || 'No stack trace');
+      
       return new Response(
         JSON.stringify({ 
           success: false, 
