@@ -1,10 +1,7 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Restaurant } from "@/data/data";
-import { restaurants as sampleRestaurants } from "@/data/data";
 import { MapPin, Star, Clock, Search, ArrowUpRight } from "lucide-react";
 import StudentHeader from "@/components/StudentHeader";
 import { motion } from "framer-motion";
@@ -15,7 +12,7 @@ import { toast } from "sonner";
 
 const StudentRestaurants = () => {
   const navigate = useNavigate();
-  const [restaurantList, setRestaurantList] = useState<Restaurant[]>([]);
+  const [restaurantList, setRestaurantList] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [loading, setLoading] = useState(true);
@@ -26,6 +23,20 @@ const StudentRestaurants = () => {
       top: 0,
       behavior: "smooth"
     });
+  };
+
+  // Function to get the cover image based on restaurant name
+  const getRestaurantCoverImage = (name) => {
+    switch(name) {
+      case "GREENZY Food Court":
+        return "/lovable-uploads/e3228c0f-3685-4b2d-ac13-b7c97ad2bf95.png";
+      case "Main Food Court":
+        return "/lovable-uploads/a8945afc-0ae4-4a10-afce-cf42bf3a646b.png";
+      case "BlueZ Biryani":
+        return "/lovable-uploads/aa5d95d7-7ead-42b3-89c2-f57ff25788fd.png";
+      default:
+        return "https://images.unsplash.com/photo-1493770348161-369560ae357d";
+    }
   };
 
   useEffect(() => {
@@ -42,12 +53,12 @@ const StudentRestaurants = () => {
         if (error) {
           console.error("Error fetching restaurants:", error);
           toast.error("Could not load restaurants");
-          setRestaurantList(sampleRestaurants);
+          setRestaurantList([]);
         } else if (shopsData && shopsData.length > 0) {
           console.log("Successfully fetched shops from Supabase:", shopsData);
           
           // Transform the Supabase data to match the Restaurant interface
-          const transformedData: Restaurant[] = shopsData.map(shop => ({
+          const transformedData = shopsData.map(shop => ({
             id: shop.id,
             name: shop.name,
             description: shop.description || '',
@@ -63,28 +74,15 @@ const StudentRestaurants = () => {
           }));
           
           console.log("Transformed shop data:", transformedData);
-          
-          // Ensure we always have BlueZ Biryani
-          const blueZExists = transformedData.some(r => r.name === 'BlueZ Biryani');
-          if (!blueZExists) {
-            const blueZFromSample = sampleRestaurants.find(r => r.name === 'BlueZ Biryani');
-            if (blueZFromSample) {
-              transformedData.push({
-                ...blueZFromSample,
-                coverImage: '/lovable-uploads/aa5d95d7-7ead-42b3-89c2-f57ff25788fd.png'
-              });
-            }
-          }
-          
           setRestaurantList(transformedData);
         } else {
-          console.log("No shop data found, using sample data for BlueZ Biryani");
-          setRestaurantList(sampleRestaurants);
+          console.log("No shops found in the database");
+          setRestaurantList([]);
         }
       } catch (err) {
         console.error("Unexpected error fetching restaurants:", err);
         toast.error("An unexpected error occurred");
-        setRestaurantList(sampleRestaurants);
+        setRestaurantList([]);
       } finally {
         setLoading(false);
       }
@@ -92,20 +90,6 @@ const StudentRestaurants = () => {
 
     fetchRestaurants();
   }, []);
-
-  // Function to get the cover image based on restaurant name
-  const getRestaurantCoverImage = (name: string) => {
-    switch(name) {
-      case "GREENZY Food Court":
-        return "/lovable-uploads/e3228c0f-3685-4b2d-ac13-b7c97ad2bf95.png";
-      case "Main Food Court":
-        return "/lovable-uploads/a8945afc-0ae4-4a10-afce-cf42bf3a646b.png";
-      case "BlueZ Biryani":
-        return "/lovable-uploads/aa5d95d7-7ead-42b3-89c2-f57ff25788fd.png";
-      default:
-        return "https://images.unsplash.com/photo-1493770348161-369560ae357d";
-    }
-  };
 
   // Filter restaurants based on search term and active category
   const filteredRestaurants = restaurantList.filter(restaurant => {

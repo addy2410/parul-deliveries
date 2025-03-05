@@ -1,3 +1,4 @@
+
 export interface MenuItem {
   id: string;
   name: string;
@@ -51,7 +52,7 @@ export const restaurants: Restaurant[] = [
     name: 'BlueZ Biryani',
     description: 'Authentic Hyderabadi Biryani and kebabs',
     logo: 'https://images.unsplash.com/photo-1513104890138-7c749659a591',
-    coverImage: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd',
+    coverImage: '/lovable-uploads/aa5d95d7-7ead-42b3-89c2-f57ff25788fd.png',
     location: 'Parul Mandir',
     rating: 4.8,
     cuisine: 'Hyderabadi',
