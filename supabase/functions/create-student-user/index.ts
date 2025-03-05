@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import * as bcrypt from "https://esm.sh/bcryptjs@2.4.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,7 +40,7 @@ serve(async (req) => {
     try {
       console.log("Attempting to parse request body");
       requestData = await req.json();
-      console.log("Request body parsed successfully:", requestData);
+      console.log("Request body parsed successfully");
     } catch (parseError) {
       console.error("Failed to parse request JSON:", parseError);
       return new Response(
@@ -147,14 +147,13 @@ serve(async (req) => {
       );
     }
     
-    // Use a simplified bcrypt hashing approach that's more reliable in Deno
+    // Hash the password with bcryptjs
     let password_hash;
     try {
-      console.log("Starting simplified password hashing");
-      
-      // Use a fixed number of rounds instead of generating salt
-      password_hash = await bcrypt.hash(password, 6); // Lower rounds for better reliability
-      console.log("Password hashed successfully with fixed rounds:", !!password_hash);
+      console.log("Starting password hashing");
+      // Use bcryptjs instead of bcrypt for better compatibility
+      password_hash = await bcrypt.hash(password, 8);
+      console.log("Password hashed successfully:", !!password_hash);
       
       if (!password_hash) {
         throw new Error("Hash result is undefined");
@@ -181,7 +180,7 @@ serve(async (req) => {
       );
     }
     
-    // Create the user with a default phone number
+    // Create the user with default phone number
     console.log("Inserting new student user with ID:", userId);
     try {
       const { data: newUser, error: insertError } = await supabaseClient
@@ -210,7 +209,6 @@ serve(async (req) => {
         console.error('User created but no data returned');
         
         // Double-check if the user was actually created
-        console.log("Double-checking if user was created");
         const { data: checkUser, error: checkError } = await supabaseClient
           .from('student_users')
           .select('id, name, email')

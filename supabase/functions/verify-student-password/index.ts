@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import * as bcrypt from "https://esm.sh/bcryptjs@2.4.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -70,7 +70,7 @@ serve(async (req) => {
       );
     }
     
-    // Verify the password with simplified approach
+    // Verify the password with bcryptjs
     try {
       console.log("Comparing password with stored hash");
       
@@ -78,7 +78,6 @@ serve(async (req) => {
         throw new Error("Stored password hash is not a string");
       }
       
-      // Use basic compare without additional options
       const passwordMatches = await bcrypt.compare(password, student.password_hash);
       console.log("Password comparison result:", passwordMatches);
       

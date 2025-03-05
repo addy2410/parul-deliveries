@@ -53,20 +53,13 @@ const StudentLogin = () => {
     setIsLoading(true);
     
     try {
-      console.log("Attempting login with email:", loginEmail);
-      
-      // Show a persistent toast while login is in progress
       const pendingToast = toast.loading("Logging in...");
       
-      // Call the edge function with proper error handling
       const response = await supabase.functions.invoke('verify-student-password', {
         body: { email: loginEmail, password: loginPassword }
       });
       
-      // Dismiss the loading toast
       toast.dismiss(pendingToast);
-      
-      console.log("Login response:", response);
       
       if (response.error) {
         console.error("Login error from function invocation:", response.error);
@@ -124,12 +117,8 @@ const StudentLogin = () => {
     setIsLoading(true);
     
     try {
-      console.log("Attempting registration with email:", registerEmail);
-      
-      // Show a persistent toast while registration is in progress
       const pendingToast = toast.loading("Creating your account...");
       
-      // Call the edge function with proper error handling
       const response = await supabase.functions.invoke('create-student-user', {
         body: { 
           name: registerName, 
@@ -138,12 +127,8 @@ const StudentLogin = () => {
         }
       });
       
-      // Dismiss the loading toast
       toast.dismiss(pendingToast);
       
-      console.log("Registration complete. Full response:", response);
-      
-      // Check for error in the response object itself (network/invocation error)
       if (response.error) {
         console.error("Registration error from function invocation:", response.error);
         setErrorMessage(`Registration failed: ${response.error.message || "Unknown error"}`);
@@ -153,7 +138,6 @@ const StudentLogin = () => {
       
       const { data } = response;
       
-      // Check for error in the data (logical error from the function)
       if (!data || !data.success) {
         console.error("Registration failed with data:", data);
         setErrorMessage(data?.error || "Registration failed. Please try again.");
@@ -162,7 +146,6 @@ const StudentLogin = () => {
       }
       
       // Store user session
-      console.log("Creating session with data:", data);
       const sessionData = {
         userId: data.userId,
         name: data.name,
