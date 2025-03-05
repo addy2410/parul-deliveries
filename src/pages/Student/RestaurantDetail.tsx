@@ -52,18 +52,15 @@ const StudentRestaurantDetail = () => {
           .eq('id', id)
           .maybeSingle();
           
-        if (shopError || !shopData) {
-          console.error("Error fetching restaurant:", shopError || "No data returned");
+        if (shopError) {
+          console.error("Error fetching restaurant:", shopError);
           toast.error("Could not load restaurant details");
-          
-          // Try to fall back to sample data
-          const fallbackRestaurant = restaurants.find((r) => r.id === id);
-          if (fallbackRestaurant) {
-            setRestaurant(fallbackRestaurant);
-            setMenuItems(sampleMenuItems.filter((item) => item.restaurantId === id));
-          } else {
-            toast.error("Restaurant not found");
-          }
+          setLoading(false);
+          return;
+        }
+        
+        if (!shopData) {
+          console.log("No restaurant found with ID:", id);
           setLoading(false);
           return;
         }
@@ -74,16 +71,16 @@ const StudentRestaurantDetail = () => {
         const transformedShop = {
           id: shopData.id,
           name: shopData.name,
-          description: shopData.description || '',
+          description: shopData.description || 'Delicious food awaits!',
           logo: shopData.logo || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352',
           coverImage: shopData.cover_image || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352',
-          location: shopData.location,
+          location: shopData.location || 'Campus',
           rating: shopData.rating || 4.5,
           cuisine: shopData.cuisine || 'Food',
           tags: shopData.tags || [shopData.cuisine || 'Food'],
           deliveryFee: 30.00,
           deliveryTime: shopData.delivery_time || '30-45 min',
-          isOpen: true
+          isOpen: shopData.is_open !== false
         };
         
         setRestaurant(transformedShop);
@@ -120,7 +117,7 @@ const StudentRestaurantDetail = () => {
           image: item.image || 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd',
           restaurantId: item.shop_id,
           category: item.category || 'Main Course',
-          isAvailable: true
+          isAvailable: item.is_available !== false
         }));
         
         console.log("Transformed menu items:", transformedMenuItems);

@@ -58,6 +58,7 @@ const VendorMenuManagement = () => {
         }
         
         const userId = data.session.user.id;
+        console.log("Authenticated vendor ID:", userId);
         
         // Get vendor's shop
         const { data: shopData, error: shopError } = await supabase
@@ -77,6 +78,7 @@ const VendorMenuManagement = () => {
           return;
         }
         
+        console.log("Found shop:", shopData);
         setShop(shopData);
         
         // Load menu items for this shop
@@ -89,6 +91,7 @@ const VendorMenuManagement = () => {
           console.error("Error loading menu items:", menuError);
           toast.error("Failed to load menu items");
         } else {
+          console.log("Loaded menu items:", menuData);
           setMenuItems(menuData || []);
         }
       } catch (error) {
@@ -124,6 +127,15 @@ const VendorMenuManagement = () => {
     setIsSubmitting(true);
     
     try {
+      console.log("Adding menu item:", {
+        shop_id: shop.id,
+        name: newItemName.trim(),
+        price: price,
+        category: newItemCategory,
+        description: `Delicious ${newItemName.trim()}`,
+        is_available: true
+      });
+      
       // Store in Supabase
       const { data: newItem, error } = await supabase
         .from('menu_items')
@@ -131,17 +143,20 @@ const VendorMenuManagement = () => {
           shop_id: shop.id,
           name: newItemName.trim(),
           price: price,
-          category: newItemCategory
+          category: newItemCategory,
+          description: `Delicious ${newItemName.trim()}`,
+          is_available: true
         }])
         .select()
         .single();
         
       if (error) {
         console.error("Error adding item:", error);
-        toast.error("Failed to add food item");
+        toast.error(`Failed to add food item: ${error.message}`);
         return;
       }
       
+      console.log("Successfully added menu item:", newItem);
       setMenuItems([...menuItems, newItem]);
       toast.success("Food item added successfully");
       
