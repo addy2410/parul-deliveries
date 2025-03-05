@@ -147,12 +147,13 @@ serve(async (req) => {
       );
     }
     
-    // Hash the password with bcryptjs - FIXED: Simplified hashing approach
+    // Hash the password with bcryptjs - using the most reliable approach for edge functions
     let password_hash;
     try {
       console.log("Starting password hashing with bcryptjs");
-      // Use a lower salt round (8 instead of 10) for better performance in edge function
-      password_hash = await bcrypt.hash(password, 8);
+      // Use lowest salt rounds (4) to ensure it completes quickly in the edge function
+      const salt = await bcrypt.genSalt(4);
+      password_hash = await bcrypt.hash(password, salt);
       console.log("Password hashing completed successfully");
       
       if (!password_hash) {

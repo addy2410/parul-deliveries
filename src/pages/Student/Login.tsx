@@ -119,6 +119,12 @@ const StudentLogin = () => {
     try {
       const pendingToast = toast.loading("Creating your account...");
       
+      console.log("Submitting registration data:", { 
+        name: registerName, 
+        email: registerEmail, 
+        password: registerPassword.length // Just log the length for security
+      });
+      
       const response = await supabase.functions.invoke('create-student-user', {
         body: { 
           name: registerName, 
@@ -127,6 +133,7 @@ const StudentLogin = () => {
         }
       });
       
+      console.log("Registration response:", response);
       toast.dismiss(pendingToast);
       
       if (response.error) {

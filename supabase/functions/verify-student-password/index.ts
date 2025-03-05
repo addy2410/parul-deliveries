@@ -15,14 +15,35 @@ serve(async (req) => {
   }
   
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    const { email, password } = await req.json();
+    console.log("Starting verify-student-password function");
     
-    console.log(`Attempting to verify password for email: ${email}`);
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("Missing Supabase credentials");
+      return new Response(
+        JSON.stringify({ success: false, error: 'Server configuration error' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+    
+    const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
+    // Parse request body
+    let requestData;
+    try {
+      requestData = await req.json();
+      console.log(`Attempting to verify password for email: ${requestData.email}`);
+    } catch (parseError) {
+      console.error("Failed to parse request JSON:", parseError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid request format' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
+    const { email, password } = requestData;
     
     if (!email || !password) {
       return new Response(
