@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -45,11 +44,11 @@ const clearAllTestOrders = async () => {
   try {
     console.log("Clearing all test orders from the database...");
     
-    // Delete all orders (without using the UUID comparison that was causing errors)
+    // Delete all orders - fixed to avoid the UUID comparison error
     const { error } = await supabase
       .from('orders')
       .delete()
-      .neq('id', ''); // This will delete all orders
+      .lt('id', 'ffffffff-ffff-ffff-ffff-ffffffffffff'); // This will delete all orders
     
     if (error) {
       console.error("Error clearing test orders:", error);

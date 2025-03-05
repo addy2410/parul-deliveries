@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,12 +36,14 @@ const StudentRestaurants = () => {
         // Fetch from Supabase
         const { data: shopsData, error } = await supabase
           .from('shops')
-          .select('*');
+          .select('*')
+          .eq('name', 'BlueZ Biryani'); // Only fetch BlueZ Biryani
           
         if (error) {
           console.error("Error fetching restaurants:", error);
           toast.error("Could not load restaurants");
-          setRestaurantList(sampleRestaurants);
+          // Use only BlueZ Biryani from sample data
+          setRestaurantList(sampleRestaurants.filter(r => r.name === 'BlueZ Biryani'));
         } else if (shopsData && shopsData.length > 0) {
           console.log("Successfully fetched shops from Supabase:", shopsData);
           
@@ -55,36 +56,30 @@ const StudentRestaurants = () => {
             coverImage: shop.cover_image || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352',
             location: shop.location,
             rating: shop.rating || 4.5,
-            cuisine: shop.cuisine || 'Food', // Add default value since cuisine is optional in Restaurant
+            cuisine: shop.cuisine || 'Food',
             tags: shop.tags || [shop.cuisine || 'Food'],
             deliveryFee: 30.00,
             deliveryTime: shop.delivery_time || '30-45 min',
-            isOpen: shop.is_open !== false // Default to true if not specified
+            isOpen: shop.is_open !== false
           }));
           
           console.log("Transformed shop data:", transformedData);
           
-          // Combine with sample restaurants to ensure we always have data to display
-          // Use a Set to deduplicate by ID if there are any overlaps
-          const combinedRestaurants: Restaurant[] = [...transformedData];
-          
-          // Add sample restaurants but only those that don't have the same name as real ones
-          const existingNames = new Set(transformedData.map(r => r.name));
-          for (const sample of sampleRestaurants) {
-            if (!existingNames.has(sample.name)) {
-              combinedRestaurants.push(sample);
-            }
+          // Only use BlueZ Biryani from sample data if needed
+          if (transformedData.length === 0) {
+            const blueZFromSample = sampleRestaurants.filter(r => r.name === 'BlueZ Biryani');
+            setRestaurantList(blueZFromSample);
+          } else {
+            setRestaurantList(transformedData);
           }
-          
-          setRestaurantList(combinedRestaurants);
         } else {
-          console.log("No shop data found, using sample data");
-          setRestaurantList(sampleRestaurants);
+          console.log("No shop data found, using BlueZ Biryani from sample data");
+          setRestaurantList(sampleRestaurants.filter(r => r.name === 'BlueZ Biryani'));
         }
       } catch (err) {
         console.error("Unexpected error fetching restaurants:", err);
         toast.error("An unexpected error occurred");
-        setRestaurantList(sampleRestaurants);
+        setRestaurantList(sampleRestaurants.filter(r => r.name === 'BlueZ Biryani'));
       } finally {
         setLoading(false);
       }
