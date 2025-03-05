@@ -71,37 +71,21 @@ serve(async (req) => {
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
     
-    // Create the student auth account first
-    const { data: authUser, error: authError } = await supabaseClient.auth
-      .admin
-      .createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { name, phone }
-      });
-      
-    if (authError) {
-      console.error('Error creating auth user:', authError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to create user authentication' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
-    }
+    // Generate a UUID for the student
+    const { data: uuidData } = await supabaseClient.rpc('gen_random_uuid');
+    const studentId = uuidData;
     
-    // Create the user
+    // Create the user without linking to auth.users
     const { data: newUser, error: insertError } = await supabaseClient
       .from('student_users')
       .insert([
-        { id: authUser.user.id, phone, name, password_hash, email }
+        { id: studentId, phone, name, password_hash, email }
       ])
       .select()
       .single();
       
     if (insertError) {
       console.error('Error creating user:', insertError);
-      // Attempt to clean up the auth user if profile creation fails
-      await supabaseClient.auth.admin.deleteUser(authUser.user.id);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to create user account' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }

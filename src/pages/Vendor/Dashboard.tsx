@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,8 +13,6 @@ import {
 import { 
   Utensils, 
   ShoppingBag, 
-  PackageOpen, 
-  Clock, 
   CheckCircle2, 
   XCircle, 
   LogOut,
@@ -34,6 +33,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import VendorOrdersSection from "@/components/VendorOrdersSection";
 
 interface Shop {
   id: string;
@@ -46,9 +47,11 @@ interface Shop {
 const VendorDashboard = () => {
   const [vendorEmail, setVendorEmail] = useState("");
   const [shop, setShop] = useState<Shop | null>(null);
+  const [activeTab, setActiveTab] = useState("overview");
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
+  const [vendorId, setVendorId] = useState<string | null>(null);
 
   // Stats for demonstration
   const stats = {
@@ -72,6 +75,7 @@ const VendorDashboard = () => {
         const userId = data.session.user.id;
         const email = data.session.user.email;
         setVendorEmail(email || "Vendor");
+        setVendorId(userId);
         
         // Get vendor's shop
         const { data: shopData, error: shopError } = await supabase
@@ -265,85 +269,113 @@ const VendorDashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="text-muted-foreground text-sm">Pending Orders</p>
-                <h3 className="text-3xl font-bold">{stats.pendingOrders}</h3>
-              </div>
-              <div className="bg-orange-100 p-2 rounded-lg">
-                <Clock size={24} className="text-orange-500" />
-              </div>
-            </div>
-            <Link to="#" className="text-sm text-vendor-600 hover:underline">View pending orders</Link>
-          </CardContent>
-        </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid grid-cols-2 w-full max-w-md mx-auto mb-6">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="orders">Orders</TabsTrigger>
+        </TabsList>
         
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="text-muted-foreground text-sm">Completed Today</p>
-                <h3 className="text-3xl font-bold">{stats.completedToday}</h3>
-              </div>
-              <div className="bg-green-100 p-2 rounded-lg">
-                <CheckCircle2 size={24} className="text-green-500" />
-              </div>
-            </div>
-            <Link to="#" className="text-sm text-vendor-600 hover:underline">View completed orders</Link>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="text-muted-foreground text-sm">Cancelled Today</p>
-                <h3 className="text-3xl font-bold">{stats.cancelledToday}</h3>
-              </div>
-              <div className="bg-red-100 p-2 rounded-lg">
-                <XCircle size={24} className="text-red-500" />
-              </div>
-            </div>
-            <Link to="#" className="text-sm text-vendor-600 hover:underline">View cancelled orders</Link>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="text-muted-foreground text-sm">Today's Sales (₹)</p>
-                <h3 className="text-3xl font-bold">{stats.totalSales.toFixed(2)}</h3>
-              </div>
-              <div className="bg-blue-100 p-2 rounded-lg">
-                <ShoppingBag size={24} className="text-blue-500" />
-              </div>
-            </div>
-            <Link to="#" className="text-sm text-vendor-600 hover:underline">View sales report</Link>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Orders */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Orders</CardTitle>
-          <CardDescription>Manage your incoming and ongoing orders</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <PackageOpen className="mx-auto h-12 w-12 text-muted-foreground opacity-30 mb-2" />
-            <p>You don't have any recent orders</p>
+        <TabsContent value="overview" className="mt-0">
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <p className="text-muted-foreground text-sm">Pending Orders</p>
+                    <h3 className="text-3xl font-bold">{stats.pendingOrders}</h3>
+                  </div>
+                  <div className="bg-yellow-100 p-2 rounded-lg">
+                    <ShoppingBag size={24} className="text-yellow-500" />
+                  </div>
+                </div>
+                <Button variant="link" className="text-sm text-vendor-600 p-0 h-auto" onClick={() => setActiveTab('orders')}>
+                  View pending orders
+                </Button>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <p className="text-muted-foreground text-sm">Completed Today</p>
+                    <h3 className="text-3xl font-bold">{stats.completedToday}</h3>
+                  </div>
+                  <div className="bg-green-100 p-2 rounded-lg">
+                    <CheckCircle2 size={24} className="text-green-500" />
+                  </div>
+                </div>
+                <Button variant="link" className="text-sm text-vendor-600 p-0 h-auto" onClick={() => setActiveTab('orders')}>
+                  View completed orders
+                </Button>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <p className="text-muted-foreground text-sm">Cancelled Today</p>
+                    <h3 className="text-3xl font-bold">{stats.cancelledToday}</h3>
+                  </div>
+                  <div className="bg-red-100 p-2 rounded-lg">
+                    <XCircle size={24} className="text-red-500" />
+                  </div>
+                </div>
+                <Button variant="link" className="text-sm text-vendor-600 p-0 h-auto" onClick={() => setActiveTab('orders')}>
+                  View cancelled orders
+                </Button>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <p className="text-muted-foreground text-sm">Today's Sales (₹)</p>
+                    <h3 className="text-3xl font-bold">{stats.totalSales.toFixed(2)}</h3>
+                  </div>
+                  <div className="bg-blue-100 p-2 rounded-lg">
+                    <ShoppingBag size={24} className="text-blue-500" />
+                  </div>
+                </div>
+                <Button variant="link" className="text-sm text-vendor-600 p-0 h-auto">
+                  View sales report
+                </Button>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-        <CardFooter className="flex justify-end">
-          <Button variant="outline">View All Orders</Button>
-        </CardFooter>
-      </Card>
+          
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle>Shop Activity</CardTitle>
+                <CardDescription>A summary of your shop's recent activity</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Track your shop's performance here</p>
+                  <p className="mt-2">Use the Orders tab to view and manage customer orders</p>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-end">
+                <Button variant="outline" onClick={() => setActiveTab('orders')}>Go to Orders</Button>
+              </CardFooter>
+            </Card>
+          </motion.div>
+        </TabsContent>
+        
+        <TabsContent value="orders" className="mt-0">
+          {shop && vendorId && (
+            <VendorOrdersSection shopId={shop.id} vendorId={vendorId} />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
