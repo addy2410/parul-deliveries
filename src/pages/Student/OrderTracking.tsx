@@ -36,7 +36,7 @@ const OrderTracking = () => {
   const [loading, setLoading] = useState(true);
   const [progressValue, setProgressValue] = useState(0);
   
-  // This function now accepts a status parameter so it can work without relying on the order state
+  // This function accepts a status parameter so it can work without relying on the order state
   const getOrderProgress = (status: string): number => {
     switch(status) {
       case 'pending': return 0;
@@ -84,7 +84,7 @@ const OrderTracking = () => {
         
         setOrder(orderData);
         
-        // Update progress value based on current status - passing the status to the function
+        // Update progress value based on current status
         setProgressValue(getOrderProgress(orderData.status));
       } catch (error) {
         console.error("Error fetching order:", error);
@@ -116,7 +116,7 @@ const OrderTracking = () => {
           };
         });
         
-        // Update progress value based on new status - passing the status to the function
+        // Update progress value based on new status
         setProgressValue(getOrderProgress(updatedOrder.status));
         
         // Show toast for status updates
@@ -134,21 +134,6 @@ const OrderTracking = () => {
       supabase.removeChannel(channel);
     };
   }, [id]);
-  
-  
-  const getOrderProgress = () => {
-    if (!order) return 0;
-    
-    switch(order.status) {
-      case 'pending': return 0;
-      case 'preparing': return 33;
-      case 'ready': return 66;
-      case 'delivering': return 90;
-      case 'delivered': return 100;
-      case 'cancelled': return 0;
-      default: return 0;
-    }
-  };
   
   if (loading) {
     return (
