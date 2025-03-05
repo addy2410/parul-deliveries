@@ -71,6 +71,17 @@ const VendorOrdersSection: React.FC<VendorOrdersSectionProps> = ({ shopId, vendo
         (payload) => {
           console.log('Change received!', payload);
           fetchOrders();
+          
+          // Show toast notification for new orders
+          if (payload.eventType === 'INSERT') {
+            const newOrder = payload.new as Order;
+            if (newOrder && newOrder.status === 'pending') {
+              toast.success(`New order received from ${newOrder.student_name}`, {
+                description: `Order ID: ${newOrder.id.slice(0, 8)}`,
+                duration: 5000
+              });
+            }
+          }
         }
       )
       .subscribe();

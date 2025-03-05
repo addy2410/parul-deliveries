@@ -3,56 +3,127 @@ import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, MapPin, Phone, Clock } from "lucide-react";
-import { sampleOrders } from "@/data/data";
-import { Order } from "@/data/data";
+import { ArrowLeft, MapPin, Phone, Clock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import StudentHeader from "@/components/StudentHeader";
 import { motion } from "framer-motion";
+import { supabase } from "@/lib/supabase";
+
+interface OrderItem {
+  menuItemId: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+interface Order {
+  id: string;
+  restaurant_id: string;
+  student_id: string;
+  student_name: string;
+  items: OrderItem[];
+  total_amount: number;
+  status: 'pending' | 'accepted' | 'preparing' | 'ready' | 'delivering' | 'delivered' | 'cancelled';
+  created_at: string;
+  delivery_location: string;
+  estimated_delivery_time: string;
+}
 
 const ViewOrder = () => {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [deliveryProgress, setDeliveryProgress] = useState(0);
   
   useEffect(() => {
-    // In a real app, this would be an API call
-    const foundOrder = sampleOrders.find(o => o.id === id);
-    
-    if (foundOrder) {
-      setOrder(foundOrder);
+    const fetchOrder = async () => {
+      setIsLoading(true);
       
-      // Set initial progress based on status
-      switch(foundOrder.status) {
-        case 'pending': setDeliveryProgress(10); break;
-        case 'preparing': setDeliveryProgress(30); break;
-        case 'ready': setDeliveryProgress(50); break;
-        case 'delivering': setDeliveryProgress(75); break;
-        case 'delivered': setDeliveryProgress(100); break;
-        default: setDeliveryProgress(0);
+      try {
+        if (!id) {
+          toast.error("Order ID is missing");
+          return;
+        }
+        
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data) {
+          setOrder(data);
+          
+          // Set initial progress based on status
+          switch(data.status) {
+            case 'pending': setDeliveryProgress(10); break;
+            case 'accepted': setDeliveryProgress(20); break;
+            case 'preparing': setDeliveryProgress(40); break;
+            case 'ready': setDeliveryProgress(60); break;
+            case 'delivering': setDeliveryProgress(80); break;
+            case 'delivered': setDeliveryProgress(100); break;
+            default: setDeliveryProgress(0);
+          }
+        } else {
+          toast.error("Order not found");
+        }
+      } catch (error) {
+        console.error('Error fetching order:', error);
+        toast.error("Failed to load order details");
+      } finally {
+        setIsLoading(false);
       }
-    } else {
-      toast.error("Order not found");
-    }
+    };
+    
+    fetchOrder();
+    
+    // Set up realtime subscription for order status updates
+    const channel = supabase
+      .channel('orders-changes')
+      .on('postgres_changes', 
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=eq.${id}`
+        }, 
+        (payload) => {
+          console.log('Order updated:', payload);
+          // Update local order state when changes are detected
+          if (payload.new) {
+            setOrder(payload.new as Order);
+            
+            // Update progress based on new status
+            switch((payload.new as Order).status) {
+              case 'pending': setDeliveryProgress(10); break;
+              case 'accepted': setDeliveryProgress(20); break;
+              case 'preparing': setDeliveryProgress(40); break;
+              case 'ready': setDeliveryProgress(60); break;
+              case 'delivering': setDeliveryProgress(80); break;
+              case 'delivered': setDeliveryProgress(100); break;
+              default: setDeliveryProgress(0);
+            }
+          }
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [id]);
   
-  useEffect(() => {
-    // Simulate updating progress for active orders
-    if (order && order.status !== 'delivered' && order.status !== 'cancelled') {
-      const timer = setInterval(() => {
-        setDeliveryProgress(prev => {
-          const newProgress = prev + 0.2;
-          if (newProgress >= 100) {
-            clearInterval(timer);
-            return 100;
-          }
-          return newProgress;
-        });
-      }, 1000);
-      
-      return () => clearInterval(timer);
-    }
-  }, [order]);
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-[#ea384c]" />
+      </div>
+    );
+  }
   
   if (!order) {
     return (
@@ -70,6 +141,7 @@ const ViewOrder = () => {
   const getStatusText = () => {
     switch(order.status) {
       case 'pending': return 'Restaurant is confirming your order';
+      case 'accepted': return 'Restaurant has accepted your order';
       case 'preparing': return 'Chef is preparing your food';
       case 'ready': return 'Your order is ready for delivery';
       case 'delivering': return 'Your order is on the way';
@@ -96,7 +168,7 @@ const ViewOrder = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex justify-between items-center">
-                  <span>Order #{order.id.split('-')[1]}</span>
+                  <span>Order #{order.id.slice(0, 8)}</span>
                   <span className={`text-sm px-2 py-1 rounded ${
                     order.status === 'delivered' ? 'bg-green-100 text-green-800' : 
                     order.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
@@ -111,7 +183,9 @@ const ViewOrder = () => {
                 <div className="relative pt-4">
                   <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
                     <motion.div 
-                      className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-green-500"
+                      className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${
+                        order.status === 'cancelled' ? 'bg-red-500' : 'bg-green-500'
+                      }`}
                       initial={{ width: "0%" }}
                       animate={{ width: `${deliveryProgress}%` }}
                       transition={{ duration: 0.5 }}
@@ -122,7 +196,7 @@ const ViewOrder = () => {
                     <p className="font-medium">{getStatusText()}</p>
                     {order.status !== 'delivered' && order.status !== 'cancelled' && (
                       <p className="text-sm text-muted-foreground mt-1">
-                        Estimated delivery: {order.estimatedDeliveryTime}
+                        Estimated delivery: {order.estimated_delivery_time}
                       </p>
                     )}
                   </div>
@@ -133,7 +207,7 @@ const ViewOrder = () => {
                     <MapPin className="h-5 w-5 text-gray-500 mt-0.5" />
                     <div>
                       <p className="font-medium">Delivery Location</p>
-                      <p className="text-sm text-muted-foreground">{order.deliveryLocation}</p>
+                      <p className="text-sm text-muted-foreground">{order.delivery_location}</p>
                     </div>
                   </div>
                   
@@ -150,7 +224,7 @@ const ViewOrder = () => {
                     <div>
                       <p className="font-medium">Order Time</p>
                       <p className="text-sm text-muted-foreground">
-                        {new Date(order.createdAt).toLocaleString()}
+                        {new Date(order.created_at).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -180,7 +254,7 @@ const ViewOrder = () => {
                 <div className="border-t pt-4">
                   <div className="flex justify-between text-sm">
                     <span>Subtotal</span>
-                    <span>₹{(order.totalAmount - 30).toFixed(2)}</span>
+                    <span>₹{(order.total_amount - 30).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm my-2">
                     <span>Delivery Fee</span>
@@ -188,7 +262,7 @@ const ViewOrder = () => {
                   </div>
                   <div className="flex justify-between font-medium mt-2 pt-2 border-t">
                     <span>Total</span>
-                    <span>₹{order.totalAmount.toFixed(2)}</span>
+                    <span>₹{order.total_amount.toFixed(2)}</span>
                   </div>
                 </div>
                 

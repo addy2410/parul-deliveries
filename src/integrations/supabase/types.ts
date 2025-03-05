@@ -41,6 +41,78 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string
+          data: Json | null
+          id: string
+          is_read: boolean
+          message: string
+          recipient_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          is_read?: boolean
+          message: string
+          recipient_id: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          is_read?: boolean
+          message?: string
+          recipient_id?: string
+          type?: string
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          created_at: string
+          delivery_location: string
+          estimated_delivery_time: string | null
+          id: string
+          items: Json
+          restaurant_id: string
+          status: string
+          student_id: string
+          student_name: string
+          total_amount: number
+          vendor_id: string
+        }
+        Insert: {
+          created_at?: string
+          delivery_location: string
+          estimated_delivery_time?: string | null
+          id?: string
+          items: Json
+          restaurant_id: string
+          status: string
+          student_id: string
+          student_name: string
+          total_amount: number
+          vendor_id: string
+        }
+        Update: {
+          created_at?: string
+          delivery_location?: string
+          estimated_delivery_time?: string | null
+          id?: string
+          items?: Json
+          restaurant_id?: string
+          status?: string
+          student_id?: string
+          student_name?: string
+          total_amount?: number
+          vendor_id?: string
+        }
+        Relationships: []
+      }
       shops: {
         Row: {
           created_at: string

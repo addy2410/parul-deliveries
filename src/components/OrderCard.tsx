@@ -3,11 +3,30 @@ import React from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Order } from "@/data/data";
 import { Clock, MapPin, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
+
+interface OrderItem {
+  menuItemId: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+export interface Order {
+  id: string;
+  restaurantId: string;
+  customerId: string;
+  customerName: string;
+  items: OrderItem[];
+  totalAmount: number;
+  status: 'pending' | 'accepted' | 'preparing' | 'ready' | 'delivering' | 'delivered' | 'cancelled';
+  createdAt: string;
+  estimatedDeliveryTime: string;
+  deliveryLocation: string;
+}
 
 interface OrderCardProps {
   order: Order;
@@ -19,8 +38,9 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
   const getStatusColor = (status: Order['status']) => {
     switch(status) {
       case 'pending': return 'bg-yellow-500';
-      case 'preparing': return 'bg-blue-500';
-      case 'ready': return 'bg-purple-500';
+      case 'accepted': return 'bg-blue-500';
+      case 'preparing': return 'bg-purple-500';
+      case 'ready': return 'bg-indigo-500';
       case 'delivering': return 'bg-orange-500';
       case 'delivered': return 'bg-green-500';
       case 'cancelled': return 'bg-red-500';
@@ -30,7 +50,8 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
   
   const getNextStatus = (currentStatus: Order['status']) => {
     switch(currentStatus) {
-      case 'pending': return 'preparing';
+      case 'pending': return 'accepted';
+      case 'accepted': return 'preparing';
       case 'preparing': return 'ready';
       case 'ready': return 'delivering';
       case 'delivering': return 'delivered';
@@ -54,7 +75,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
         <CardHeader className="pb-2">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-lg font-medium">Order #{order.id.split('-')[1]}</h3>
+              <h3 className="text-lg font-medium">Order #{order.id.slice(0, 8)}</h3>
               <p className="text-sm text-muted-foreground">
                 {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}
               </p>

@@ -1,123 +1,168 @@
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+}
+
+interface StatusUpdateRequest {
+  orderId: string;
+  status: 'accepted' | 'preparing' | 'ready' | 'delivering' | 'delivered' | 'cancelled';
+  vendorId: string;
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
-  
-  try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
 
-    const { orderId, status, vendorId } = await req.json();
-    
+  try {
+    // Create Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Parse request body
+    const requestData: StatusUpdateRequest = await req.json();
+    const { orderId, status, vendorId } = requestData;
+
+    console.log('Received status update request:', JSON.stringify(requestData, null, 2));
+
+    // Validate request
     if (!orderId || !status || !vendorId) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Order ID, status, and vendor ID are required' }),
+        JSON.stringify({
+          success: false,
+          error: 'Missing required information (orderId, status, or vendorId)'
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
-    
-    // Validate the status value
-    const validStatuses = ['accepted', 'preparing', 'ready', 'delivering', 'delivered', 'cancelled'];
-    if (!validStatuses.includes(status)) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Invalid status value' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
-    }
-    
-    // Check if the order belongs to this vendor
-    const { data: order, error: fetchError } = await supabaseClient
+
+    // Verify the vendor is authorized to update this order
+    const { data: orderData, error: orderError } = await supabase
       .from('orders')
-      .select('id, student_id, status')
+      .select('id, vendor_id, student_id, status')
       .eq('id', orderId)
-      .eq('vendor_id', vendorId)
       .single();
-      
-    if (fetchError) {
-      console.error('Error fetching order:', fetchError);
+
+    if (orderError) {
+      console.error('Error fetching order:', orderError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to fetch order or order not found' }),
+        JSON.stringify({
+          success: false,
+          error: 'Order not found'
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
       );
     }
-    
-    // Update the order status
-    const { error: updateError } = await supabaseClient
-      .from('orders')
-      .update({ status: status })
-      .eq('id', orderId);
-      
-    if (updateError) {
-      console.error('Error updating order:', updateError);
+
+    // Check if the vendor is authorized to update this order
+    if (orderData.vendor_id !== vendorId) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to update order status' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        JSON.stringify({
+          success: false,
+          error: 'Unauthorized: You are not the vendor for this order'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
       );
     }
     
-    // Create notification for student
-    let notificationMessage = '';
-    switch (status) {
-      case 'accepted':
-        notificationMessage = 'Your order has been accepted by the restaurant';
-        break;
-      case 'preparing':
-        notificationMessage = 'Your order is being prepared';
-        break;
-      case 'ready':
-        notificationMessage = 'Your order is ready for delivery';
-        break;
-      case 'delivering':
-        notificationMessage = 'Your order is on the way';
-        break;
-      case 'delivered':
-        notificationMessage = 'Your order has been delivered';
-        break;
-      case 'cancelled':
-        notificationMessage = 'Your order has been cancelled by the restaurant';
-        break;
-    }
+    // Check that the status change follows a logical progression
+    const validTransitions: Record<string, string[]> = {
+      'pending': ['accepted', 'cancelled'],
+      'accepted': ['preparing', 'cancelled'],
+      'preparing': ['ready', 'cancelled'],
+      'ready': ['delivering', 'cancelled'],
+      'delivering': ['delivered', 'cancelled'],
+      'delivered': [], // Terminal state
+      'cancelled': []  // Terminal state
+    };
     
-    const { error: notificationError } = await supabaseClient
+    if (!validTransitions[orderData.status]?.includes(status) && orderData.status !== status) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Invalid status transition from ${orderData.status} to ${status}`
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Update order status
+    const { data: updatedOrder, error: updateError } = await supabase
+      .from('orders')
+      .update({ status })
+      .eq('id', orderId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating order status:', updateError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: updateError.message
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+
+    // Create notification for the student
+    const notificationMessage = getNotificationMessage(status);
+    
+    const { error: notificationError } = await supabase
       .from('notifications')
-      .insert([{
-        recipient_id: order.student_id,
-        type: 'order_update',
+      .insert({
+        recipient_id: orderData.student_id,
+        type: `order_${status}`,
         message: notificationMessage,
-        data: { orderId: orderId, status: status },
-        is_read: false
-      }]);
-      
+        data: { orderId }
+      });
+
     if (notificationError) {
       console.error('Error creating notification:', notificationError);
-      // Continue anyway as the order status was updated successfully
+      // Continue anyway since the order was updated successfully
     }
-    
+
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Order status updated successfully'
+      JSON.stringify({
+        success: true,
+        order: updatedOrder
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-    
   } catch (error) {
-    console.error('Edge function error:', error);
+    console.error('Error updating order status:', error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({
+        success: false,
+        error: error.message
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
+
+// Helper function to create notification messages based on status
+function getNotificationMessage(status: string): string {
+  switch (status) {
+    case 'accepted':
+      return 'Your order has been accepted by the restaurant';
+    case 'preparing':
+      return 'The restaurant is now preparing your food';
+    case 'ready':
+      return 'Your order is ready for delivery';
+    case 'delivering':
+      return 'Your order is on the way!';
+    case 'delivered':
+      return 'Your order has been delivered. Enjoy!';
+    case 'cancelled':
+      return 'We apologize, but your order has been cancelled';
+    default:
+      return `Your order status has been updated to ${status}`;
+  }
+}

@@ -1,14 +1,41 @@
 
-import React from "react";
-import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Button } from "@/components/ui/card";
+import { Link, useLocation } from "react-router-dom";
 import { CheckCircle, Home, Clock, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import StudentHeader from "@/components/StudentHeader";
+import { toast } from "sonner";
 
 const StudentOrderSuccess = () => {
-  // In a real app, this would come from the order creation flow
-  const orderId = "order-" + Math.floor(1000 + Math.random() * 9000);
+  const location = useLocation();
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [estimatedTime, setEstimatedTime] = useState<string>("20-30 minutes");
+  
+  useEffect(() => {
+    // Extract order information from location state or query parameters
+    const searchParams = new URLSearchParams(location.search);
+    const orderIdParam = searchParams.get('orderId');
+    const estimatedTimeParam = searchParams.get('estimatedTime');
+    
+    if (orderIdParam) {
+      setOrderId(orderIdParam);
+      
+      if (estimatedTimeParam) {
+        setEstimatedTime(estimatedTimeParam);
+      }
+    } else if (location.state && location.state.orderId) {
+      // If orderId comes from location state
+      setOrderId(location.state.orderId);
+      if (location.state.estimatedTime) {
+        setEstimatedTime(location.state.estimatedTime);
+      }
+    } else {
+      // Fallback for testing or if no orderId is provided
+      setOrderId("order-" + Math.floor(1000 + Math.random() * 9000));
+      toast.warning("Order ID not found, using placeholder");
+    }
+  }, [location]);
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -32,7 +59,7 @@ const StudentOrderSuccess = () => {
               <Clock className="text-yellow-600 mr-2" />
               <h3 className="font-semibold text-yellow-800">Estimated Delivery Time</h3>
             </div>
-            <p className="text-yellow-700">20-30 minutes</p>
+            <p className="text-yellow-700">{estimatedTime}</p>
           </div>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
