@@ -1,0 +1,83 @@
+
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+  
+  try {
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { phone, password } = await req.json();
+    
+    console.log(`Attempting to verify password for phone: ${phone}`);
+    
+    if (!phone || !password) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Phone and password are required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+    
+    // Get the user with the phone number
+    const { data: student, error: fetchError } = await supabaseClient
+      .from('student_users')
+      .select('id, password_hash, name')
+      .eq('phone', phone)
+      .maybeSingle();
+      
+    if (fetchError) {
+      console.error('Error fetching student:', fetchError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to fetch user data' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    if (!student) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'User not found' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      );
+    }
+    
+    // Verify the password
+    const passwordMatches = await bcrypt.compare(password, student.password_hash);
+    
+    if (!passwordMatches) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid credentials' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+    
+    // Password is correct
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        userId: student.id,
+        name: student.name
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+    
+  } catch (error) {
+    console.error('Edge function error:', error);
+    return new Response(
+      JSON.stringify({ success: false, error: error.message }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    );
+  }
+});

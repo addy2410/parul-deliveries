@@ -1,10 +1,10 @@
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
@@ -14,6 +14,7 @@ const VendorLogin = () => {
   const [pucampid, setPucampid] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("login");
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -65,54 +66,14 @@ const VendorLogin = () => {
         // Real Supabase authentication for production mode
         const email = `${pucampid.toLowerCase()}@vendor.campusgrub.app`;
         
-        // First try to sign in
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         
         if (signInError) {
-          // If sign in fails, check if we need to create a new account
-          if (pucampid.startsWith("VEN") && password.length >= 6) {
-            // Try to sign up
-            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-              email,
-              password,
-            });
-            
-            if (signUpError) {
-              if (signUpError.message.includes("User already registered")) {
-                toast.error("This PUCAMPID is already registered. Please login instead.");
-              } else {
-                toast.error(`Signup failed: ${signUpError.message}`);
-              }
-              throw signUpError;
-            }
-            
-            if (signUpData.user) {
-              // Insert vendor record in vendors table
-              const { error: vendorError } = await supabase
-                .from('vendors')
-                .insert([{ 
-                  id: signUpData.user.id, 
-                  pucampid: pucampid,
-                  email: email
-                }]);
-                
-              if (vendorError) {
-                console.error("Error creating vendor record:", vendorError);
-                toast.error("Failed to create vendor profile");
-                throw vendorError;
-              }
-              
-              toast.success("Account created successfully! Redirecting to shop registration.");
-              navigate("/vendor/register-shop");
-              return;
-            }
-          } else {
-            toast.error("Invalid credentials. Please check and try again.");
-            throw signInError;
-          }
+          toast.error("Invalid credentials. Please check and try again.");
+          throw signInError;
         } else if (signInData.user) {
           toast.success("Login successful");
           
@@ -124,7 +85,6 @@ const VendorLogin = () => {
             .single();
             
           if (shopError && shopError.code !== 'PGRST116') {
-            // An error other than "no rows returned"
             console.error("Error checking for shop:", shopError);
           }
           
@@ -140,6 +100,111 @@ const VendorLogin = () => {
     } catch (error: any) {
       console.error("Login error:", error);
       toast.error(error.message || "Login failed. Please check your credentials and try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!pucampid || !password) {
+      toast.error("Please enter both PUCAMPID and password");
+      return;
+    }
+    
+    if (!pucampid.startsWith("VEN") || password.length < 6) {
+      toast.error("PUCAMPID must start with 'VEN' and password must be at least 6 characters");
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      if (isUsingDefaultCredentials()) {
+        // In demo mode, use localStorage for user storage
+        const storedVendors = JSON.parse(localStorage.getItem('vendors') || '[]');
+        
+        // Check if vendor exists
+        const existingVendor = storedVendors.find((v: any) => v.pucampid === pucampid);
+        
+        if (existingVendor) {
+          toast.error("This PUCAMPID is already registered. Please login instead.");
+          setActiveTab("login");
+          setIsLoading(false);
+          return;
+        } else if (pucampid.startsWith("VEN") && password.length >= 6) {
+          // New vendor, create record
+          const vendorId = `vendor-${Date.now()}`;
+          const newVendor = { id: vendorId, pucampid, password };
+          localStorage.setItem('vendors', JSON.stringify([...storedVendors, newVendor]));
+          localStorage.setItem('currentVendorId', vendorId);
+          toast.success("Account created successfully! Redirecting to shop registration.");
+          navigate("/vendor/register-shop");
+        } else {
+          throw new Error("Invalid credentials format");
+        }
+      } else {
+        // Real Supabase authentication for production mode
+        const email = `${pucampid.toLowerCase()}@vendor.campusgrub.app`;
+        
+        // Check if user already exists
+        const { data: existingVendors, error: existingError } = await supabase
+          .from('vendors')
+          .select('pucampid')
+          .eq('pucampid', pucampid);
+          
+        if (existingError) {
+          console.error("Error checking existing vendor:", existingError);
+          throw existingError;
+        }
+        
+        if (existingVendors && existingVendors.length > 0) {
+          toast.error("This PUCAMPID is already registered. Please login instead.");
+          setActiveTab("login");
+          setIsLoading(false);
+          return;
+        }
+        
+        // Create new user
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        
+        if (signUpError) {
+          if (signUpError.message.includes("User already registered")) {
+            toast.error("This PUCAMPID is already registered. Please login instead.");
+            setActiveTab("login");
+          } else {
+            toast.error(`Signup failed: ${signUpError.message}`);
+          }
+          throw signUpError;
+        }
+        
+        if (signUpData.user) {
+          // Insert vendor record in vendors table
+          const { error: vendorError } = await supabase
+            .from('vendors')
+            .insert([{ 
+              id: signUpData.user.id, 
+              pucampid: pucampid,
+              email: email
+            }]);
+            
+          if (vendorError) {
+            console.error("Error creating vendor record:", vendorError);
+            toast.error("Failed to create vendor profile");
+            throw vendorError;
+          }
+          
+          toast.success("Account created successfully! Redirecting to shop registration.");
+          navigate("/vendor/register-shop");
+        }
+      }
+    } catch (error: any) {
+      console.error("Signup error:", error);
+      toast.error(error.message || "Signup failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -163,71 +228,110 @@ const VendorLogin = () => {
         >
           <Card className="border-vendor-100 shadow-lg">
             <CardHeader className="space-y-1">
-              <CardTitle className="text-2xl font-bold text-center">Vendor Login</CardTitle>
+              <CardTitle className="text-2xl font-bold text-center">Vendor Portal</CardTitle>
               <CardDescription className="text-center">
-                Enter your PUCAMPID and password to access your vendor dashboard
+                Access your vendor dashboard to manage your shop
               </CardDescription>
             </CardHeader>
             
-            <CardContent className="space-y-4">
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="pucampid">PUCAMPID</Label>
-                  <Input 
-                    id="pucampid"
-                    placeholder="Enter your PUCAMPID (e.g., VEN12345)"
-                    value={pucampid}
-                    onChange={(e) => setPucampid(e.target.value)}
-                    autoComplete="username"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Password</Label>
-                    <a 
-                      href="#" 
-                      className="text-sm text-primary hover:underline"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        toast.info("Password reset functionality would be implemented here");
-                      }}
-                    >
-                      Forgot password?
-                    </a>
-                  </div>
-                  <Input 
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="current-password"
-                  />
-                </div>
-                
-                <Button 
-                  type="submit" 
-                  className="w-full bg-vendor-600 hover:bg-vendor-700"
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Logging in..." : "Login"}
-                </Button>
-              </form>
-              
-              <div className="text-center text-sm text-gray-500 mt-4">
-                <p>Don't have a PUCAMPID yet?</p>
-                <Button
-                  variant="link"
-                  className="text-vendor-600 p-0 h-auto"
-                  onClick={() => {
-                    toast.info("Registration would be handled by campus administration");
-                  }}
-                >
-                  Contact campus administration
-                </Button>
+            <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab}>
+              <div className="px-6">
+                <TabsList className="grid grid-cols-2 w-full">
+                  <TabsTrigger value="login">Login</TabsTrigger>
+                  <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                </TabsList>
               </div>
-            </CardContent>
+              
+              <CardContent className="space-y-4 pt-4">
+                <TabsContent value="login" className="mt-0">
+                  <form onSubmit={handleLogin} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="login-pucampid">PUCAMPID</Label>
+                      <Input 
+                        id="login-pucampid"
+                        placeholder="Enter your PUCAMPID (e.g., VEN12345)"
+                        value={pucampid}
+                        onChange={(e) => setPucampid(e.target.value)}
+                        autoComplete="username"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="login-password">Password</Label>
+                        <a 
+                          href="#" 
+                          className="text-sm text-primary hover:underline"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            toast.info("Password reset functionality would be implemented here");
+                          }}
+                        >
+                          Forgot password?
+                        </a>
+                      </div>
+                      <Input 
+                        id="login-password"
+                        type="password"
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        autoComplete="current-password"
+                      />
+                    </div>
+                    
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-vendor-600 hover:bg-vendor-700"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? "Logging in..." : "Login"}
+                    </Button>
+                  </form>
+                </TabsContent>
+                
+                <TabsContent value="signup" className="mt-0">
+                  <form onSubmit={handleSignup} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-pucampid">PUCAMPID</Label>
+                      <Input 
+                        id="signup-pucampid"
+                        placeholder="Enter PUCAMPID (e.g., VEN12345)"
+                        value={pucampid}
+                        onChange={(e) => setPucampid(e.target.value)}
+                        autoComplete="username"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Must start with "VEN" (e.g., VEN12345)
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-password">Password</Label>
+                      <Input 
+                        id="signup-password"
+                        type="password"
+                        placeholder="Create a password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        autoComplete="new-password"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Must be at least 6 characters
+                      </p>
+                    </div>
+                    
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-vendor-600 hover:bg-vendor-700"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? "Creating Account..." : "Create Account"}
+                    </Button>
+                  </form>
+                </TabsContent>
+              </CardContent>
+            </Tabs>
             
             <CardFooter className="flex flex-col space-y-2">
               <div className="text-center text-xs text-gray-500 mt-4">
