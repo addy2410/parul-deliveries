@@ -44,6 +44,7 @@ const VendorLogin = () => {
       );
       
       if (matchingVendor) {
+        console.log(`Login successful for hardcoded vendor: ${matchingVendor.name}`);
         toast.success(`Login successful as ${matchingVendor.name}`);
         
         // Create a mock session for the hardcoded vendor
@@ -58,7 +59,7 @@ const VendorLogin = () => {
         // Store mock session in localStorage
         localStorage.setItem('vendorSession', JSON.stringify(mockSession));
         
-        // Check if vendor has a shop - for hardcoded vendors, they always have a shop
+        // Navigate to dashboard
         navigate("/vendor/dashboard");
         return;
       }
@@ -244,7 +245,7 @@ const VendorLogin = () => {
                     </Button>
                     
                     <div className="text-sm text-center mt-4 text-muted-foreground">
-                      <p>Food Court Vendors:</p>
+                      <p className="font-semibold">Demo Credentials:</p>
                       <p>GREENZY: greenzy@campus.com / green123</p>
                       <p>Main Food Court: main@campus.com / main123</p>
                     </div>

@@ -147,13 +147,18 @@ serve(async (req) => {
       );
     }
     
-    // Hash the password with bcryptjs - CRITICAL FIX: Using simple approach with fixed salt rounds
+    // Hash the password using the more reliable approach with explicit salt
     let password_hash;
     try {
       console.log("Starting password hashing with bcryptjs");
-      // Use fixed salt rounds (3) to ensure it completes quickly in the edge function environment
-      password_hash = await bcrypt.hash(password, 3);
-      console.log("Password hashing completed successfully");
+      
+      // Generate a salt with fewer rounds (10 is default, 8 is faster)
+      const salt = await bcrypt.genSalt(8);
+      console.log("Salt generated:", !!salt);
+      
+      // Hash with the generated salt
+      password_hash = await bcrypt.hash(password, salt);
+      console.log("Password hash generated successfully:", !!password_hash);
       
       if (!password_hash) {
         throw new Error("Hash result is undefined");
