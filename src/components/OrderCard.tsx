@@ -3,20 +3,44 @@ import React from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Order } from "@/data/data";
 import { Clock, MapPin, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+
+interface OrderItem {
+  menuItemId: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+interface Order {
+  id: string;
+  student_id: string;
+  vendor_id: string;
+  shop_id: string;
+  items: OrderItem[];
+  total_amount: number;
+  status: string;
+  delivery_location: string;
+  student_name: string;
+  estimated_delivery_time?: string;
+  created_at: string;
+  restaurantName?: string;
+  customerName?: string;
+}
 
 interface OrderCardProps {
   order: Order;
   isVendor?: boolean;
-  onStatusChange?: (orderId: string, newStatus: Order['status']) => void;
+  onStatusChange?: (orderId: string, newStatus: string) => void;
 }
 
 const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatusChange }) => {
-  const getStatusColor = (status: Order['status']) => {
+  const getStatusColor = (status: string) => {
     switch(status) {
       case 'pending': return 'bg-yellow-500';
       case 'preparing': return 'bg-blue-500';
@@ -28,7 +52,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
     }
   };
   
-  const getNextStatus = (currentStatus: Order['status']) => {
+  const getNextStatus = (currentStatus: string) => {
     switch(currentStatus) {
       case 'pending': return 'preparing';
       case 'preparing': return 'ready';
@@ -38,9 +62,30 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
     }
   };
   
-  const handleNextStatus = () => {
-    if (onStatusChange && order.status !== 'delivered' && order.status !== 'cancelled') {
-      onStatusChange(order.id, getNextStatus(order.status));
+  const handleNextStatus = async () => {
+    if (isVendor && order.status !== 'delivered' && order.status !== 'cancelled') {
+      if (onStatusChange) {
+        onStatusChange(order.id, getNextStatus(order.status));
+      } else {
+        // Default implementation if no callback is provided
+        try {
+          const { error } = await supabase
+            .from('orders')
+            .update({ status: getNextStatus(order.status) })
+            .eq('id', order.id);
+            
+          if (error) {
+            console.error("Error updating order status:", error);
+            toast.error("Failed to update order status");
+            return;
+          }
+          
+          toast.success(`Order status updated to: ${getNextStatus(order.status)}`);
+        } catch (error) {
+          console.error("Error updating order status:", error);
+          toast.error("An error occurred while updating order status");
+        }
+      }
     }
   };
 
@@ -54,9 +99,16 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
         <CardHeader className="pb-2">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-lg font-medium">Order #{order.id.split('-')[1]}</h3>
+              <h3 className="text-lg font-medium">
+                Order #{order.id.slice(0, 8)}
+                {order.restaurantName && !isVendor && (
+                  <span className="text-sm font-normal text-muted-foreground ml-2">
+                    {order.restaurantName}
+                  </span>
+                )}
+              </h3>
               <p className="text-sm text-muted-foreground">
-                {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}
+                {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
               </p>
             </div>
             <Badge className={`${getStatusColor(order.status)} capitalize`}>
@@ -70,19 +122,19 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
             <div>
               {isVendor && (
                 <p className="text-sm font-medium mb-2">
-                  Customer: {order.customerName}
+                  Customer: {order.student_name}
                 </p>
               )}
               
               <div className="flex items-start text-sm mb-2">
                 <MapPin size={16} className="mr-1 mt-1 flex-shrink-0" />
-                <span>{order.deliveryLocation}</span>
+                <span>{order.delivery_location}</span>
               </div>
               
-              {order.estimatedDeliveryTime && (
+              {order.estimated_delivery_time && (
                 <div className="flex items-center text-sm">
                   <Clock size={16} className="mr-1 flex-shrink-0" />
-                  <span>{order.estimatedDeliveryTime}</span>
+                  <span>{order.estimated_delivery_time}</span>
                 </div>
               )}
             </div>
@@ -90,8 +142,8 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
             <div>
               <p className="text-sm font-medium mb-2">Items:</p>
               <ul className="space-y-1 text-sm">
-                {order.items.map((item) => (
-                  <li key={item.menuItemId} className="flex justify-between">
+                {order.items.map((item, index) => (
+                  <li key={index} className="flex justify-between">
                     <span>
                       {item.quantity}x {item.name}
                     </span>
@@ -104,7 +156,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
             <div className="pt-2 border-t border-border">
               <div className="flex justify-between font-medium">
                 <span>Total</span>
-                <span>₹{order.totalAmount.toFixed(2)}</span>
+                <span>₹{order.total_amount.toFixed(2)}</span>
               </div>
             </div>
           </div>

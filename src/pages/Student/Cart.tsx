@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -8,15 +9,60 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Trash2, ArrowLeft, Home } from "lucide-react";
 import { toast } from "sonner";
 import StudentHeader from "@/components/StudentHeader";
+import { supabase } from "@/lib/supabase";
 
 const StudentCart = () => {
   const navigate = useNavigate();
-  const { items, removeFromCart, clearCart } = useCart();
+  const { items, removeFromCart, clearCart, totalPrice } = useCart();
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deliveryLocation, setDeliveryLocation] = useState("Campus Main Building");
+  const [studentId, setStudentId] = useState<string | null>(null);
+  const [studentName, setStudentName] = useState<string>("Student");
   
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const deliveryFee = subtotal > 0 ? 30 : 0;
   const total = subtotal + deliveryFee;
+  
+  useEffect(() => {
+    // Check if user is authenticated
+    const checkAuth = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      
+      if (error || !data.session) {
+        // Try to get from localStorage as fallback (for development)
+        const storedSession = localStorage.getItem('studentSession');
+        if (storedSession) {
+          try {
+            const session = JSON.parse(storedSession);
+            setStudentId(session.userId);
+            setStudentName(session.name || "Student");
+          } catch (e) {
+            console.error("Error parsing stored session:", e);
+          }
+        }
+        return;
+      }
+      
+      setStudentId(data.session.user.id);
+      
+      // Get student name from profile
+      const { data: profile, error: profileError } = await supabase
+        .from('student_profiles')
+        .select('name')
+        .eq('id', data.session.user.id)
+        .single();
+        
+      if (!profileError && profile) {
+        setStudentName(profile.name);
+      } else {
+        // Fallback to email if name not available
+        setStudentName(data.session.user.email?.split('@')[0] || "Student");
+      }
+    };
+    
+    checkAuth();
+  }, []);
   
   const groupedCartItems = items.reduce((acc: any, item) => {
     if (!acc[item.restaurantId]) {
@@ -45,14 +91,90 @@ const StudentCart = () => {
       return;
     }
     
+    if (!studentId) {
+      toast.error("Please login to place an order");
+      navigate("/student/login");
+      return;
+    }
+    
     setIsPaymentModalOpen(true);
   };
   
-  const handlePaymentComplete = () => {
-    // In a real app, you would process the payment here
-    toast.success("Order placed successfully!");
-    clearCart();
-    navigate("/student/order-success");
+  const handlePaymentComplete = async () => {
+    try {
+      setIsSubmitting(true);
+      
+      // Check if we have items from a single shop only
+      const shopIds = Array.from(new Set(items.map(item => item.restaurantId)));
+      if (shopIds.length > 1) {
+        toast.error("You can only order from one restaurant at a time");
+        return;
+      }
+      
+      const shopId = shopIds[0];
+      
+      // Get vendor ID for this shop
+      const { data: shopData, error: shopError } = await supabase
+        .from('shops')
+        .select('vendor_id')
+        .eq('id', shopId)
+        .single();
+        
+      if (shopError || !shopData) {
+        toast.error("Error finding restaurant details");
+        console.error("Error fetching shop:", shopError);
+        return;
+      }
+      
+      // Prepare order items format for the database
+      const orderItems = items.map(item => ({
+        menuItemId: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity
+      }));
+      
+      // Create the order
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert([
+          {
+            student_id: studentId,
+            vendor_id: shopData.vendor_id,
+            shop_id: shopId,
+            items: orderItems,
+            total_amount: total,
+            status: 'pending',
+            delivery_location: deliveryLocation,
+            student_name: studentName
+          }
+        ])
+        .select();
+        
+      if (orderError) {
+        console.error("Error creating order:", orderError);
+        toast.error("Failed to create order");
+        return;
+      }
+      
+      // Order created successfully
+      toast.success("Order placed successfully!");
+      clearCart();
+      
+      // Navigate to order success page with the order ID
+      navigate("/student/order-success", {
+        state: { 
+          orderId: orderData[0]?.id,
+          total: total.toFixed(2) 
+        }
+      });
+    } catch (error) {
+      console.error("Error processing order:", error);
+      toast.error("An unexpected error occurred");
+    } finally {
+      setIsSubmitting(false);
+      setIsPaymentModalOpen(false);
+    }
   };
 
   return (
@@ -149,6 +271,25 @@ const StudentCart = () => {
                   <span>Total</span>
                   <span>₹{total.toFixed(2)}</span>
                 </div>
+                
+                <div className="mt-4">
+                  <label className="text-sm font-medium block mb-2">
+                    Delivery Location
+                  </label>
+                  <select 
+                    className="w-full p-2 border rounded-md"
+                    value={deliveryLocation}
+                    onChange={(e) => setDeliveryLocation(e.target.value)}
+                  >
+                    <option value="Campus Main Building">Campus Main Building</option>
+                    <option value="Boys Hostel">Boys Hostel</option>
+                    <option value="Girls Hostel">Girls Hostel</option>
+                    <option value="Library">Library</option>
+                    <option value="Student Center">Student Center</option>
+                    <option value="Sports Complex">Sports Complex</option>
+                  </select>
+                </div>
+                
                 <Button 
                   className="w-full mt-4 bg-[#ea384c] hover:bg-[#d02e40]"
                   onClick={handlePlaceOrder}
@@ -174,6 +315,7 @@ const StudentCart = () => {
                   variant="outline" 
                   className="justify-start border-2 border-blue-500 hover:bg-blue-50"
                   onClick={handlePaymentComplete}
+                  disabled={isSubmitting}
                 >
                   <img src="https://images.unsplash.com/photo-1493962853295-0fd70327578a" alt="UPI" className="w-6 h-6 mr-2" />
                   UPI Payment
@@ -182,6 +324,7 @@ const StudentCart = () => {
                   variant="outline" 
                   className="justify-start border-2 border-green-500 hover:bg-green-50"
                   onClick={handlePaymentComplete}
+                  disabled={isSubmitting}
                 >
                   <img src="https://images.unsplash.com/photo-1582562124811-c09040d0a901" alt="Card" className="w-6 h-6 mr-2" />
                   Credit/Debit Card
@@ -190,6 +333,7 @@ const StudentCart = () => {
                   variant="outline" 
                   className="justify-start border-2 border-orange-500 hover:bg-orange-50"
                   onClick={handlePaymentComplete}
+                  disabled={isSubmitting}
                 >
                   <img src="https://images.unsplash.com/photo-1466721591366-2d5fba72006d" alt="COD" className="w-6 h-6 mr-2" />
                   Cash on Delivery
@@ -200,14 +344,16 @@ const StudentCart = () => {
               <Button 
                 variant="outline" 
                 onClick={() => setIsPaymentModalOpen(false)}
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
               <Button 
                 className="bg-[#ea384c] hover:bg-[#d02e40]"
                 onClick={handlePaymentComplete}
+                disabled={isSubmitting}
               >
-                Pay ₹{total.toFixed(2)}
+                {isSubmitting ? "Processing..." : `Pay ₹${total.toFixed(2)}`}
               </Button>
             </CardFooter>
           </Card>

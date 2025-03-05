@@ -4,38 +4,188 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
-import { sampleOrders, Order } from "@/data/data";
 import OrderCard from "@/components/OrderCard";
 import StudentHeader from "@/components/StudentHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+
+interface OrderItem {
+  menuItemId: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+interface Order {
+  id: string;
+  student_id: string;
+  vendor_id: string;
+  shop_id: string;
+  items: OrderItem[];
+  total_amount: number;
+  status: string;
+  delivery_location: string;
+  student_name: string;
+  estimated_delivery_time?: string;
+  created_at: string;
+  restaurantName?: string;
+}
 
 const StudentOrders = () => {
   const { type } = useParams<{ type: string }>();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [studentName] = useState("John Doe"); // In a real app, this would come from authentication
+  const [loading, setLoading] = useState(true);
+  const [studentId, setStudentId] = useState<string | null>(null);
   
   useEffect(() => {
-    // In a demo mode, we're using sample orders
-    // Filter orders based on status and simulate they belong to this student
-    const activeOrders = sampleOrders.filter(
-      order => !['delivered', 'cancelled'].includes(order.status)
-    );
+    // Check if user is authenticated
+    const checkAuth = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      
+      if (error || !data.session) {
+        // Try to get from localStorage as fallback (for development)
+        const storedSession = localStorage.getItem('studentSession');
+        if (storedSession) {
+          try {
+            const session = JSON.parse(storedSession);
+            setStudentId(session.userId);
+          } catch (e) {
+            console.error("Error parsing stored session:", e);
+          }
+        }
+        return;
+      }
+      
+      setStudentId(data.session.user.id);
+    };
     
-    const previousOrders = sampleOrders.filter(
-      order => ['delivered', 'cancelled'].includes(order.status)
-    );
+    checkAuth();
+  }, []);
+  
+  useEffect(() => {
+    if (!studentId) return;
     
-    if (type === 'active') {
-      setOrders(activeOrders);
-    } else {
-      setOrders(previousOrders);
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        
+        // Get active or previous orders based on type
+        const isActive = type === 'active';
+        
+        const { data, error } = await supabase
+          .from('orders')
+          .select(`
+            *,
+            shops!inner(name)
+          `)
+          .eq('student_id', studentId)
+          .in('status', isActive 
+            ? ['pending', 'preparing', 'ready', 'delivering'] 
+            : ['delivered', 'cancelled'])
+          .order('created_at', { ascending: false });
+          
+        if (error) {
+          console.error("Error fetching orders:", error);
+          toast.error("Failed to load orders");
+          return;
+        }
+        
+        // Process orders data
+        const formattedOrders = data.map(order => ({
+          ...order,
+          items: Array.isArray(order.items) ? order.items : [],
+          restaurantName: order.shops?.name || 'Unknown Restaurant'
+        }));
+        
+        setOrders(formattedOrders);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchOrders();
+    
+    // Set up real-time subscription for order updates
+    if (studentId) {
+      const channel = supabase
+        .channel('student-orders-changes')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `student_id=eq.${studentId}`
+        }, async (payload) => {
+          // Fetch restaurant name for this order
+          let restaurantName = 'Unknown Restaurant';
+          try {
+            const { data } = await supabase
+              .from('shops')
+              .select('name')
+              .eq('id', payload.new.shop_id)
+              .single();
+              
+            if (data) {
+              restaurantName = data.name;
+            }
+          } catch (e) {
+            console.error("Error fetching shop name:", e);
+          }
+          
+          if (payload.eventType === 'INSERT') {
+            const newOrder = {
+              ...payload.new,
+              items: Array.isArray(payload.new.items) ? payload.new.items : [],
+              restaurantName
+            };
+            
+            // Only add to list if it matches the current filter
+            const isActive = ['pending', 'preparing', 'ready', 'delivering'].includes(newOrder.status);
+            if ((type === 'active' && isActive) || (type === 'previous' && !isActive)) {
+              setOrders(prev => [newOrder, ...prev]);
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedOrder = {
+              ...payload.new,
+              items: Array.isArray(payload.new.items) ? payload.new.items : [],
+              restaurantName
+            };
+            
+            // Check if status changed from active to completed/cancelled or vice versa
+            const wasActive = ['pending', 'preparing', 'ready', 'delivering'].includes(payload.old.status);
+            const isActive = ['pending', 'preparing', 'ready', 'delivering'].includes(updatedOrder.status);
+            
+            if (wasActive !== isActive) {
+              // Order moved between active and previous
+              if ((type === 'active' && !isActive) || (type === 'previous' && isActive)) {
+                // Order should be removed from current view
+                setOrders(prev => prev.filter(o => o.id !== updatedOrder.id));
+              } else {
+                // Order should be added to current view
+                setOrders(prev => [updatedOrder, ...prev]);
+              }
+            } else {
+              // Just update the order in the current view
+              setOrders(prev => prev.map(o => 
+                o.id === updatedOrder.id ? updatedOrder : o
+              ));
+            }
+          }
+        })
+        .subscribe();
+        
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
-  }, [type]);
+  }, [studentId, type]);
   
   return (
     <div className="min-h-screen bg-gray-50">
-      <StudentHeader studentName={studentName} />
+      <StudentHeader />
       
       <div className="container mx-auto p-4">
         <div className="flex justify-between items-center mb-6">
@@ -72,7 +222,11 @@ const StudentOrders = () => {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
           >
-            {orders.length > 0 ? (
+            {loading ? (
+              <div className="text-center py-8">
+                <p>Loading orders...</p>
+              </div>
+            ) : orders.length > 0 ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {orders.map(order => (
                   <OrderCard 

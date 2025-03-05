@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import VendorNotifications from "@/components/VendorNotifications";
+import VendorOrdersList from "@/components/VendorOrdersList";
 
 interface Shop {
   id: string;
@@ -45,18 +48,17 @@ interface Shop {
 
 const VendorDashboard = () => {
   const [vendorEmail, setVendorEmail] = useState("");
+  const [vendorId, setVendorId] = useState("");
   const [shop, setShop] = useState<Shop | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [statsData, setStatsData] = useState({
+    pendingOrders: 0,
+    completedToday: 0,
+    cancelledToday: 0,
+    totalSales: 0
+  });
   const navigate = useNavigate();
-
-  // Stats for demonstration
-  const stats = {
-    pendingOrders: 3,
-    completedToday: 12,
-    cancelledToday: 1,
-    totalSales: 2546.00
-  };
 
   useEffect(() => {
     const checkVendorAuth = async () => {
@@ -72,6 +74,7 @@ const VendorDashboard = () => {
         const userId = data.session.user.id;
         const email = data.session.user.email;
         setVendorEmail(email || "Vendor");
+        setVendorId(userId);
         
         // Get vendor's shop
         const { data: shopData, error: shopError } = await supabase
@@ -97,6 +100,9 @@ const VendorDashboard = () => {
         }
         
         setShop(shopData);
+        
+        // Fetch order statistics
+        fetchOrderStats(userId);
       } catch (error) {
         console.error("Auth check error:", error);
         toast.error("Authentication error");
@@ -108,6 +114,60 @@ const VendorDashboard = () => {
 
     checkVendorAuth();
   }, [navigate]);
+  
+  const fetchOrderStats = async (userId: string) => {
+    try {
+      // Get today's date at 00:00:00
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      
+      // Fetch orders statistics
+      const { data: orders, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('vendor_id', userId);
+        
+      if (error) {
+        console.error("Error fetching orders:", error);
+        return;
+      }
+      
+      if (!orders || orders.length === 0) {
+        return;
+      }
+      
+      // Calculate statistics
+      const pendingOrders = orders.filter(o => 
+        !['delivered', 'cancelled'].includes(o.status)
+      ).length;
+      
+      const todayOrders = orders.filter(o => 
+        new Date(o.created_at) >= todayStart
+      );
+      
+      const completedToday = todayOrders.filter(o => 
+        o.status === 'delivered'
+      ).length;
+      
+      const cancelledToday = todayOrders.filter(o => 
+        o.status === 'cancelled'
+      ).length;
+      
+      const totalSales = orders
+        .filter(o => o.status === 'delivered')
+        .reduce((sum, order) => sum + Number(order.total_amount), 0);
+      
+      setStatsData({
+        pendingOrders,
+        completedToday,
+        cancelledToday,
+        totalSales
+      });
+      
+    } catch (error) {
+      console.error("Error calculating stats:", error);
+    }
+  };
 
   const handleLogout = async () => {
     // Sign out from Supabase
@@ -180,6 +240,10 @@ const VendorDashboard = () => {
     } finally {
       setIsDeleting(false);
     }
+  };
+  
+  const handleOrderUpdate = () => {
+    fetchOrderStats(vendorId);
   };
 
   if (isLoading) {
@@ -272,13 +336,15 @@ const VendorDashboard = () => {
             <div className="flex justify-between items-start mb-2">
               <div>
                 <p className="text-muted-foreground text-sm">Pending Orders</p>
-                <h3 className="text-3xl font-bold">{stats.pendingOrders}</h3>
+                <h3 className="text-3xl font-bold">{statsData.pendingOrders}</h3>
               </div>
               <div className="bg-orange-100 p-2 rounded-lg">
                 <Clock size={24} className="text-orange-500" />
               </div>
             </div>
-            <Link to="#" className="text-sm text-vendor-600 hover:underline">View pending orders</Link>
+            <Button variant="link" className="text-sm text-vendor-600 hover:underline p-0">
+              View pending orders
+            </Button>
           </CardContent>
         </Card>
         
@@ -287,13 +353,15 @@ const VendorDashboard = () => {
             <div className="flex justify-between items-start mb-2">
               <div>
                 <p className="text-muted-foreground text-sm">Completed Today</p>
-                <h3 className="text-3xl font-bold">{stats.completedToday}</h3>
+                <h3 className="text-3xl font-bold">{statsData.completedToday}</h3>
               </div>
               <div className="bg-green-100 p-2 rounded-lg">
                 <CheckCircle2 size={24} className="text-green-500" />
               </div>
             </div>
-            <Link to="#" className="text-sm text-vendor-600 hover:underline">View completed orders</Link>
+            <Button variant="link" className="text-sm text-vendor-600 hover:underline p-0">
+              View completed orders
+            </Button>
           </CardContent>
         </Card>
         
@@ -302,13 +370,15 @@ const VendorDashboard = () => {
             <div className="flex justify-between items-start mb-2">
               <div>
                 <p className="text-muted-foreground text-sm">Cancelled Today</p>
-                <h3 className="text-3xl font-bold">{stats.cancelledToday}</h3>
+                <h3 className="text-3xl font-bold">{statsData.cancelledToday}</h3>
               </div>
               <div className="bg-red-100 p-2 rounded-lg">
                 <XCircle size={24} className="text-red-500" />
               </div>
             </div>
-            <Link to="#" className="text-sm text-vendor-600 hover:underline">View cancelled orders</Link>
+            <Button variant="link" className="text-sm text-vendor-600 hover:underline p-0">
+              View cancelled orders
+            </Button>
           </CardContent>
         </Card>
         
@@ -317,33 +387,31 @@ const VendorDashboard = () => {
             <div className="flex justify-between items-start mb-2">
               <div>
                 <p className="text-muted-foreground text-sm">Today's Sales (₹)</p>
-                <h3 className="text-3xl font-bold">{stats.totalSales.toFixed(2)}</h3>
+                <h3 className="text-3xl font-bold">{statsData.totalSales.toFixed(2)}</h3>
               </div>
               <div className="bg-blue-100 p-2 rounded-lg">
                 <ShoppingBag size={24} className="text-blue-500" />
               </div>
             </div>
-            <Link to="#" className="text-sm text-vendor-600 hover:underline">View sales report</Link>
+            <Button variant="link" className="text-sm text-vendor-600 hover:underline p-0">
+              View sales report
+            </Button>
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent Orders */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Orders</CardTitle>
-          <CardDescription>Manage your incoming and ongoing orders</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <PackageOpen className="mx-auto h-12 w-12 text-muted-foreground opacity-30 mb-2" />
-            <p>You don't have any recent orders</p>
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-end">
-          <Button variant="outline">View All Orders</Button>
-        </CardFooter>
-      </Card>
+      {/* Notifications and Order Management Section */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Notifications */}
+        <div>
+          <VendorNotifications vendorId={vendorId} onOrderStatusChange={handleOrderUpdate} />
+        </div>
+        
+        {/* Order List */}
+        <div>
+          <VendorOrdersList vendorId={vendorId} shopId={shop?.id} onOrderUpdate={handleOrderUpdate} />
+        </div>
+      </div>
     </div>
   );
 };
