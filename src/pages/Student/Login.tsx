@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -44,19 +43,13 @@ const StudentLogin = () => {
     setIsLoading(true);
     
     try {
-      // Custom login endpoint for students
-      const response = await fetch(`${supabase.functions.url}/verify-student-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+      // Custom login endpoint for students - using invoke instead of direct URL
+      const { data, error } = await supabase.functions.invoke('verify-student-password', {
+        body: { email, password }
       });
       
-      const data = await response.json();
-      
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || "Login failed");
+      if (error || !data.success) {
+        throw new Error(error?.message || data?.error || "Login failed");
       }
       
       // Login successful
@@ -94,24 +87,13 @@ const StudentLogin = () => {
     setIsLoading(true);
     
     try {
-      // Custom endpoint for student signup
-      const response = await fetch(`${supabase.functions.url}/create-student-user`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          phone: phoneNumber, 
-          name, 
-          password,
-          email
-        }),
+      // Custom endpoint for student signup - using invoke instead of direct URL
+      const { data, error } = await supabase.functions.invoke('create-student-user', {
+        body: { phone: phoneNumber, name, password, email }
       });
       
-      const data = await response.json();
-      
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || "Signup failed");
+      if (error || !data.success) {
+        throw new Error(error?.message || data?.error || "Signup failed");
       }
       
       // Set local storage for the session
