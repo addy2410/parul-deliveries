@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -120,7 +119,9 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           setOrders(prev => prev.filter(order => order.id !== payload.old.id));
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log("Vendor orders subscription status:", status);
+      });
     
     return () => {
       supabase.removeChannel(channel);
@@ -129,6 +130,8 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
+      console.log(`Updating order ${orderId} status to: ${newStatus}`);
+      
       const { error } = await supabase
         .from('orders')
         .update({ status: newStatus })

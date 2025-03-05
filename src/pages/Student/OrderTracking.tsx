@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -86,6 +87,7 @@ const OrderTracking = () => {
         
         // Update progress value based on current status
         setProgressValue(getOrderProgress(orderData.status));
+        console.log("Initial order status:", orderData.status, "Progress value:", getOrderProgress(orderData.status));
       } catch (error) {
         console.error("Error fetching order:", error);
       } finally {
@@ -97,7 +99,7 @@ const OrderTracking = () => {
     
     // Set up real-time subscription to order updates
     const channel = supabase
-      .channel('order-tracking-' + id)
+      .channel(`order-tracking-${id}`)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -117,7 +119,9 @@ const OrderTracking = () => {
         });
         
         // Update progress value based on new status
-        setProgressValue(getOrderProgress(updatedOrder.status));
+        const newProgressValue = getOrderProgress(updatedOrder.status);
+        console.log("Status updated to:", updatedOrder.status, "New progress value:", newProgressValue);
+        setProgressValue(newProgressValue);
         
         // Show toast for status updates
         if (payload.old.status !== updatedOrder.status) {
@@ -128,7 +132,9 @@ const OrderTracking = () => {
           }
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log("Subscription status:", status);
+      });
       
     return () => {
       supabase.removeChannel(channel);
@@ -171,6 +177,8 @@ const OrderTracking = () => {
       </div>
     );
   }
+  
+  console.log("Current order status:", order.status, "Progress value:", progressValue);
   
   return (
     <div className="min-h-screen bg-gray-50">
