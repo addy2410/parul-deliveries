@@ -18,8 +18,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
-    console.log('SUPABASE_URL available:', !!supabaseUrl);
-    console.log('SUPABASE_SERVICE_ROLE_KEY available:', !!supabaseServiceKey);
+    console.log('Creating student user - initialization');
     
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error('Missing required environment variables');
@@ -31,11 +30,14 @@ serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { phone, name, password, email } = await req.json();
+    // Parse request body
+    const requestData = await req.json();
+    const { phone, name, password, email } = requestData;
     
-    console.log(`Creating new user with phone: ${phone}, name: ${name}, email: ${email}`);
+    console.log(`Creating new user with name: ${name}, email: ${email}`);
     
     if (!phone || !name || !password || !email) {
+      console.error('Missing required fields in request');
       return new Response(
         JSON.stringify({ success: false, error: 'Phone, name, email, and password are required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -45,13 +47,13 @@ serve(async (req) => {
     // Check if user with this phone or email already exists
     const { data: existingUsers, error: checkError } = await supabaseClient
       .from('student_users')
-      .select('*')
+      .select('phone, email')
       .or(`phone.eq.${phone},email.eq.${email}`);
       
     if (checkError) {
       console.error('Error checking existing user:', checkError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to check if user exists', details: checkError.message }),
+        JSON.stringify({ success: false, error: 'Failed to check if user exists' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
@@ -81,13 +83,12 @@ serve(async (req) => {
     // Hash the password with bcrypt
     let password_hash;
     try {
-      // Using a simpler bcrypt approach with fixed rounds
       password_hash = await bcrypt.hash(password);
       console.log('Password hashed successfully');
     } catch (bcryptError) {
       console.error('Bcrypt hashing error:', bcryptError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Password hashing failed', details: bcryptError.message }),
+        JSON.stringify({ success: false, error: 'Password hashing failed' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
@@ -98,7 +99,7 @@ serve(async (req) => {
     if (uuidError) {
       console.error('Error generating UUID:', uuidError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to generate user ID', details: uuidError.message }),
+        JSON.stringify({ success: false, error: 'Failed to generate user ID' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }

@@ -18,8 +18,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
-    console.log('SUPABASE_URL available:', !!supabaseUrl);
-    console.log('SUPABASE_SERVICE_ROLE_KEY available:', !!supabaseServiceKey);
+    console.log('Verifying student password - starting authentication');
     
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error('Missing required environment variables');
@@ -31,11 +30,14 @@ serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { email, password } = await req.json();
+    // Parse request body
+    const requestData = await req.json();
+    const { email, password } = requestData;
     
     console.log(`Attempting to verify password for email: ${email}`);
     
     if (!email || !password) {
+      console.error('Missing email or password in request');
       return new Response(
         JSON.stringify({ success: false, error: 'Email and password are required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -52,7 +54,7 @@ serve(async (req) => {
     if (fetchError) {
       console.error('Error fetching student:', fetchError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to fetch user data', details: fetchError.message }),
+        JSON.stringify({ success: false, error: 'Failed to fetch user data' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
@@ -60,22 +62,22 @@ serve(async (req) => {
     if (!student) {
       console.log('User not found for email:', email);
       return new Response(
-        JSON.stringify({ success: false, error: 'Invalid credentials' }),
+        JSON.stringify({ success: false, error: 'Invalid email or password' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       );
     }
     
     console.log('Found student with ID:', student.id);
     
-    // Verify the password
     try {
+      // Verify the password using a more reliable approach
       const passwordMatches = await bcrypt.compare(password, student.password_hash);
       
       console.log('Password verification result:', passwordMatches);
       
       if (!passwordMatches) {
         return new Response(
-          JSON.stringify({ success: false, error: 'Invalid credentials' }),
+          JSON.stringify({ success: false, error: 'Invalid email or password' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
         );
       }
