@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -43,13 +44,21 @@ const StudentLogin = () => {
     setIsLoading(true);
     
     try {
-      // Custom login endpoint for students - using invoke instead of direct URL
+      console.log("Attempting to log in with email:", email);
+      
+      // Custom login endpoint for students
       const { data, error } = await supabase.functions.invoke('verify-student-password', {
         body: { email, password }
       });
       
-      if (error || !data.success) {
-        throw new Error(error?.message || data?.error || "Login failed");
+      console.log("Login response:", data, error);
+      
+      if (error) {
+        throw new Error(error.message || "Login failed");
+      }
+      
+      if (!data || !data.success) {
+        throw new Error(data?.error || "Login failed");
       }
       
       // Login successful
@@ -87,13 +96,21 @@ const StudentLogin = () => {
     setIsLoading(true);
     
     try {
-      // Custom endpoint for student signup - using invoke instead of direct URL
+      console.log("Attempting to sign up with email:", email);
+      
+      // Custom endpoint for student signup
       const { data, error } = await supabase.functions.invoke('create-student-user', {
         body: { phone: phoneNumber, name, password, email }
       });
       
-      if (error || !data.success) {
-        throw new Error(error?.message || data?.error || "Signup failed");
+      console.log("Signup response:", data, error);
+      
+      if (error) {
+        throw new Error(error.message || "Signup failed");
+      }
+      
+      if (!data || !data.success) {
+        throw new Error(data?.error || "Signup failed");
       }
       
       // Set local storage for the session

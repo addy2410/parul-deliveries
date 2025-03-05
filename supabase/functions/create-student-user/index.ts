@@ -78,16 +78,35 @@ serve(async (req) => {
       }
     }
     
+    // Hash the password with a fixed salt to avoid bcrypt issues
+    let password_hash;
     try {
-      // Hash the password
-      const salt = await bcrypt.genSalt(10);
-      const password_hash = await bcrypt.hash(password, salt);
+      // Use a simpler bcrypt approach with a fixed round count
+      password_hash = await bcrypt.hash(password, 8);
+      console.log('Password hashed successfully');
+    } catch (bcryptError) {
+      console.error('Bcrypt hashing error:', bcryptError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Password hashing failed', details: bcryptError.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    try {
+      // Generate a random UUID for the student
+      const { data: studentId, error: uuidError } = await supabaseClient.rpc('gen_random_uuid');
       
-      // Generate a UUID for the student
-      const { data: uuidData } = await supabaseClient.rpc('gen_random_uuid');
-      const studentId = uuidData;
+      if (uuidError) {
+        console.error('Error generating UUID:', uuidError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to generate user ID' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
       
-      // Create the user without linking to auth.users
+      console.log('Generated UUID:', studentId);
+      
+      // Create the user
       const { data: newUser, error: insertError } = await supabaseClient
         .from('student_users')
         .insert([
@@ -99,10 +118,12 @@ serve(async (req) => {
       if (insertError) {
         console.error('Error creating user:', insertError);
         return new Response(
-          JSON.stringify({ success: false, error: 'Failed to create user account' }),
+          JSON.stringify({ success: false, error: 'Failed to create user account', details: insertError.message }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
         );
       }
+      
+      console.log('User created successfully:', newUser.id);
       
       // Return success with the new user ID
       return new Response(
@@ -115,14 +136,13 @@ serve(async (req) => {
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    } catch (bcryptError) {
-      console.error('Bcrypt error:', bcryptError);
+    } catch (error) {
+      console.error('Database error:', error);
       return new Response(
-        JSON.stringify({ success: false, error: 'Password hashing failed' }),
+        JSON.stringify({ success: false, error: 'Database operation failed', details: error.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
-    
   } catch (error) {
     console.error('Edge function error:', error);
     return new Response(

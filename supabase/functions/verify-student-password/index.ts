@@ -42,31 +42,36 @@ serve(async (req) => {
       );
     }
     
+    // Get the user with the email
+    const { data: student, error: fetchError } = await supabaseClient
+      .from('student_users')
+      .select('id, password_hash, name, email')
+      .eq('email', email)
+      .maybeSingle();
+      
+    if (fetchError) {
+      console.error('Error fetching student:', fetchError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to fetch user data', details: fetchError.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    if (!student) {
+      console.log('User not found for email:', email);
+      return new Response(
+        JSON.stringify({ success: false, error: 'User not found' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      );
+    }
+    
+    console.log('Found student with ID:', student.id);
+    
+    // Verify the password
     try {
-      // Get the user with the email
-      const { data: student, error: fetchError } = await supabaseClient
-        .from('student_users')
-        .select('id, password_hash, name, email')
-        .eq('email', email)
-        .maybeSingle();
-        
-      if (fetchError) {
-        console.error('Error fetching student:', fetchError);
-        return new Response(
-          JSON.stringify({ success: false, error: 'Failed to fetch user data' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        );
-      }
-      
-      if (!student) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'User not found' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-        );
-      }
-      
-      // Verify the password
       const passwordMatches = await bcrypt.compare(password, student.password_hash);
+      
+      console.log('Password verification result:', passwordMatches);
       
       if (!passwordMatches) {
         return new Response(
@@ -86,9 +91,9 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } catch (bcryptError) {
-      console.error('Bcrypt error:', bcryptError);
+      console.error('Bcrypt verification error:', bcryptError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Password verification failed' }),
+        JSON.stringify({ success: false, error: 'Password verification failed', details: bcryptError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
