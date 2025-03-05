@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from "react";
-import { Button } from "@/components/ui/card";
+import { Button } from "@/components/ui/button"; // Fixed import from button instead of card
 import { Link, useLocation } from "react-router-dom";
 import { CheckCircle, Home, Clock, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
