@@ -1,11 +1,15 @@
-
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Heart, GraduationCap, Coffee, Star, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const About = () => {
+  // Add effect to scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <div className="min-h-screen purple-pattern flex flex-col">
       {/* Header with back button */}
@@ -16,7 +20,7 @@ const About = () => {
               <ArrowLeft size={16} className="mr-1" /> Back to Restaurants
             </Link>
           </Button>
-          <h1 className="text-xl font-bold text-purple-800">Campus Eats</h1>
+          <h1 className="text-xl font-bold text-[#ea384c]">Campus<span className="text-black">Grub</span></h1>
         </div>
       </header>
 
@@ -58,7 +62,7 @@ const About = () => {
               <GraduationCap className="h-10 w-10 text-purple-700" />
             </div>
             <h1 className="text-4xl md:text-5xl font-bold mb-6 text-purple-900">
-              About Campus Eats
+              About <span className="text-[#ea384c]">Campus<span className="text-black">Grub</span></span>
             </h1>
             <motion.p 
               className="text-xl text-purple-800 mb-8 font-medium"
@@ -124,7 +128,7 @@ const About = () => {
       {/* Footer */}
       <footer className="bg-purple-900 text-white py-8 px-4 mt-auto">
         <div className="container mx-auto text-center">
-          <p className="mb-4">© 2024 Campus Eats - By Aditya Mishra</p>
+          <p className="mb-4">© 2024 CampusGrub - By Aditya Mishra</p>
           <div className="flex justify-center space-x-4">
             <Link to="/student/restaurants" className="hover:text-purple-300 transition-colors">Home</Link>
             <Link to="/" className="hover:text-purple-300 transition-colors">Sign In</Link>

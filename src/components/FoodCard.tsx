@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,7 +33,6 @@ const FoodCard: React.FC<FoodCardProps> = ({ item, onAddToCart }) => {
     }
     
     onAddToCart(quantity);
-    toast.success(`Added ${quantity} ${item.name} to cart`);
     setQuantity(1); // Reset quantity after adding to cart
   };
 

@@ -59,21 +59,28 @@ const RoleSelection: React.FC = () => {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-      <RoleCard
-        title="I'm a Vendor"
-        description="Manage your menu, accept orders, and track deliveries."
-        route="/vendor/login"
-        className="border-primary hover:border-primary/80"
-        delay={0.2}
-      />
-      <RoleCard
-        title="I'm a Student"
-        description="Browse restaurants, order food, and enjoy campus delivery."
-        route="/student/restaurants"
-        className="border-secondary hover:border-secondary/80"
-        delay={0.4}
-      />
+    <div className="flex flex-col items-center space-y-6">
+      {/* Add the CampusGrub logo */}
+      <div className="text-4xl font-bold fontLogo mb-4">
+        <span className="text-[#ea384c]">Campus</span><span className="text-black">Grub</span>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto w-full">
+        <RoleCard
+          title="I'm a Vendor"
+          description="Manage your menu, accept orders, and track deliveries."
+          route="/vendor/login"
+          className="border-primary hover:border-primary/80"
+          delay={0.2}
+        />
+        <RoleCard
+          title="I'm a Student"
+          description="Browse restaurants, order food, and enjoy campus delivery."
+          route="/student/restaurants"
+          className="border-secondary hover:border-secondary/80"
+          delay={0.4}
+        />
+      </div>
     </div>
   );
 };

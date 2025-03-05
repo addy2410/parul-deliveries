@@ -154,10 +154,8 @@ const StudentRestaurantDetail = () => {
   
   // Handle adding item to cart with quantity
   const handleAddToCart = (menuItem: any, quantity: number) => {
-    // Add the item to cart multiple times based on quantity
-    for (let i = 0; i < quantity; i++) {
-      addToCart(menuItem);
-    }
+    // Add the item to cart with the specified quantity
+    addToCart(menuItem, quantity);
   };
   
   // Calculate number of items already in cart for this restaurant
