@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { useCart } from "@/context/CartContext";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trash2, ArrowLeft, Home } from "lucide-react";
+import { Trash2, ArrowLeft, Home, ClipboardCheck } from "lucide-react";
 import { toast } from "sonner";
 import StudentHeader from "@/components/StudentHeader";
 import { supabase } from "@/lib/supabase";
@@ -19,6 +19,8 @@ const StudentCart = () => {
   const [deliveryLocation, setDeliveryLocation] = useState("Campus Main Building");
   const [studentId, setStudentId] = useState<string | null>(null);
   const [studentName, setStudentName] = useState<string>("Student");
+  const [checkoutComplete, setCheckoutComplete] = useState(false);
+  const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
   
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const deliveryFee = subtotal > 0 ? 30 : 0;
@@ -84,8 +86,8 @@ const StudentCart = () => {
     clearCart();
     toast.success("Cart cleared");
   };
-  
-  const handlePlaceOrder = () => {
+
+  const handleCheckout = async () => {
     if (items.length === 0) {
       toast.error("Your cart is empty");
       return;
@@ -96,11 +98,7 @@ const StudentCart = () => {
       navigate("/student/login");
       return;
     }
-    
-    setIsPaymentModalOpen(true);
-  };
-  
-  const handlePaymentComplete = async () => {
+
     try {
       setIsSubmitting(true);
       
@@ -134,7 +132,7 @@ const StudentCart = () => {
         quantity: item.quantity
       }));
       
-      // Create the order
+      // Create the order with pending status
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert([
@@ -158,22 +156,50 @@ const StudentCart = () => {
       }
       
       // Order created successfully
-      toast.success("Order placed successfully!");
+      toast.success("Checkout complete! Waiting for vendor confirmation.");
+      setCheckoutComplete(true);
+      setCurrentOrderId(orderData[0]?.id);
+      
+    } catch (error) {
+      console.error("Error processing checkout:", error);
+      toast.error("An unexpected error occurred");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const handlePlaceOrder = () => {
+    if (!checkoutComplete) {
+      toast.error("Please checkout first before proceeding to payment");
+      return;
+    }
+    
+    setIsPaymentModalOpen(true);
+  };
+  
+  const handlePaymentComplete = async () => {
+    try {
+      // Payment already processed, just need to clear cart and navigate
       clearCart();
       
       // Navigate to order success page with the order ID
       navigate("/student/order-success", {
         state: { 
-          orderId: orderData[0]?.id,
+          orderId: currentOrderId,
           total: total.toFixed(2) 
         }
       });
     } catch (error) {
-      console.error("Error processing order:", error);
+      console.error("Error finalizing order:", error);
       toast.error("An unexpected error occurred");
     } finally {
-      setIsSubmitting(false);
       setIsPaymentModalOpen(false);
+    }
+  };
+
+  const handleViewOrderStatus = () => {
+    if (currentOrderId) {
+      navigate(`/student/order/${currentOrderId}/tracking`);
     }
   };
 
@@ -290,12 +316,35 @@ const StudentCart = () => {
                   </select>
                 </div>
                 
-                <Button 
-                  className="w-full mt-4 bg-[#ea384c] hover:bg-[#d02e40]"
-                  onClick={handlePlaceOrder}
-                >
-                  Proceed to Payment
-                </Button>
+                {!checkoutComplete ? (
+                  <Button 
+                    className="w-full mt-4 bg-blue-600 hover:bg-blue-700"
+                    onClick={handleCheckout}
+                    disabled={isSubmitting}
+                  >
+                    <ClipboardCheck className="mr-2 h-4 w-4" />
+                    {isSubmitting ? "Processing..." : "Checkout"}
+                  </Button>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="text-sm p-2 bg-green-50 border border-green-200 rounded text-green-700">
+                      Checkout complete! Waiting for vendor confirmation
+                    </div>
+                    <Button 
+                      className="w-full mt-2"
+                      variant="outline"
+                      onClick={handleViewOrderStatus}
+                    >
+                      Check Order Status
+                    </Button>
+                    <Button 
+                      className="w-full mt-2 bg-[#ea384c] hover:bg-[#d02e40]"
+                      onClick={handlePlaceOrder}
+                    >
+                      Proceed to Payment
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
