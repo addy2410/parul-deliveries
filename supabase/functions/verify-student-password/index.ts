@@ -20,22 +20,22 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { phone, password } = await req.json();
+    const { email, password } = await req.json();
     
-    console.log(`Attempting to verify password for phone: ${phone}`);
+    console.log(`Attempting to verify password for email: ${email}`);
     
-    if (!phone || !password) {
+    if (!email || !password) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Phone and password are required' }),
+        JSON.stringify({ success: false, error: 'Email and password are required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
     
-    // Get the user with the phone number
+    // Get the user with the email
     const { data: student, error: fetchError } = await supabaseClient
       .from('student_users')
-      .select('id, password_hash, name')
-      .eq('phone', phone)
+      .select('id, password_hash, name, email')
+      .eq('email', email)
       .maybeSingle();
       
     if (fetchError) {
@@ -63,12 +63,24 @@ serve(async (req) => {
       );
     }
     
+    // Sign in user with Supabase Auth
+    const { data: signInData, error: signInError } = await supabaseClient.auth.admin.signInWithEmail(email, password);
+    
+    if (signInError) {
+      console.error('Error signing in with Auth:', signInError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Authentication failed' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
     // Password is correct
     return new Response(
       JSON.stringify({ 
         success: true, 
         userId: student.id,
-        name: student.name
+        name: student.name,
+        email: student.email
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

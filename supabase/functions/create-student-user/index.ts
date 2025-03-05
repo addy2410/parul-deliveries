@@ -20,22 +20,22 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { phone, name, password } = await req.json();
+    const { phone, name, password, email } = await req.json();
     
-    console.log(`Creating new user with phone: ${phone}, name: ${name}`);
+    console.log(`Creating new user with phone: ${phone}, name: ${name}, email: ${email}`);
     
-    if (!phone || !name || !password) {
+    if (!phone || !name || !password || !email) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Phone, name, and password are required' }),
+        JSON.stringify({ success: false, error: 'Phone, name, email, and password are required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
     
-    // Check if user with this phone already exists
+    // Check if user with this phone or email already exists
     const { data: existingUsers, error: checkError } = await supabaseClient
       .from('student_users')
-      .select('phone')
-      .eq('phone', phone);
+      .select('*')
+      .or(`phone.eq.${phone},email.eq.${email}`);
       
     if (checkError) {
       console.error('Error checking existing user:', checkError);
@@ -46,27 +46,62 @@ serve(async (req) => {
     }
     
     if (existingUsers && existingUsers.length > 0) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Phone number already registered' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
-      );
+      const existingPhone = existingUsers.some(user => user.phone === phone);
+      const existingEmail = existingUsers.some(user => user.email === email);
+      
+      if (existingPhone && existingEmail) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Both phone number and email already registered' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
+        );
+      } else if (existingPhone) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Phone number already registered' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Email already registered' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
+        );
+      }
     }
     
     // Hash the password
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
     
+    // Create the student auth account first
+    const { data: authUser, error: authError } = await supabaseClient.auth
+      .admin
+      .createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { name, phone }
+      });
+      
+    if (authError) {
+      console.error('Error creating auth user:', authError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to create user authentication' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
     // Create the user
     const { data: newUser, error: insertError } = await supabaseClient
       .from('student_users')
       .insert([
-        { phone, name, password_hash }
+        { id: authUser.user.id, phone, name, password_hash, email }
       ])
       .select()
       .single();
       
     if (insertError) {
       console.error('Error creating user:', insertError);
+      // Attempt to clean up the auth user if profile creation fails
+      await supabaseClient.auth.admin.deleteUser(authUser.user.id);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to create user account' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }

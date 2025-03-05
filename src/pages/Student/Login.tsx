@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,79 +8,80 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { supabase, isUsingDefaultCredentials } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 const StudentLogin = () => {
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
   
+  // Check if user is already logged in as a student
+  useEffect(() => {
+    const checkStudentSession = async () => {
+      const currentStudentId = localStorage.getItem('currentStudentId');
+      
+      // If there's a student ID in localStorage, we consider them logged in
+      if (currentStudentId) {
+        navigate("/student/restaurants");
+      }
+    };
+    
+    checkStudentSession();
+  }, [navigate]);
+  
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!phoneNumber || !password) {
-      toast.error("Please enter both phone number and password");
+    if (!email || !password) {
+      toast.error("Please enter both email and password");
       return;
     }
     
     setIsLoading(true);
     
     try {
-      if (isUsingDefaultCredentials()) {
-        // Demo mode
-        const studentUsers = JSON.parse(localStorage.getItem('studentUsers') || '[]');
-        const existingUser = studentUsers.find((user: any) => user.phone === phoneNumber && user.password === password);
-        
-        if (existingUser) {
-          localStorage.setItem('currentStudentId', existingUser.id);
-          localStorage.setItem('studentName', existingUser.name);
-          toast.success("Login successful!");
-          navigate("/student/restaurants");
-        } else {
-          toast.error("Invalid credentials. Please check your phone number and password.");
-        }
-      } else {
-        // Supabase authentication
-        // Query for the student with this phone number
-        const { data: students, error: fetchError } = await supabase
-          .from('student_users')
-          .select('*')
-          .eq('phone', phoneNumber)
-          .maybeSingle();
-          
-        if (fetchError) {
-          console.error("Error fetching student:", fetchError);
-          throw new Error("Failed to authenticate");
-        }
-        
-        if (!students) {
-          toast.error("Phone number not registered. Please sign up first.");
-          setActiveTab("signup");
-          return;
-        }
-        
-        // Verify the password
-        const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-student-password', {
-          body: { 
-            phone: phoneNumber,
-            password: password
-          }
-        });
-        
-        if (verifyError || !verifyData?.success) {
-          toast.error("Invalid credentials. Please check your password.");
-          return;
-        }
-        
-        // Login successful
-        localStorage.setItem('currentStudentId', students.id);
-        localStorage.setItem('studentName', students.name);
-        toast.success("Login successful!");
-        navigate("/student/restaurants");
+      // Sign in with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+      });
+      
+      if (authError) {
+        console.error("Auth error:", authError);
+        toast.error(authError.message || "Invalid login credentials");
+        return;
       }
+      
+      // Check if this user exists in the student_users table
+      const { data: studentData, error: fetchError } = await supabase
+        .from('student_users')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle();
+        
+      if (fetchError) {
+        console.error("Error fetching student:", fetchError);
+        throw new Error("Failed to authenticate");
+      }
+      
+      if (!studentData) {
+        // Sign out from Supabase since this is not a student account
+        await supabase.auth.signOut();
+        toast.error("This email is not registered as a student. Please sign up first.");
+        setActiveTab("signup");
+        return;
+      }
+      
+      // Login successful
+      localStorage.setItem('currentStudentId', studentData.id);
+      localStorage.setItem('studentName', studentData.name);
+      localStorage.setItem('studentEmail', email);
+      toast.success("Login successful!");
+      navigate("/student/restaurants");
     } catch (error: any) {
       console.error("Login error:", error);
       toast.error(error.message || "Login failed. Please try again.");
@@ -92,7 +93,7 @@ const StudentLogin = () => {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!phoneNumber || !name || !password) {
+    if (!email || !phoneNumber || !name || !password) {
       toast.error("Please fill in all fields");
       return;
     }
@@ -110,71 +111,85 @@ const StudentLogin = () => {
     setIsLoading(true);
     
     try {
-      if (isUsingDefaultCredentials()) {
-        // Demo mode
-        const studentUsers = JSON.parse(localStorage.getItem('studentUsers') || '[]');
-        const existingUser = studentUsers.find((user: any) => user.phone === phoneNumber);
+      // First check if phone number is already registered
+      const { data: existingPhoneCheck, error: phoneCheckError } = await supabase
+        .from('student_users')
+        .select('phone')
+        .eq('phone', phoneNumber);
         
-        if (existingUser) {
-          toast.error("Phone number already registered. Please login instead.");
-          setActiveTab("login");
-          return;
-        }
-        
-        // Create new user
-        const studentId = `student-${Date.now()}`;
-        const newUser = {
-          id: studentId,
-          phone: phoneNumber,
-          name: name,
-          password: password
-        };
-        
-        localStorage.setItem('studentUsers', JSON.stringify([...studentUsers, newUser]));
-        localStorage.setItem('currentStudentId', studentId);
-        localStorage.setItem('studentName', name);
-        
-        toast.success("Signup successful!");
-        navigate("/student/restaurants");
-      } else {
-        // Check if phone number already exists
-        const { data: existingUsers, error: checkError } = await supabase
-          .from('student_users')
-          .select('phone')
-          .eq('phone', phoneNumber);
-          
-        if (checkError) {
-          console.error("Error checking existing user:", checkError);
-          throw new Error("Failed to check user status");
-        }
-        
-        if (existingUsers && existingUsers.length > 0) {
-          toast.error("Phone number already registered. Please login instead.");
-          setActiveTab("login");
-          return;
-        }
-        
-        // Create new user with hashed password
-        const { data: signupData, error: signupError } = await supabase.functions.invoke('create-student-user', {
-          body: { 
-            phone: phoneNumber,
-            name: name,
-            password: password
-          }
-        });
-        
-        if (signupError || !signupData?.success) {
-          console.error("Signup error:", signupError || signupData?.error);
-          throw new Error(signupData?.error || "Failed to create user account");
-        }
-        
-        // Set local storage for the session
-        localStorage.setItem('currentStudentId', signupData.userId);
-        localStorage.setItem('studentName', name);
-        
-        toast.success("Signup successful!");
-        navigate("/student/restaurants");
+      if (phoneCheckError) {
+        console.error("Error checking existing phone:", phoneCheckError);
+        throw new Error("Failed to check user status");
       }
+      
+      if (existingPhoneCheck && existingPhoneCheck.length > 0) {
+        toast.error("Phone number already registered. Please login instead.");
+        setActiveTab("login");
+        return;
+      }
+      
+      // Now check if email is already registered
+      const { data: existingEmailCheck, error: emailCheckError } = await supabase
+        .from('student_users')
+        .select('email')
+        .eq('email', email);
+        
+      if (emailCheckError) {
+        console.error("Error checking existing email:", emailCheckError);
+        throw new Error("Failed to check user status");
+      }
+      
+      if (existingEmailCheck && existingEmailCheck.length > 0) {
+        toast.error("Email already registered. Please login instead.");
+        setActiveTab("login");
+        return;
+      }
+      
+      // Create the auth user first
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            phone: phoneNumber
+          }
+        }
+      });
+      
+      if (signUpError) {
+        console.error("Signup error:", signUpError);
+        throw new Error(signUpError.message || "Failed to create user account");
+      }
+      
+      // Create the student user profile
+      const { data: studentData, error: createStudentError } = await supabase
+        .from('student_users')
+        .insert([
+          { 
+            id: authData.user?.id,
+            name,
+            phone: phoneNumber,
+            email,
+          }
+        ])
+        .select()
+        .single();
+      
+      if (createStudentError) {
+        console.error("Error creating student:", createStudentError);
+        // If there's an error creating the student profile, try to clean up the auth user
+        await supabase.auth.signOut();
+        throw new Error("Failed to create student profile. Please try again.");
+      }
+      
+      // Set local storage for the session
+      localStorage.setItem('currentStudentId', authData.user?.id || '');
+      localStorage.setItem('studentName', name);
+      localStorage.setItem('studentEmail', email);
+      
+      toast.success("Signup successful!");
+      navigate("/student/restaurants");
     } catch (error: any) {
       console.error("Signup error:", error);
       toast.error(error.message || "Signup failed. Please try again.");
@@ -214,13 +229,13 @@ const StudentLogin = () => {
                 <form onSubmit={handleLogin}>
                   <div className="grid gap-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="login-phone">Phone Number</Label>
+                      <Label htmlFor="login-email">Email</Label>
                       <Input
-                        id="login-phone"
-                        type="tel"
-                        placeholder="Enter your phone number"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        id="login-email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         disabled={isLoading}
                       />
                     </div>
@@ -251,6 +266,18 @@ const StudentLogin = () => {
               <TabsContent value="signup" className="mt-0">
                 <form onSubmit={handleSignup}>
                   <div className="grid gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="signup-email">Email</Label>
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    
                     <div className="grid gap-2">
                       <Label htmlFor="signup-phone">Phone Number</Label>
                       <Input
