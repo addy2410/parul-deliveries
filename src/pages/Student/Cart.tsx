@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
@@ -194,6 +195,12 @@ const Cart = () => {
       toast.error("An error occurred during checkout");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleProceedToPayment = () => {
+    if (createdOrderId) {
+      navigate(`/student/order-tracking/${createdOrderId}`);
     }
   };
 
