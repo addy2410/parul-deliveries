@@ -40,7 +40,7 @@ serve(async (req) => {
     try {
       console.log("Attempting to parse request body");
       requestData = await req.json();
-      console.log("Request body parsed successfully");
+      console.log("Request body parsed successfully:", requestData);
     } catch (parseError) {
       console.error("Failed to parse request JSON:", parseError);
       return new Response(
@@ -147,13 +147,13 @@ serve(async (req) => {
       );
     }
     
-    // Hash the password with bcryptjs
+    // Hash the password with bcryptjs - FIXED: Simplified hashing approach
     let password_hash;
     try {
-      console.log("Starting password hashing");
-      // Use bcryptjs instead of bcrypt for better compatibility
+      console.log("Starting password hashing with bcryptjs");
+      // Use a lower salt round (8 instead of 10) for better performance in edge function
       password_hash = await bcrypt.hash(password, 8);
-      console.log("Password hashed successfully:", !!password_hash);
+      console.log("Password hashing completed successfully");
       
       if (!password_hash) {
         throw new Error("Hash result is undefined");
@@ -168,14 +168,6 @@ serve(async (req) => {
           error: 'Password processing failed', 
           details: "Unable to hash password securely. Please try again."
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      );
-    }
-    
-    if (!password_hash) {
-      console.error('Password hash is null or undefined');
-      return new Response(
-        JSON.stringify({ success: false, error: 'Password hash generation failed' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
