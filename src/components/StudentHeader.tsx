@@ -45,9 +45,22 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentN
     getStudentName();
   }, [propStudentName]);
 
-  // Function to handle account button click
+  // Function to handle account button click with explicit navigation
   const handleAccountClick = () => {
-    navigate("/student/login");
+    console.log("Account button clicked, navigating to /student/login");
+    window.location.href = "/student/login";
+  };
+
+  // Function to handle orders button click
+  const handleOrdersClick = () => {
+    console.log("Orders button clicked, navigating to /student/orders/active");
+    window.location.href = "/student/orders/active";
+  };
+
+  // Function to handle cart button click
+  const handleCartClick = () => {
+    console.log("Cart button clicked, navigating to /student/cart");
+    window.location.href = "/student/cart";
   };
 
   return (
@@ -61,7 +74,7 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentN
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={() => navigate("/student/orders/active")}
+            onClick={handleOrdersClick}
             className="flex items-center text-sm text-muted-foreground"
           >
             <Clock className="w-4 h-4 mr-1" />
@@ -84,7 +97,7 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentN
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={() => navigate("/student/cart")}
+            onClick={handleCartClick}
             className="relative flex items-center"
           >
             <ShoppingCart className="w-4 h-4 mr-1" />

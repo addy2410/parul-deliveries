@@ -61,7 +61,7 @@ const StudentLogin = () => {
     try {
       console.log("Attempting to log in with email:", email);
       
-      // Custom login endpoint for students
+      // Sign in with Supabase Auth - this calls our custom edge function
       const response = await supabase.functions.invoke('verify-student-password', {
         body: { email, password }
       });
@@ -78,10 +78,12 @@ const StudentLogin = () => {
         throw new Error(data?.error || "Login failed");
       }
       
-      // Login successful
+      // Login successful - store user details in localStorage
       localStorage.setItem('currentStudentId', data.userId);
       localStorage.setItem('studentName', data.name);
       localStorage.setItem('studentEmail', data.email);
+      localStorage.setItem('studentPhone', data.phone || '');
+      
       toast.success("Login successful!");
       navigate("/student/restaurants");
     } catch (error: any) {
@@ -115,7 +117,7 @@ const StudentLogin = () => {
     try {
       console.log("Attempting to sign up with email:", email);
       
-      // Custom endpoint for student signup
+      // Call the create-student-user edge function
       const response = await supabase.functions.invoke('create-student-user', {
         body: { phone: phoneNumber, name, password, email }
       });
