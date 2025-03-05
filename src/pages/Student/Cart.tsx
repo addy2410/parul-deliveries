@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
@@ -123,11 +124,11 @@ const Cart = () => {
         quantity: item.quantity
       }));
 
-      // Create the order with pending status
+      // Create the order with pending status - CORRECTED FIELD NAMES TO MATCH DATABASE
       console.log("Creating order with data:", {
         student_id: currentStudentId,
         vendor_id: vendorId,
-        shop_id: activeRestaurantId,
+        restaurant_id: activeRestaurantId,  // Changed from shop_id to restaurant_id
         items: orderItems,
         total_amount: total,
         status: "pending",
@@ -140,7 +141,7 @@ const Cart = () => {
         .insert([{
           student_id: currentStudentId,
           vendor_id: vendorId,
-          shop_id: activeRestaurantId,
+          restaurant_id: activeRestaurantId,  // Changed from shop_id to restaurant_id
           items: orderItems,
           total_amount: total,
           status: "pending",

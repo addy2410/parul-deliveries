@@ -21,7 +21,7 @@ interface Order {
   id: string;
   student_id: string;
   vendor_id: string;
-  restaurant_id: string;
+  restaurant_id: string;  // Changed from restaurant_id to match the database
   items: any[];
   total_amount: number;
   status: string;
