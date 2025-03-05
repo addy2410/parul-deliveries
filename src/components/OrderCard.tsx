@@ -69,6 +69,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
       } else {
         // Default implementation if no callback is provided
         try {
+          console.log("Updating order status to:", getNextStatus(order.status));
           const { error } = await supabase
             .from('orders')
             .update({ status: getNextStatus(order.status) })

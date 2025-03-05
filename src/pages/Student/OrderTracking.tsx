@@ -43,19 +43,9 @@ const OrderTracking = () => {
         setLoading(true);
         
         // Check if user is authenticated
-        const session = localStorage.getItem('studentSession');
-        if (!session) {
+        const { data: session } = await supabase.auth.getSession();
+        if (!session.session) {
           toast.error("Please login to view your order");
-          return;
-        }
-        
-        let studentId;
-        try {
-          const parsedSession = JSON.parse(session);
-          studentId = parsedSession.userId;
-        } catch (error) {
-          console.error("Error parsing student session:", error);
-          toast.error("Authentication error");
           return;
         }
         
@@ -64,7 +54,7 @@ const OrderTracking = () => {
           .from('orders')
           .select('*')
           .eq('id', id)
-          .eq('student_id', studentId)
+          .eq('student_id', session.session.user.id)
           .single();
           
         if (error) {
@@ -88,13 +78,14 @@ const OrderTracking = () => {
     
     // Set up real-time subscription to order updates
     const channel = supabase
-      .channel('order-tracking')
+      .channel('order-tracking-' + id)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'orders',
         filter: `id=eq.${id}`
       }, (payload) => {
+        console.log("Real-time order update received:", payload);
         const updatedOrder = payload.new as Order;
         
         setOrder(prev => {

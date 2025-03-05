@@ -91,13 +91,14 @@ const ViewOrder = () => {
     
     // Set up real-time subscription to order updates
     const channel = supabase
-      .channel('order-details')
+      .channel('order-details-' + id)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'orders',
         filter: `id=eq.${id}`
       }, async (payload) => {
+        console.log("Real-time order update received:", payload);
         const updatedOrder = payload.new as any;
         
         // Get restaurant name
