@@ -40,6 +40,17 @@ serve(async (req) => {
     
     console.log(`Attempting to create student with email: ${email}`);
     
+    // Check if user already exists
+    const { data: existingUser, error: checkError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+    
+    if (existingUser) {
+      console.error('User already exists with this email');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Email already registered' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
+      );
+    }
+    
     // First, create the auth user via Supabase Auth API
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,

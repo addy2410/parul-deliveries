@@ -61,7 +61,7 @@ const StudentLogin = () => {
     try {
       console.log("Attempting to log in with email:", email);
       
-      // Sign in with Supabase Auth - this calls our custom edge function
+      // Call our edge function to verify student credentials
       const response = await supabase.functions.invoke('verify-student-password', {
         body: { email, password }
       });

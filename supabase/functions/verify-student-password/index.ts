@@ -64,17 +64,17 @@ serve(async (req) => {
     
     console.log(`User authenticated successfully: ${authData.user.id}`);
     
-    // Get the student details from student_users table
+    // Check if this user is in the student_users table
     const { data: student, error: fetchError } = await supabaseAdmin
       .from('student_users')
       .select('id, name, email, phone')
       .eq('id', authData.user.id)
-      .single();
+      .maybeSingle();
       
     if (fetchError) {
       console.error('Error fetching student data:', fetchError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to fetch student data' }),
+        JSON.stringify({ success: false, error: 'Failed to fetch student data', details: fetchError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
@@ -82,21 +82,22 @@ serve(async (req) => {
     if (!student) {
       console.error('No student profile found for authenticated user');
       return new Response(
-        JSON.stringify({ success: false, error: 'Student profile not found' }),
+        JSON.stringify({ success: false, error: 'No student profile found for this account' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
       );
     }
     
-    console.log('Student data found, returning success response');
+    console.log('Student data found, returning success response with session data');
     
-    // Return success with the student information
+    // Return success with the student information and session
     return new Response(
       JSON.stringify({ 
         success: true, 
         userId: student.id,
         name: student.name,
         email: student.email,
-        phone: student.phone
+        phone: student.phone || '',
+        session: authData.session
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
