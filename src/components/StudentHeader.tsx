@@ -1,72 +1,121 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useCart } from "@/context/CartContext";
+import { ShoppingBag, User, LogOut, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart } from "lucide-react";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import Cart from "@/components/Cart"; // This import should work now that we've created the file
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useCart } from "@/context/CartContext";
+import { toast } from "sonner";
 
 interface StudentHeaderProps {
-  studentName?: string; // Make the prop optional
+  studentName?: string;
 }
 
-const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName }) => {
-  const { items } = useCart();
+const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentName }) => {
   const navigate = useNavigate();
-  const totalItemsInCart = items.reduce((sum, item) => sum + item.quantity, 0);
+  const { items } = useCart();
+  const [userName, setUserName] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  
+  useEffect(() => {
+    // If a studentName prop is provided, use it directly
+    if (propStudentName) {
+      setUserName(propStudentName);
+      setIsLoggedIn(true);
+      return;
+    }
+    
+    // Otherwise check for a stored session
+    const checkStudentSession = () => {
+      const studentSession = localStorage.getItem('studentSession');
+      if (studentSession) {
+        try {
+          const { name } = JSON.parse(studentSession);
+          setUserName(name);
+          setIsLoggedIn(true);
+        } catch (error) {
+          console.error("Error parsing student session:", error);
+          // If there's an error, clear the session
+          handleLogout();
+        }
+      } else {
+        // No session found, but we don't redirect
+        setIsLoggedIn(false);
+      }
+    };
+    
+    checkStudentSession();
+  }, [navigate, propStudentName]);
+  
+  const handleLogout = () => {
+    localStorage.removeItem('studentSession');
+    setIsLoggedIn(false);
+    setUserName(null);
+    navigate('/student/restaurants');
+  };
+
+  const handleCartClick = (e: React.MouseEvent) => {
+    if (!isLoggedIn) {
+      e.preventDefault();
+      toast.error("Please log in to view your cart");
+      navigate('/student/login');
+    }
+  };
 
   return (
-    <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b">
-      <div className="container mx-auto p-4">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center">
-            <Link to="/student/restaurants" className="flex items-center">
-              <img 
-                src="/lovable-uploads/66a8fbfe-db5c-45b2-a572-42477b6e107e.png" 
-                alt="Parul In-Campus Delivery" 
-                className="h-8 mr-2" 
-              />
-              <span className="font-bold text-xl hidden md:inline-block">CampusGrub</span>
-            </Link>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            {studentName && (
-              <span className="text-sm font-medium hidden md:inline-block">
-                Welcome, {studentName}
+    <header className="bg-white shadow py-4">
+      <div className="container mx-auto px-4 flex justify-between items-center">
+        <Link to="/student/restaurants" className="flex items-center">
+          <span className="text-xl font-bold fontLogo text-primary">
+            CampusGrub
+          </span>
+        </Link>
+
+        <div className="flex items-center space-x-4">
+          <Link to="/student/cart" className="relative" onClick={handleCartClick}>
+            <ShoppingBag className="h-6 w-6" />
+            {items.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                {items.length}
               </span>
             )}
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="outline" className="relative">
-                  <ShoppingCart className="mr-2" size={20} />
-                  Cart
-                  {totalItemsInCart > 0 && (
-                    <div className="absolute top-[-6px] right-[-6px] bg-secondary text-secondary-foreground rounded-full text-xs font-bold h-5 w-5 flex items-center justify-center">
-                      {totalItemsInCart}
-                    </div>
-                  )}
+          </Link>
+
+          {isLoggedIn ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="p-2">
+                  <User className="h-5 w-5" />
+                  {userName && <span className="ml-2 hidden md:inline">{userName}</span>}
                 </Button>
-              </SheetTrigger>
-              <SheetContent className="sm:max-w-lg p-0">
-                <SheetHeader className="p-6">
-                  <SheetTitle>Shopping Cart</SheetTitle>
-                  <SheetDescription>
-                    Review items in your cart and proceed to checkout.
-                  </SheetDescription>
-                </SheetHeader>
-                <Cart />
-              </SheetContent>
-            </Sheet>
-          </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link to="/student/orders/active" className="cursor-pointer w-full">
+                    My Orders
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/student/address-book" className="cursor-pointer w-full">
+                    Address Book
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                  <LogOut className="h-4 w-4 mr-2" /> Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => navigate('/student/login')}>
+              <LogIn className="h-4 w-4 mr-2" />
+              Login
+            </Button>
+          )}
         </div>
       </div>
     </header>

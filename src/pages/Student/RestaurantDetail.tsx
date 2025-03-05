@@ -2,14 +2,13 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import StudentHeader from "@/components/StudentHeader";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Clock, MapPin, Star, Utensils, PlusCircle } from "lucide-react";
+import { Clock, MapPin, Star, Utensils } from "lucide-react";
 import RestaurantMenu from "@/components/RestaurantMenu";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 // Types
 type MenuItem = {
@@ -37,7 +36,6 @@ const RestaurantDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   // Fetch restaurant details
   const {
@@ -83,15 +81,6 @@ const RestaurantDetail = () => {
     }
   }, [restaurantData]);
 
-  useEffect(() => {
-    if (menuItems && menuItems.length > 0) {
-      const categories = Array.from(new Set(menuItems.map(item => item.category || 'Other')));
-      if (categories.length > 0) {
-        setActiveCategory(categories[0]);
-      }
-    }
-  }, [menuItems]);
-
   if (isLoadingRestaurant) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -131,48 +120,13 @@ const RestaurantDetail = () => {
     );
   }
 
-  // Group menu items by category
-  const groupedItems = menuItems && menuItems.length > 0
-    ? menuItems.reduce((acc, item) => {
-        const category = item.category || "Other";
-        if (!acc[category]) {
-          acc[category] = [];
-        }
-        acc[category].push(item);
-        return acc;
-      }, {} as Record<string, MenuItem[]>)
-    : {};
-
-  // Sort categories (with "Other" at the end)
-  const categories = Object.keys(groupedItems).sort((a, b) => {
-    if (a === "Other") return 1;
-    if (b === "Other") return -1;
-    return a.localeCompare(b);
-  });
-
-  const getCategoryBadges = () => {
-    if (restaurant.tags && restaurant.tags.length > 0) {
-      return restaurant.tags.slice(0, 3).map((tag, idx) => (
-        <Badge key={idx} className="bg-red-500 text-white rounded-full">
-          {tag}
-        </Badge>
-      ));
-    }
-    
-    return restaurant.cuisine ? (
-      <Badge className="bg-red-500 text-white rounded-full">
-        {restaurant.cuisine}
-      </Badge>
-    ) : null;
-  };
-
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white">
       <StudentHeader />
       
       {/* Hero Banner */}
       <div 
-        className="h-60 md:h-72 w-full bg-cover bg-center relative" 
+        className="h-48 md:h-64 w-full bg-cover bg-center relative" 
         style={{ 
           backgroundImage: `url(${
             restaurant.name === "GREENZY Food Court" 
@@ -186,65 +140,67 @@ const RestaurantDetail = () => {
         <div className="absolute inset-0 bg-black bg-opacity-40"></div>
         <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
           <div className="container mx-auto">
-            <div className="flex flex-wrap gap-2 mb-2">
-              {getCategoryBadges()}
-            </div>
             <h1 className="text-3xl md:text-4xl font-bold text-white drop-shadow-md">
               {restaurant.name}
             </h1>
-            <div className="flex items-center gap-2 mt-1 text-white text-sm">
-              <span>{restaurant.cuisine || 'Campus Food'}</span>
-              <span>•</span>
-              <span>{restaurant.location}</span>
-            </div>
-            <div className="flex items-center gap-4 mt-2 text-white">
-              <div className="flex items-center">
-                <Star size={16} className="mr-1 text-yellow-400 fill-yellow-400" />
-                <span>{restaurant.rating}</span>
-              </div>
-              <div className="flex items-center">
-                <Clock size={16} className="mr-1" />
-                <span>{restaurant.delivery_time}</span>
-              </div>
-              <div>
-                {restaurant.is_open ? (
-                  <Badge variant="outline" className="border-green-400 text-green-400">
-                    Open Now
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="border-red-400 text-red-400">
-                    Closed
-                  </Badge>
-                )}
-              </div>
-            </div>
+            <p className="text-white text-opacity-90 mt-2 max-w-2xl drop-shadow-md">
+              {restaurant.description}
+            </p>
           </div>
         </div>
       </div>
       
-      <div className="container mx-auto px-4 py-4">
-        {/* Category Tabs */}
-        {categories.length > 0 && (
-          <div className="mb-4 overflow-x-auto scrollbar-hide -mx-4 px-4">
-            <div className="whitespace-nowrap">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => setActiveCategory(category)}
-                  className={`mr-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    activeCategory === category
-                      ? "bg-red-500 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
+      <div className="container mx-auto px-4 py-8">
+        <Card className="mb-8 border-orange-100 shadow-md">
+          <CardContent className="p-6">
+            <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-4">
+              <div className="flex items-center bg-orange-50 px-3 py-2 rounded-full">
+                <MapPin size={16} className="mr-1 text-orange-600" />
+                {restaurant.location}
+              </div>
+              <div className="flex items-center bg-orange-50 px-3 py-2 rounded-full">
+                <Clock size={16} className="mr-1 text-orange-600" />
+                {restaurant.delivery_time}
+              </div>
+              <div className="flex items-center bg-yellow-50 px-3 py-2 rounded-full">
+                <Star size={16} className="mr-1 text-yellow-500 fill-yellow-500" />
+                {restaurant.rating} Rating
+              </div>
+              {restaurant.is_open ? (
+                <Badge className="bg-green-500 px-3 py-2 rounded-full">Open Now</Badge>
+              ) : (
+                <Badge variant="outline" className="text-red-500 border-red-500 px-3 py-2 rounded-full">
+                  Closed
+                </Badge>
+              )}
             </div>
-          </div>
-        )}
+            
+            <div className="flex flex-wrap gap-2 mt-4">
+              {restaurant.cuisine && (
+                <Badge variant="secondary" className="bg-[#FEC6A1] text-orange-900 hover:bg-[#FEC6A1]/80">
+                  <Utensils size={14} className="mr-1" />
+                  {restaurant.cuisine}
+                </Badge>
+              )}
+              {restaurant.tags &&
+                restaurant.tags.map((tag, idx) => (
+                  <Badge key={idx} variant="outline" className="border-orange-200 text-orange-700 bg-orange-50">
+                    {tag}
+                  </Badge>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* Menu Items */}
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-orange-200"></div>
+          </div>
+          <div className="relative flex justify-center">
+            <span className="bg-white px-4 text-xl font-bold text-orange-800">Menu</span>
+          </div>
+        </div>
+        
         {isLoadingMenu ? (
           <div className="space-y-4">
             <Skeleton className="h-24 w-full" />
@@ -256,52 +212,14 @@ const RestaurantDetail = () => {
             Error loading menu items. Please try again later.
           </p>
         ) : menuItems && menuItems.length > 0 ? (
-          <div className="space-y-8">
-            {categories.map((category) => (
-              <div 
-                key={category} 
-                id={`category-${category}`}
-                className={activeCategory === category ? 'block' : 'hidden'}
-              >
-                <h2 className="text-2xl font-bold mb-4">{category}</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {groupedItems[category].map((item) => (
-                    <Card 
-                      key={item.id} 
-                      className="overflow-hidden border border-gray-100 hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex">
-                        <div className="flex-grow p-4">
-                          <h3 className="font-semibold text-lg">{item.name}</h3>
-                          {item.description && (
-                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.description}</p>
-                          )}
-                          <div className="mt-2 font-medium text-red-500">
-                            ₹{item.price.toFixed(2)}
-                          </div>
-                        </div>
-                        <div className="w-24 h-24 bg-gray-100 relative">
-                          <img 
-                            src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c"
-                            alt={item.name} 
-                            className="w-full h-full object-cover" 
-                          />
-                          <button 
-                            className="absolute bottom-2 right-2 bg-white rounded-full p-1 shadow-md hover:bg-gray-50"
-                          >
-                            <PlusCircle size={20} className="text-red-500" />
-                          </button>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <RestaurantMenu 
+            menuItems={menuItems || []} 
+            restaurantId={restaurant.id} 
+            restaurantName={restaurant.name} 
+          />
         ) : (
-          <div className="text-center py-10 bg-gray-50 rounded-lg">
-            <Utensils size={48} className="mx-auto text-gray-300 mb-4" />
+          <div className="text-center py-10 bg-orange-50 rounded-lg border border-orange-100">
+            <Utensils size={48} className="mx-auto text-orange-300 mb-4" />
             <p className="text-gray-600">No menu items available for this restaurant yet.</p>
           </div>
         )}

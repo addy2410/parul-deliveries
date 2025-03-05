@@ -5,10 +5,7 @@ import RoleSelection from "@/components/RoleSelection";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-[#FFEDE6] bg-grid-pattern flex flex-col relative overflow-hidden">
-      {/* Background grid pattern */}
-      <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
-      
+    <div className="min-h-screen indian-pattern flex flex-col relative overflow-hidden">
       {/* Decorative elements */}
       <div className="absolute top-20 left-10 opacity-10 pointer-events-none">
         <motion.img 
