@@ -166,6 +166,7 @@ export type Database = {
       student_users: {
         Row: {
           created_at: string | null
+          email: string | null
           id: string
           name: string
           password_hash: string
@@ -173,6 +174,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          email?: string | null
           id: string
           name: string
           password_hash: string
@@ -180,6 +182,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          email?: string | null
           id?: string
           name?: string
           password_hash?: string
