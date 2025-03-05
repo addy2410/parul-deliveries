@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 
 interface MenuItem {
@@ -15,6 +16,7 @@ interface MenuItem {
   name: string;
   price: number;
   shop_id: string;
+  category?: string;
 }
 
 interface Shop {
@@ -26,10 +28,22 @@ const VendorMenuManagement = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [newItemName, setNewItemName] = useState("");
   const [newItemPrice, setNewItemPrice] = useState("");
+  const [newItemCategory, setNewItemCategory] = useState("Main Course");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shop, setShop] = useState<Shop | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  
+  // Available food categories
+  const categories = [
+    "Main Course",
+    "Appetizer",
+    "Dessert",
+    "Drinks",
+    "Snacks",
+    "Breakfast",
+    "Special"
+  ];
   
   useEffect(() => {
     // Check authentication and get shop ID
@@ -117,6 +131,7 @@ const VendorMenuManagement = () => {
           shop_id: shop.id,
           name: newItemName.trim(),
           price: price,
+          category: newItemCategory
         }])
         .select()
         .single();
@@ -186,7 +201,7 @@ const VendorMenuManagement = () => {
       
       <Card className="mb-8 border-vendor-200">
         <CardContent className="pt-6">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <div className="space-y-2">
               <Label htmlFor="food-name">Food Item Name</Label>
               <Input 
@@ -208,6 +223,25 @@ const VendorMenuManagement = () => {
                 min="0"
                 step="1"
               />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="food-category">Category</Label>
+              <Select 
+                value={newItemCategory} 
+                onValueChange={setNewItemCategory}
+              >
+                <SelectTrigger id="food-category">
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="flex items-end">
@@ -242,7 +276,12 @@ const VendorMenuManagement = () => {
                 <CardContent className="py-4 px-5 flex justify-between items-center">
                   <div>
                     <h3 className="font-medium">{item.name}</h3>
-                    <p className="text-vendor-700">₹{item.price.toFixed(2)}</p>
+                    <div className="flex space-x-4">
+                      <p className="text-vendor-700">₹{item.price.toFixed(2)}</p>
+                      {item.category && (
+                        <span className="text-sm text-gray-500">{item.category}</span>
+                      )}
+                    </div>
                   </div>
                   <Button 
                     variant="ghost" 
