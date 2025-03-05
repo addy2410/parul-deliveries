@@ -51,7 +51,7 @@ serve(async (req) => {
     if (checkError) {
       console.error('Error checking existing user:', checkError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to check if user exists' }),
+        JSON.stringify({ success: false, error: 'Failed to check if user exists', details: checkError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
@@ -78,11 +78,11 @@ serve(async (req) => {
       }
     }
     
-    // Hash the password with a fixed salt to avoid bcrypt issues
+    // Hash the password with bcrypt
     let password_hash;
     try {
-      // Use a simpler bcrypt approach with a fixed round count
-      password_hash = await bcrypt.hash(password, 8);
+      // Using a simpler bcrypt approach with fixed rounds
+      password_hash = await bcrypt.hash(password);
       console.log('Password hashed successfully');
     } catch (bcryptError) {
       console.error('Bcrypt hashing error:', bcryptError);
@@ -92,57 +92,49 @@ serve(async (req) => {
       );
     }
     
-    try {
-      // Generate a random UUID for the student
-      const { data: studentId, error: uuidError } = await supabaseClient.rpc('gen_random_uuid');
-      
-      if (uuidError) {
-        console.error('Error generating UUID:', uuidError);
-        return new Response(
-          JSON.stringify({ success: false, error: 'Failed to generate user ID' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        );
-      }
-      
-      console.log('Generated UUID:', studentId);
-      
-      // Create the user
-      const { data: newUser, error: insertError } = await supabaseClient
-        .from('student_users')
-        .insert([
-          { id: studentId, phone, name, password_hash, email }
-        ])
-        .select()
-        .single();
-        
-      if (insertError) {
-        console.error('Error creating user:', insertError);
-        return new Response(
-          JSON.stringify({ success: false, error: 'Failed to create user account', details: insertError.message }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        );
-      }
-      
-      console.log('User created successfully:', newUser.id);
-      
-      // Return success with the new user ID
+    // Generate a UUID for the student
+    const { data: studentId, error: uuidError } = await supabaseClient.rpc('gen_random_uuid');
+    
+    if (uuidError) {
+      console.error('Error generating UUID:', uuidError);
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          userId: newUser.id,
-          name: newUser.name,
-          email: newUser.email,
-          message: 'User created successfully'
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    } catch (error) {
-      console.error('Database error:', error);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Database operation failed', details: error.message }),
+        JSON.stringify({ success: false, error: 'Failed to generate user ID', details: uuidError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
+    
+    console.log('Generated UUID:', studentId);
+    
+    // Create the user
+    const { data: newUser, error: insertError } = await supabaseClient
+      .from('student_users')
+      .insert([
+        { id: studentId, phone, name, password_hash, email }
+      ])
+      .select()
+      .single();
+      
+    if (insertError) {
+      console.error('Error creating user:', insertError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to create user account', details: insertError.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    console.log('User created successfully:', newUser.id);
+    
+    // Return success with the new user ID
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        userId: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        message: 'User created successfully'
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   } catch (error) {
     console.error('Edge function error:', error);
     return new Response(

@@ -47,15 +47,17 @@ const StudentLogin = () => {
       console.log("Attempting to log in with email:", email);
       
       // Custom login endpoint for students
-      const { data, error } = await supabase.functions.invoke('verify-student-password', {
+      const response = await supabase.functions.invoke('verify-student-password', {
         body: { email, password }
       });
       
-      console.log("Login response:", data, error);
+      console.log("Login response:", response);
       
-      if (error) {
-        throw new Error(error.message || "Login failed");
+      if (response.error) {
+        throw new Error(response.error.message || "Login failed");
       }
+      
+      const data = response.data;
       
       if (!data || !data.success) {
         throw new Error(data?.error || "Login failed");
@@ -99,15 +101,17 @@ const StudentLogin = () => {
       console.log("Attempting to sign up with email:", email);
       
       // Custom endpoint for student signup
-      const { data, error } = await supabase.functions.invoke('create-student-user', {
+      const response = await supabase.functions.invoke('create-student-user', {
         body: { phone: phoneNumber, name, password, email }
       });
       
-      console.log("Signup response:", data, error);
+      console.log("Signup response:", response);
       
-      if (error) {
-        throw new Error(error.message || "Signup failed");
+      if (response.error) {
+        throw new Error(response.error.message || "Signup failed");
       }
+      
+      const data = response.data;
       
       if (!data || !data.success) {
         throw new Error(data?.error || "Signup failed");

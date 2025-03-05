@@ -60,8 +60,8 @@ serve(async (req) => {
     if (!student) {
       console.log('User not found for email:', email);
       return new Response(
-        JSON.stringify({ success: false, error: 'User not found' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+        JSON.stringify({ success: false, error: 'Invalid credentials' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       );
     }
     
