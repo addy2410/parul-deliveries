@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -114,6 +115,10 @@ const StudentLogin = () => {
     
     try {
       console.log("Attempting registration with email:", registerEmail);
+      
+      // Show a persistent toast while registration is in progress
+      const pendingToast = toast.loading("Creating your account...");
+      
       const response = await supabase.functions.invoke('create-student-user', {
         body: { 
           name: registerName, 
@@ -122,25 +127,29 @@ const StudentLogin = () => {
         }
       });
       
-      console.log("Registration response:", response);
+      // Dismiss the loading toast
+      toast.dismiss(pendingToast);
       
-      const { error, data } = response;
+      console.log("Registration complete. Full response:", response);
       
-      if (error) {
-        console.error("Registration error from function invocation:", error);
-        setErrorMessage(error.message || "Registration failed. Please try again.");
-        toast.error(error.message || "Registration failed. Please try again.");
+      if (response.error) {
+        console.error("Registration error from function invocation:", response.error);
+        setErrorMessage(`Registration failed: ${response.error.message || "Unknown error"}`);
+        toast.error(`Registration failed: ${response.error.message || "Unknown error"}`);
         return;
       }
       
+      const { data } = response;
+      
       if (!data || !data.success) {
-        console.error("Registration failed:", data?.error || "Unknown error");
+        console.error("Registration failed with data:", data);
         setErrorMessage(data?.error || "Registration failed. Please try again.");
         toast.error(data?.error || "Registration failed. Please try again.");
         return;
       }
       
       // Store user session
+      console.log("Creating session with data:", data);
       const sessionData = {
         userId: data.userId,
         name: data.name,
@@ -154,8 +163,8 @@ const StudentLogin = () => {
       
     } catch (error: any) {
       console.error("Registration error:", error);
-      setErrorMessage("An unexpected error occurred. Please try again.");
-      toast.error("An unexpected error occurred. Please try again.");
+      setErrorMessage(`Registration error: ${error.message || "Unknown error"}`);
+      toast.error(`Registration error: ${error.message || "Unknown error"}`);
     } finally {
       setIsLoading(false);
     }

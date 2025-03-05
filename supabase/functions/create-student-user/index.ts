@@ -17,8 +17,13 @@ serve(async (req) => {
   try {
     console.log("Starting create-student-user function");
     
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    console.log("Environment variables loaded:", {
+      urlPresent: !!supabaseUrl,
+      keyPresent: !!supabaseKey
+    });
     
     if (!supabaseUrl || !supabaseKey) {
       console.error("Missing Supabase credentials");
@@ -30,10 +35,12 @@ serve(async (req) => {
     
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    // Parse request body
+    // Parse request body with error handling
     let requestData;
     try {
+      console.log("Attempting to parse request body");
       requestData = await req.json();
+      console.log("Request body parsed successfully:", requestData);
     } catch (parseError) {
       console.error("Failed to parse request JSON:", parseError);
       return new Response(
@@ -44,16 +51,26 @@ serve(async (req) => {
     
     const { email, name, password } = requestData;
     
-    console.log(`Attempting to create new student user with email: ${email}`);
-    
+    // Validate required fields
     if (!email || !name || !password) {
-      console.error("Missing required fields:", { email: !!email, name: !!name, password: !!password });
+      const missingFields = [];
+      if (!email) missingFields.push('email');
+      if (!name) missingFields.push('name');
+      if (!password) missingFields.push('password');
+      
+      console.error(`Missing required fields: ${missingFields.join(', ')}`);
       return new Response(
-        JSON.stringify({ success: false, error: 'Email, name, and password are required' }),
+        JSON.stringify({ 
+          success: false, 
+          error: `Missing required fields: ${missingFields.join(', ')}` 
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
     
+    console.log(`Attempting to create new student user. Name: ${name}, Email: ${email}`);
+    
+    // Validate password length
     if (password.length < 6) {
       console.error("Password too short");
       return new Response(
@@ -63,6 +80,7 @@ serve(async (req) => {
     }
     
     // Check if user with this email already exists in student_users
+    console.log("Checking if email already exists in student_users");
     const { data: existingStudents, error: checkStudentError } = await supabaseClient
       .from('student_users')
       .select('email')
@@ -85,6 +103,7 @@ serve(async (req) => {
     }
     
     // Check if this email is used by a vendor
+    console.log("Checking if email already exists in vendors");
     const { data: existingVendors, error: checkVendorError } = await supabaseClient
       .from('vendors')
       .select('email')
@@ -117,7 +136,7 @@ serve(async (req) => {
       console.log("Generated user ID:", userId);
       
       // Create the user with a default phone number
-      console.log("Inserting new student user");
+      console.log("Inserting new student user with ID:", userId);
       const { data: newUser, error: insertError } = await supabaseClient
         .from('student_users')
         .insert([
@@ -144,12 +163,21 @@ serve(async (req) => {
         console.error('User created but no data returned');
         
         // Double-check if the user was actually created
-        const { data: checkUser } = await supabaseClient
+        console.log("Double-checking if user was created");
+        const { data: checkUser, error: checkError } = await supabaseClient
           .from('student_users')
-          .select('id, name')
+          .select('id, name, email')
           .eq('email', email)
           .maybeSingle();
           
+        if (checkError) {
+          console.error('Error checking if user was created:', checkError);
+          return new Response(
+            JSON.stringify({ success: false, error: 'Failed to verify user creation: ' + checkError.message }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+          );
+        }
+        
         if (checkUser) {
           console.log("Found user after creation:", checkUser);
           return new Response(
@@ -159,7 +187,7 @@ serve(async (req) => {
               name: checkUser.name,
               message: 'User created successfully'
             }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
           );
         }
         
@@ -179,7 +207,7 @@ serve(async (req) => {
           name: newUser[0].name,
           message: 'User created successfully'
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     } catch (hashingError) {
       console.error('Error during password hashing or user creation:', hashingError);
@@ -192,7 +220,11 @@ serve(async (req) => {
   } catch (error) {
     console.error('Edge function error:', error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message || 'Unknown server error' }),
+      JSON.stringify({ 
+        success: false, 
+        error: error.message || 'Unknown server error',
+        stack: error.stack 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
