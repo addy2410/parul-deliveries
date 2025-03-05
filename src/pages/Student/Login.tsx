@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,12 +12,17 @@ import { supabase } from "@/lib/supabase";
 
 const StudentLogin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("login");
+  const [activeTab, setActiveTab] = useState(() => {
+    // Check if there's a query param for tab
+    const params = new URLSearchParams(location.search);
+    return params.get("tab") || "login";
+  });
   
   // Check if user is already logged in as a student
   useEffect(() => {
@@ -31,7 +36,17 @@ const StudentLogin = () => {
     };
     
     checkStudentSession();
-  }, [navigate]);
+    
+    // Check if we have a registration success message from the URL
+    const params = new URLSearchParams(location.search);
+    const registrationSuccess = params.get("registered");
+    
+    if (registrationSuccess === "true") {
+      toast.success("Registration successful! Please log in.");
+      // Clear the URL parameter
+      navigate("/student/login", { replace: true });
+    }
+  }, [navigate, location]);
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,13 +132,17 @@ const StudentLogin = () => {
         throw new Error(data?.error || "Signup failed");
       }
       
-      // Set local storage for the session
-      localStorage.setItem('currentStudentId', data.userId);
-      localStorage.setItem('studentName', name);
-      localStorage.setItem('studentEmail', email);
+      // Registration successful, redirect to login with notification
+      toast.success("Account created successfully! Please log in.");
+      setActiveTab("login");
+      navigate("/student/login?registered=true");
       
-      toast.success("Signup successful!");
-      navigate("/student/restaurants");
+      // Clear signup form
+      setName("");
+      setEmail("");
+      setPhoneNumber("");
+      setPassword("");
+      
     } catch (error: any) {
       console.error("Signup error:", error);
       toast.error(error.message || "Signup failed. Please try again.");

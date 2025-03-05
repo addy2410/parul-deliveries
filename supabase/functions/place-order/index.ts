@@ -5,7 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4"
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 interface OrderItem {
   menuItemId: string;
@@ -34,10 +34,24 @@ serve(async (req) => {
     // Create Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing Supabase URL or service key');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Server configuration error'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Parse request body
     const requestData: OrderRequest = await req.json();
+    console.log('Received order request:', JSON.stringify(requestData, null, 2));
+    
     const {
       items,
       restaurantId,
@@ -48,10 +62,9 @@ serve(async (req) => {
       totalAmount
     } = requestData;
 
-    console.log('Received order request:', JSON.stringify(requestData, null, 2));
-
     // Validate request
     if (!items || !items.length || !restaurantId || !vendorId || !studentId || !studentName || !deliveryLocation) {
+      console.error('Missing required order information:', { items, restaurantId, vendorId, studentId, studentName, deliveryLocation });
       return new Response(
         JSON.stringify({
           success: false,
@@ -106,6 +119,8 @@ serve(async (req) => {
       console.error('Error creating notification:', notificationError);
       // Continue anyway since the order was created successfully
     }
+    
+    console.log('Order created successfully:', order.id);
 
     return new Response(
       JSON.stringify({

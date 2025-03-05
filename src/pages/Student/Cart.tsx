@@ -6,25 +6,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { useCart } from "@/context/CartContext";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trash2, ArrowLeft, Home, Loader2 } from "lucide-react";
+import { Trash2, ArrowLeft, Home, Loader2, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import StudentHeader from "@/components/StudentHeader";
 import { supabase } from "@/lib/supabase";
 
 const StudentCart = () => {
   const navigate = useNavigate();
-  const { items, removeFromCart, clearCart, restaurantId } = useCart();
+  const { items, removeFromCart, clearCart, restaurantId, totalItems, totalPrice } = useCart();
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isProcessingOrder, setIsProcessingOrder] = useState(false);
   
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = totalPrice;
   const deliveryFee = subtotal > 0 ? 30 : 0;
   const total = subtotal + deliveryFee;
   
   const groupedCartItems = items.reduce((acc: any, item) => {
     if (!acc[item.restaurantId]) {
       acc[item.restaurantId] = {
-        restaurantName: item.restaurantName,
+        restaurantName: item.restaurantName || 'Unknown Restaurant',
         items: []
       };
     }
@@ -42,9 +42,17 @@ const StudentCart = () => {
     toast.success("Cart cleared");
   };
   
-  const handlePlaceOrder = () => {
+  const handleCheckout = () => {
     if (items.length === 0) {
       toast.error("Your cart is empty");
+      return;
+    }
+    
+    // Check if user is logged in
+    const studentId = localStorage.getItem('currentStudentId');
+    if (!studentId) {
+      toast.error("Please log in to checkout");
+      navigate("/student/login");
       return;
     }
     
@@ -70,6 +78,17 @@ const StudentCart = () => {
         return;
       }
       
+      // Get vendor ID from the restaurant
+      const { data: restaurant, error: restaurantError } = await supabase
+        .from('shops')
+        .select('vendor_id')
+        .eq('id', restaurantId)
+        .single();
+        
+      if (restaurantError || !restaurant) {
+        throw new Error("Unable to find restaurant information");
+      }
+      
       // Format order items for the database
       const orderItems = items.map(item => ({
         menuItemId: item.id,
@@ -84,14 +103,20 @@ const StudentCart = () => {
           items: orderItems,
           totalAmount: total,
           restaurantId: restaurantId,
+          vendorId: restaurant.vendor_id,
           studentId: studentId,
           studentName: studentName,
           deliveryLocation: "Campus Location (Set in profile)" // In a real app, this would come from the user's profile
         }
       });
       
-      if (error || !data.success) {
-        throw new Error(error?.message || data?.error || "Failed to place order");
+      if (error) {
+        console.error("Edge function error:", error);
+        throw new Error("Failed to place order: " + error.message);
+      }
+      
+      if (!data.success) {
+        throw new Error(data.error || "Failed to place order");
       }
       
       // Order successfully placed
@@ -208,7 +233,7 @@ const StudentCart = () => {
                 </div>
                 <Button 
                   className="w-full mt-4 bg-[#ea384c] hover:bg-[#d02e40]"
-                  onClick={handlePlaceOrder}
+                  onClick={handleCheckout}
                   disabled={isProcessingOrder}
                 >
                   {isProcessingOrder ? (
@@ -217,7 +242,10 @@ const StudentCart = () => {
                       Processing...
                     </>
                   ) : (
-                    'Proceed to Payment'
+                    <>
+                      <ShoppingCart className="mr-2 h-4 w-4" />
+                      Checkout
+                    </>
                   )}
                 </Button>
               </CardContent>

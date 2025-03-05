@@ -44,6 +44,7 @@ serve(async (req) => {
       .or(`phone.eq.${phone},email.eq.${email}`);
       
     if (checkError) {
+      console.error('Error checking if user exists:', checkError);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to check if user exists' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -85,7 +86,7 @@ serve(async (req) => {
     const saltArray = Array.from(salt);
     const password_hash = `${saltArray.map(b => b.toString(16).padStart(2, '0')).join('')}:${hashArray.map(b => b.toString(16).padStart(2, '0')).join('')}`;
     
-    // Create the student user with a simple UUID generation
+    // Generate a UUID for the student
     const studentId = crypto.randomUUID();
     
     // Create the user
@@ -98,24 +99,26 @@ serve(async (req) => {
       .single();
       
     if (insertError) {
+      console.error('Error creating user:', insertError);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to create user account', details: insertError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
     
-    // Return success with the new user ID
+    // Return success with the new user ID and a message to log in
     return new Response(
       JSON.stringify({ 
         success: true, 
         userId: newUser.id,
         name: newUser.name,
         email: newUser.email,
-        message: 'User created successfully'
+        message: 'Registration successful. Please log in to continue.'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
+    console.error('Unexpected error:', error);
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }

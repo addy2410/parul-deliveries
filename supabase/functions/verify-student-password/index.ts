@@ -18,6 +18,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
     if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing Supabase URL or service key');
       return new Response(
         JSON.stringify({ success: false, error: 'Server configuration error' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -37,6 +38,8 @@ serve(async (req) => {
       );
     }
     
+    console.log(`Verifying password for email: ${email}`);
+    
     // Get the user with the email
     const { data: student, error: fetchError } = await supabaseClient
       .from('student_users')
@@ -45,6 +48,7 @@ serve(async (req) => {
       .maybeSingle();
       
     if (fetchError) {
+      console.error('Error fetching user:', fetchError);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to fetch user data' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -52,6 +56,7 @@ serve(async (req) => {
     }
     
     if (!student) {
+      console.log('No student found with this email');
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid email or password' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
@@ -62,10 +67,19 @@ serve(async (req) => {
       // Verify the password
       const passwordHash = student.password_hash;
       
+      if (!passwordHash) {
+        console.error('Password hash is missing');
+        return new Response(
+          JSON.stringify({ success: false, error: 'Invalid account data' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
+      
       // Split the stored hash into salt and hash
       const [storedSaltHex, storedHashHex] = passwordHash.split(':');
       
       if (!storedSaltHex || !storedHashHex) {
+        console.error('Invalid password hash format');
         return new Response(
           JSON.stringify({ success: false, error: 'Invalid password hash format' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -93,11 +107,14 @@ serve(async (req) => {
       const passwordMatches = calculatedHashHex === storedHashHex;
       
       if (!passwordMatches) {
+        console.log('Password verification failed');
         return new Response(
           JSON.stringify({ success: false, error: 'Invalid email or password' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
         );
       }
+      
+      console.log('Password verified successfully');
       
       // Return success with the user information
       return new Response(
@@ -110,12 +127,14 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } catch (verificationError) {
+      console.error('Password verification error:', verificationError);
       return new Response(
         JSON.stringify({ success: false, error: 'Password verification failed', details: verificationError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
   } catch (error) {
+    console.error('Unexpected error:', error);
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
