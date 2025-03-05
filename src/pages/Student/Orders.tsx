@@ -1,13 +1,28 @@
-
 import React, { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft } from "lucide-react";
-import OrderCard from "@/components/OrderCard";
-import StudentHeader from "@/components/StudentHeader";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ArrowLeft, ShoppingBag, Package, Check, ChefHat, Truck, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
+import StudentHeader from "@/components/StudentHeader";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -22,7 +37,7 @@ interface Order {
   id: string;
   student_id: string;
   vendor_id: string;
-  shop_id: string;
+  restaurant_id: string;
   items: OrderItem[];
   total_amount: number;
   status: string;
@@ -30,253 +45,277 @@ interface Order {
   student_name: string;
   estimated_delivery_time?: string;
   created_at: string;
-  restaurantName?: string;
 }
 
-const StudentOrders = () => {
-  const { type } = useParams<{ type: string }>();
-  const [orders, setOrders] = useState<Order[]>([]);
+const OrderCard = ({ order }: { order: Order }) => {
+  return (
+    <Card className="border border-border/40">
+      <CardContent className="p-4">
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <h4 className="font-medium">
+              Order #{order.id.slice(0, 8)}...
+            </h4>
+            <p className="text-sm text-muted-foreground">
+              {new Date(order.created_at).toLocaleString()}
+            </p>
+          </div>
+          <Badge
+            className={`${
+              order.status === "pending"
+                ? "bg-yellow-500"
+                : order.status === "preparing"
+                ? "bg-blue-500"
+                : order.status === "ready"
+                ? "bg-purple-500"
+                : order.status === "delivering"
+                ? "bg-orange-500"
+                : order.status === "delivered"
+                ? "bg-green-500"
+                : "bg-gray-500"
+            }`}
+          >
+            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+          </Badge>
+        </div>
+
+        <div className="mb-2">
+          <p className="text-sm">
+            <strong>Delivery:</strong> {order.delivery_location}
+          </p>
+          {order.estimated_delivery_time && (
+            <p className="text-sm">
+              <strong>Estimated time:</strong> {order.estimated_delivery_time}
+            </p>
+          )}
+        </div>
+
+        <div className="border-t border-border/40 pt-2 mb-3">
+          <p className="text-sm font-medium mb-1">Items:</p>
+          <ul className="text-sm space-y-1">
+            {order.items.map((item, idx) => (
+              <li key={idx} className="flex justify-between">
+                <span>
+                  {item.quantity}x {item.name}
+                </span>
+                <span>₹{(item.quantity * item.price).toFixed(2)}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="border-t border-border/40 pt-2 mt-2 flex justify-between font-medium">
+            <span>Total</span>
+            <span>₹{order.total_amount.toFixed(2)}</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+const Orders = () => {
+  const [activeOrders, setActiveOrders] = useState<Order[]>([]);
+  const [pastOrders, setPastOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [studentId, setStudentId] = useState<string | null>(null);
-  
+  const navigate = useNavigate();
+
   useEffect(() => {
-    // Check if user is authenticated
-    const checkAuth = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      
-      if (error || !data.session) {
-        // Try to get from localStorage as fallback (for development)
-        const storedSession = localStorage.getItem('studentSession');
-        if (storedSession) {
-          try {
-            const session = JSON.parse(storedSession);
-            setStudentId(session.userId);
-          } catch (e) {
-            console.error("Error parsing stored session:", e);
-          }
-        }
-        return;
-      }
-      
-      setStudentId(data.session.user.id);
-    };
-    
-    checkAuth();
-  }, []);
-  
-  useEffect(() => {
-    if (!studentId) return;
-    
     const fetchOrders = async () => {
       try {
         setLoading(true);
-        
-        // Get active or previous orders based on type
-        const isActive = type === 'active';
-        
-        const { data, error } = await supabase
-          .from('orders')
-          .select(`
-            *,
-            shops!inner(name)
-          `)
-          .eq('student_id', studentId)
-          .in('status', isActive 
-            ? ['pending', 'preparing', 'ready', 'delivering'] 
-            : ['delivered', 'cancelled'])
-          .order('created_at', { ascending: false });
-          
-        if (error) {
-          console.error("Error fetching orders:", error);
-          toast.error("Failed to load orders");
+
+        // Check if user is authenticated
+        const { data: session } = await supabase.auth.getSession();
+
+        if (!session.session) {
+          toast.error("Please login to view your orders");
+          navigate("/student/login");
           return;
         }
-        
-        // Process orders data
-        const formattedOrders = data.map(order => ({
-          ...order,
-          items: Array.isArray(order.items) ? order.items : [],
-          restaurantName: order.shops?.name || 'Unknown Restaurant'
-        }));
-        
-        setOrders(formattedOrders);
+
+        const studentId = session.session.user.id;
+
+        // Fetch active orders
+        const { data: active, error: activeError } = await supabase
+          .from("orders")
+          .select("*")
+          .eq("student_id", studentId)
+          .not("status", "in", '("delivered", "cancelled")')
+          .order("created_at", { ascending: false });
+
+        if (activeError) {
+          console.error("Error fetching active orders:", activeError);
+        }
+
+        // Fetch past orders
+        const { data: past, error: pastError } = await supabase
+          .from("orders")
+          .select("*")
+          .eq("student_id", studentId)
+          .in("status", ["delivered", "cancelled"])
+          .order("created_at", { ascending: false });
+
+        if (pastError) {
+          console.error("Error fetching past orders:", pastError);
+        }
+
+        // Parse JSONB items field
+        const parseOrders = (orders) => {
+          return orders
+            ? orders.map((order) => ({
+                ...order,
+                items: Array.isArray(order.items) ? order.items : [],
+              }))
+            : [];
+        };
+
+        setActiveOrders(parseOrders(active));
+        setPastOrders(parseOrders(past));
       } catch (error) {
         console.error("Error fetching orders:", error);
+        toast.error("Failed to load orders");
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchOrders();
-    
-    // Set up real-time subscription for order updates
-    if (studentId) {
-      const channel = supabase
-        .channel('student-orders-changes')
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'orders',
-          filter: `student_id=eq.${studentId}`
-        }, async (payload) => {
-          // Ensure we have a completely formed order object before updating state
-          const getCompleteOrderData = async (orderData: any): Promise<Order | null> => {
-            // If this is a new order or updated order, ensure it has a shop_id
-            if (!orderData || !orderData.shop_id) {
-              console.error("Order data missing shop_id:", orderData);
-              return null;
+
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel("student-orders")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+          filter: `student_id=eq.${session?.session?.user?.id}`,
+        },
+        (payload) => {
+          console.log("Student received real-time order update:", payload);
+
+          if (payload.eventType === "INSERT") {
+            setActiveOrders((prev) => [payload.new as Order, ...prev]);
+          } else if (payload.eventType === "UPDATE") {
+            const updated = payload.new as Order;
+            if (
+              updated.status === "delivered" ||
+              updated.status === "cancelled"
+            ) {
+              setActiveOrders((prev) =>
+                prev.filter((order) => order.id !== updated.id)
+              );
+              setPastOrders((prev) => [updated, ...prev]);
+            } else {
+              setActiveOrders((prev) =>
+                prev.map((order) =>
+                  order.id === updated.id
+                    ? { ...updated, items: order.items }
+                    : order
+                )
+              );
             }
-            
-            try {
-              // Fetch shop name
-              const { data } = await supabase
-                .from('shops')
-                .select('name')
-                .eq('id', orderData.shop_id)
-                .single();
-                
-              // Create a complete order object with all required fields
-              const completeOrder: Order = {
-                id: orderData.id,
-                student_id: orderData.student_id,
-                vendor_id: orderData.vendor_id,
-                shop_id: orderData.shop_id,
-                items: Array.isArray(orderData.items) ? orderData.items : [],
-                total_amount: orderData.total_amount,
-                status: orderData.status,
-                delivery_location: orderData.delivery_location,
-                student_name: orderData.student_name,
-                created_at: orderData.created_at,
-                estimated_delivery_time: orderData.estimated_delivery_time,
-                restaurantName: data?.name || 'Unknown Restaurant'
-              };
-              
-              return completeOrder;
-            } catch (e) {
-              console.error("Error fetching shop name:", e);
-              return null;
-            }
-          };
-          
-          if (payload.eventType === 'INSERT') {
-            const newOrder = await getCompleteOrderData(payload.new);
-            if (newOrder) {
-              // Only add to list if it matches the current filter
-              const isActive = ['pending', 'preparing', 'ready', 'delivering'].includes(newOrder.status);
-              if ((type === 'active' && isActive) || (type === 'previous' && !isActive)) {
-                setOrders(prev => [newOrder, ...prev]);
-              }
-            }
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedOrder = await getCompleteOrderData(payload.new);
-            
-            if (updatedOrder) {
-              // Check if status changed from active to completed/cancelled or vice versa
-              const wasActive = ['pending', 'preparing', 'ready', 'delivering'].includes(payload.old.status);
-              const isActive = ['pending', 'preparing', 'ready', 'delivering'].includes(updatedOrder.status);
-              
-              if (wasActive !== isActive) {
-                // Order moved between active and previous
-                if ((type === 'active' && !isActive) || (type === 'previous' && isActive)) {
-                  // Order should be removed from current view
-                  setOrders(prev => prev.filter(o => o.id !== updatedOrder.id));
-                } else {
-                  // Order should be added to current view
-                  setOrders(prev => [updatedOrder, ...prev]);
-                }
-              } else {
-                // Just update the order in the current view
-                setOrders(prev => prev.map(o => 
-                  o.id === updatedOrder.id ? updatedOrder : o
-                ));
-              }
-            }
+          } else if (payload.eventType === "DELETE") {
+            setActiveOrders((prev) =>
+              prev.filter((order) => order.id !== payload.old.id)
+            );
+            setPastOrders((prev) =>
+              prev.filter((order) => order.id !== payload.old.id)
+            );
           }
-        })
-        .subscribe();
-        
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [studentId, type]);
-  
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [navigate]);
+
+  const renderOrderCard = (order) => (
+    <div key={order.id} className="mb-4">
+      <OrderCard order={order} />
+      {order.status !== 'delivered' && order.status !== 'cancelled' && (
+        <div className="mt-2 flex justify-end">
+          <Button
+            size="sm"
+            className="bg-[#ea384c] hover:bg-[#d02e40]"
+            onClick={() => navigate(`/student/order-tracking/${order.id}`)}
+          >
+            Track Order
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <StudentHeader />
+        <div className="container mx-auto p-4 text-center mt-20">
+          <p>Loading orders...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <StudentHeader />
-      
+
       <div className="container mx-auto p-4">
-        <div className="flex justify-between items-center mb-6">
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/student/restaurants" className="flex items-center gap-1">
-              <ArrowLeft size={16} />
-              Back to Home
-            </Link>
-          </Button>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">My Orders</h1>
         </div>
-        
-        <h1 className="text-2xl font-bold mb-6">
-          {type === 'active' ? 'Active Orders' : 'Order History'}
-        </h1>
-        
-        <Tabs defaultValue={type} className="w-full">
-          <TabsList className="grid grid-cols-2 mb-6">
-            <TabsTrigger 
-              value="active" 
-              asChild
-            >
-              <Link to="/student/orders/active">Active Orders</Link>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="previous"
-              asChild
-            >
-              <Link to="/student/orders/previous">Order History</Link>
-            </TabsTrigger>
+
+        <Tabs defaultValue="active" className="w-full">
+          <TabsList>
+            <TabsTrigger value="active">Current Orders</TabsTrigger>
+            <TabsTrigger value="past">Past Orders</TabsTrigger>
           </TabsList>
-          
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            {loading ? (
-              <div className="text-center py-8">
-                <p>Loading orders...</p>
-              </div>
-            ) : orders.length > 0 ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {orders.map(order => (
-                  <OrderCard 
-                    key={order.id}
-                    order={order}
-                    isVendor={false}
-                  />
-                ))}
-              </div>
+          <TabsContent value="active" className="space-y-4">
+            {activeOrders.length > 0 ? (
+              activeOrders.map((order) => renderOrderCard(order))
             ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center p-6">
-                  <p className="text-center text-muted-foreground">
-                    {type === 'active' 
-                      ? "You don't have any active orders."
-                      : "You don't have any previous orders."
-                    }
-                  </p>
-                  <Button 
-                    className="mt-4 bg-[#ea384c] hover:bg-[#d02e40]"
-                    asChild
-                  >
-                    <Link to="/student/restaurants">Order Food Now</Link>
-                  </Button>
-                </CardContent>
-              </Card>
+              <div className="text-center py-4">
+                <ShoppingBag className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                <p className="text-muted-foreground">
+                  No active orders at the moment
+                </p>
+                <Button
+                  onClick={() => navigate("/student/restaurants")}
+                  className="mt-4"
+                >
+                  Order Now
+                </Button>
+              </div>
             )}
-          </motion.div>
+          </TabsContent>
+          <TabsContent value="past" className="space-y-4">
+            {pastOrders.length > 0 ? (
+              pastOrders.map((order) => (
+                <div key={order.id} className="mb-4">
+                  <OrderCard order={order} />
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-4">
+                <Package className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                <p className="text-muted-foreground">No past orders yet</p>
+                <Button
+                  onClick={() => navigate("/student/restaurants")}
+                  className="mt-4"
+                >
+                  Order Now
+                </Button>
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
     </div>
   );
 };
 
-export default StudentOrders;
+export default Orders;

@@ -1,3 +1,4 @@
+
 import React, { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -5,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { CartProvider } from "./context/CartContext";
+import { supabase } from "@/lib/supabase";
 
 // Pages
 import Index from "./pages/Index";
@@ -38,12 +40,34 @@ const addLogoFontStyle = () => {
   document.head.appendChild(style);
 };
 
+// Function to clear all test orders
+const clearAllTestOrders = async () => {
+  try {
+    console.log("Clearing all test orders from the database...");
+    const { error } = await supabase
+      .from('orders')
+      .delete()
+      .not('id', 'eq', 'non-existing-id'); // This will delete all orders
+    
+    if (error) {
+      console.error("Error clearing test orders:", error);
+    } else {
+      console.log("All test orders cleared successfully");
+    }
+  } catch (err) {
+    console.error("Error in clearAllTestOrders:", err);
+  }
+};
+
 const queryClient = new QueryClient();
 
 const App = () => {
   // Add the logo font style when the app loads
   useEffect(() => {
     addLogoFontStyle();
+    
+    // Clear all test orders when the app loads
+    clearAllTestOrders();
   }, []);
 
   return (
