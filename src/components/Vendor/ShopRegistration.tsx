@@ -45,24 +45,6 @@ const ShopRegistration: React.FC<ShopRegistrationProps> = ({ vendorId, onComplet
     console.log("Submitting shop data for vendor:", vendorId);
     
     try {
-      // Check if shop name already exists
-      const { data: existingShops, error: checkError } = await supabase
-        .from('shops')
-        .select('id')
-        .eq('name', data.name);
-        
-      if (checkError) {
-        console.error('Error checking shop name:', checkError);
-        toast.error('Error checking shop name. Please try again.');
-        return;
-      }
-      
-      if (existingShops && existingShops.length > 0) {
-        toast.error('A shop with this name already exists. Please choose a different name.');
-        setIsSubmitting(false);
-        return;
-      }
-      
       // Insert shop data into Supabase
       const { data: shop, error } = await supabase
         .from('shops')

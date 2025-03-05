@@ -3,143 +3,34 @@ import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { sampleOrders, Order } from "@/data/data";
 import OrderCard from "@/components/OrderCard";
 import StudentHeader from "@/components/StudentHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
-import { supabase } from "@/lib/supabase";
-import { toast } from "sonner";
-
-// Define Order type that matches our database structure
-interface OrderItem {
-  menuItemId: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
-interface DbOrder {
-  id: string;
-  restaurant_id: string;
-  student_id: string;
-  student_name: string;
-  items: OrderItem[];
-  total_amount: number;
-  status: 'pending' | 'accepted' | 'preparing' | 'ready' | 'delivering' | 'delivered' | 'cancelled';
-  created_at: string;
-  delivery_location: string;
-  estimated_delivery_time: string;
-}
-
-// Convert DB order to format expected by OrderCard component
-const mapDbOrderToOrder = (dbOrder: DbOrder) => {
-  return {
-    id: dbOrder.id,
-    restaurantId: dbOrder.restaurant_id,
-    customerId: dbOrder.student_id,
-    customerName: dbOrder.student_name,
-    items: dbOrder.items,
-    totalAmount: dbOrder.total_amount,
-    status: dbOrder.status,
-    createdAt: dbOrder.created_at,
-    deliveryLocation: dbOrder.delivery_location,
-    estimatedDeliveryTime: dbOrder.estimated_delivery_time
-  };
-};
 
 const StudentOrders = () => {
-  const { type = 'active' } = useParams<{ type: string }>();
-  const [orders, setOrders] = useState<ReturnType<typeof mapDbOrderToOrder>[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [studentName, setStudentName] = useState("");
+  const { type } = useParams<{ type: string }>();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [studentName] = useState("John Doe"); // In a real app, this would come from authentication
   
   useEffect(() => {
-    const fetchStudentProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // Get student user details
-        const { data: studentData, error: studentError } = await supabase
-          .from('student_users')
-          .select('name')
-          .eq('id', user.id)
-          .single();
-        
-        if (studentData) {
-          setStudentName(studentData.name);
-        } else if (studentError) {
-          console.error('Error fetching student profile:', studentError);
-        }
-      }
-    };
+    // In a demo mode, we're using sample orders
+    // Filter orders based on status and simulate they belong to this student
+    const activeOrders = sampleOrders.filter(
+      order => !['delivered', 'cancelled'].includes(order.status)
+    );
     
-    fetchStudentProfile();
-  }, []);
-  
-  useEffect(() => {
-    const fetchOrders = async () => {
-      setIsLoading(true);
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          toast.error("You must be logged in to view orders");
-          setIsLoading(false);
-          return;
-        }
-        
-        // Determine which orders to fetch based on type
-        const isActive = type === 'active';
-        const statusFilter = isActive 
-          ? ['pending', 'accepted', 'preparing', 'ready', 'delivering']
-          : ['delivered', 'cancelled'];
-        
-        const { data, error } = await supabase
-          .from('orders')
-          .select('*')
-          .eq('student_id', user.id)
-          .in('status', statusFilter)
-          .order('created_at', { ascending: false });
-        
-        if (error) {
-          throw error;
-        }
-        
-        if (data) {
-          // Map DB orders to component format
-          const mappedOrders = data.map(mapDbOrderToOrder);
-          setOrders(mappedOrders);
-        }
-      } catch (error) {
-        console.error('Error fetching orders:', error);
-        toast.error("Failed to load orders");
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    const previousOrders = sampleOrders.filter(
+      order => ['delivered', 'cancelled'].includes(order.status)
+    );
     
-    fetchOrders();
-    
-    // Set up realtime subscription for order updates
-    const channel = supabase
-      .channel('orders-changes')
-      .on('postgres_changes', 
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders'
-        }, 
-        (payload) => {
-          console.log('Order changed:', payload);
-          // Refresh orders when a change is detected
-          fetchOrders();
-        }
-      )
-      .subscribe();
-      
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    if (type === 'active') {
+      setOrders(activeOrders);
+    } else {
+      setOrders(previousOrders);
+    }
   }, [type]);
   
   return (
@@ -181,11 +72,7 @@ const StudentOrders = () => {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
           >
-            {isLoading ? (
-              <div className="flex justify-center items-center p-10">
-                <Loader2 className="h-8 w-8 animate-spin" />
-              </div>
-            ) : orders.length > 0 ? (
+            {orders.length > 0 ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {orders.map(order => (
                   <OrderCard 

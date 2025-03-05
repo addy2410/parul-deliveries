@@ -6,25 +6,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { useCart } from "@/context/CartContext";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trash2, ArrowLeft, Home, Loader2, ShoppingCart } from "lucide-react";
+import { Trash2, ArrowLeft, Home } from "lucide-react";
 import { toast } from "sonner";
 import StudentHeader from "@/components/StudentHeader";
-import { supabase } from "@/lib/supabase";
 
 const StudentCart = () => {
   const navigate = useNavigate();
-  const { items, removeFromCart, clearCart, restaurantId, totalItems, totalPrice } = useCart();
+  const { cartItems, removeFromCart, clearCart } = useCart();
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [isProcessingOrder, setIsProcessingOrder] = useState(false);
   
-  const subtotal = totalPrice;
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const deliveryFee = subtotal > 0 ? 30 : 0;
   const total = subtotal + deliveryFee;
   
-  const groupedCartItems = items.reduce((acc: any, item) => {
+  const groupedCartItems = cartItems.reduce((acc: any, item) => {
     if (!acc[item.restaurantId]) {
       acc[item.restaurantId] = {
-        restaurantName: item.restaurantName || 'Unknown Restaurant',
+        restaurantName: item.restaurantName,
         items: []
       };
     }
@@ -32,8 +30,8 @@ const StudentCart = () => {
     return acc;
   }, {});
   
-  const handleRemoveFromCart = (itemId: string) => {
-    removeFromCart(itemId);
+  const handleRemoveFromCart = (menuItemId: string) => {
+    removeFromCart(menuItemId);
     toast.success("Item removed from cart");
   };
   
@@ -42,99 +40,20 @@ const StudentCart = () => {
     toast.success("Cart cleared");
   };
   
-  const handleCheckout = () => {
-    if (items.length === 0) {
+  const handlePlaceOrder = () => {
+    if (cartItems.length === 0) {
       toast.error("Your cart is empty");
-      return;
-    }
-    
-    // Check if user is logged in
-    const studentId = localStorage.getItem('currentStudentId');
-    if (!studentId) {
-      toast.error("Please log in to checkout");
-      navigate("/student/login");
       return;
     }
     
     setIsPaymentModalOpen(true);
   };
   
-  const handlePaymentComplete = async (paymentMethod: string) => {
-    try {
-      setIsProcessingOrder(true);
-      
-      // Get student information from localStorage
-      const studentId = localStorage.getItem('currentStudentId');
-      const studentName = localStorage.getItem('studentName');
-      
-      if (!studentId || !studentName) {
-        toast.error("You need to be logged in to place an order");
-        navigate("/student/login");
-        return;
-      }
-      
-      if (!restaurantId) {
-        toast.error("Unable to identify restaurant. Please try again.");
-        return;
-      }
-      
-      // Get vendor ID from the restaurant
-      const { data: restaurant, error: restaurantError } = await supabase
-        .from('shops')
-        .select('vendor_id')
-        .eq('id', restaurantId)
-        .single();
-        
-      if (restaurantError || !restaurant) {
-        throw new Error("Unable to find restaurant information");
-      }
-      
-      // Format order items for the database
-      const orderItems = items.map(item => ({
-        menuItemId: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity
-      }));
-      
-      // Call the edge function to place the order
-      const { data, error } = await supabase.functions.invoke('place-order', {
-        body: {
-          items: orderItems,
-          totalAmount: total,
-          restaurantId: restaurantId,
-          vendorId: restaurant.vendor_id,
-          studentId: studentId,
-          studentName: studentName,
-          deliveryLocation: "Campus Location (Set in profile)" // In a real app, this would come from the user's profile
-        }
-      });
-      
-      if (error) {
-        console.error("Edge function error:", error);
-        throw new Error("Failed to place order: " + error.message);
-      }
-      
-      if (!data.success) {
-        throw new Error(data.error || "Failed to place order");
-      }
-      
-      // Order successfully placed
-      toast.success("Order placed successfully!");
-      clearCart();
-      navigate("/student/order-success", { 
-        state: { 
-          orderId: data.orderId,
-          orderTotal: total
-        } 
-      });
-    } catch (error: any) {
-      console.error("Order error:", error);
-      toast.error(error.message || "Failed to place your order. Please try again.");
-    } finally {
-      setIsProcessingOrder(false);
-      setIsPaymentModalOpen(false);
-    }
+  const handlePaymentComplete = () => {
+    // In a real app, you would process the payment here
+    toast.success("Order placed successfully!");
+    clearCart();
+    navigate("/student/order-success");
   };
 
   return (
@@ -142,7 +61,7 @@ const StudentCart = () => {
       <StudentHeader />
       
       <div className="container mx-auto p-4">
-        {items.length === 0 ? (
+        {cartItems.length === 0 ? (
           <Card className="max-w-md mx-auto mt-16">
             <CardContent className="flex flex-col items-center justify-center p-6">
               <CardTitle className="text-lg font-semibold mb-2">Your cart is empty</CardTitle>
@@ -188,7 +107,7 @@ const StudentCart = () => {
                       <CardContent className="p-4">
                         <ul className="space-y-2">
                           {items.map(item => (
-                            <li key={item.id} className="flex items-center justify-between">
+                            <li key={item.menuItemId} className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm">{item.name}</span>
                                 <span className="text-xs text-muted-foreground">x{item.quantity}</span>
@@ -198,7 +117,7 @@ const StudentCart = () => {
                                 <Button 
                                   variant="ghost" 
                                   size="icon"
-                                  onClick={() => handleRemoveFromCart(item.id)}
+                                  onClick={() => handleRemoveFromCart(item.menuItemId)}
                                 >
                                   <Trash2 size={16} />
                                 </Button>
@@ -233,20 +152,9 @@ const StudentCart = () => {
                 </div>
                 <Button 
                   className="w-full mt-4 bg-[#ea384c] hover:bg-[#d02e40]"
-                  onClick={handleCheckout}
-                  disabled={isProcessingOrder}
+                  onClick={handlePlaceOrder}
                 >
-                  {isProcessingOrder ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart className="mr-2 h-4 w-4" />
-                      Checkout
-                    </>
-                  )}
+                  Proceed to Payment
                 </Button>
               </CardContent>
             </Card>
@@ -266,8 +174,7 @@ const StudentCart = () => {
                 <Button 
                   variant="outline" 
                   className="justify-start border-2 border-blue-500 hover:bg-blue-50"
-                  onClick={() => handlePaymentComplete('upi')}
-                  disabled={isProcessingOrder}
+                  onClick={handlePaymentComplete}
                 >
                   <img src="https://images.unsplash.com/photo-1493962853295-0fd70327578a" alt="UPI" className="w-6 h-6 mr-2" />
                   UPI Payment
@@ -275,8 +182,7 @@ const StudentCart = () => {
                 <Button 
                   variant="outline" 
                   className="justify-start border-2 border-green-500 hover:bg-green-50"
-                  onClick={() => handlePaymentComplete('card')}
-                  disabled={isProcessingOrder}
+                  onClick={handlePaymentComplete}
                 >
                   <img src="https://images.unsplash.com/photo-1582562124811-c09040d0a901" alt="Card" className="w-6 h-6 mr-2" />
                   Credit/Debit Card
@@ -284,8 +190,7 @@ const StudentCart = () => {
                 <Button 
                   variant="outline" 
                   className="justify-start border-2 border-orange-500 hover:bg-orange-50"
-                  onClick={() => handlePaymentComplete('cod')}
-                  disabled={isProcessingOrder}
+                  onClick={handlePaymentComplete}
                 >
                   <img src="https://images.unsplash.com/photo-1466721591366-2d5fba72006d" alt="COD" className="w-6 h-6 mr-2" />
                   Cash on Delivery
@@ -296,23 +201,14 @@ const StudentCart = () => {
               <Button 
                 variant="outline" 
                 onClick={() => setIsPaymentModalOpen(false)}
-                disabled={isProcessingOrder}
               >
                 Cancel
               </Button>
               <Button 
                 className="bg-[#ea384c] hover:bg-[#d02e40]"
-                onClick={() => handlePaymentComplete('card')}
-                disabled={isProcessingOrder}
+                onClick={handlePaymentComplete}
               >
-                {isProcessingOrder ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  `Pay ₹${total.toFixed(2)}`
-                )}
+                Pay ₹{total.toFixed(2)}
               </Button>
             </CardFooter>
           </Card>

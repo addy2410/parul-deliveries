@@ -14,12 +14,12 @@ interface MenuItem {
 
 interface CartItem extends MenuItem {
   quantity: number;
-  restaurantName?: string; 
+  restaurantName?: string; // Add this property
 }
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (item: MenuItem, quantity?: number) => void;
+  addItem: (item: MenuItem) => void;
   removeItem: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => void;
@@ -29,7 +29,7 @@ interface CartContextType {
   
   // Aliases for backward compatibility with existing components
   cartItems: CartItem[];
-  addToCart: (item: MenuItem, quantity?: number) => void;
+  addToCart: (item: MenuItem) => void;
   removeFromCart: (itemId: string) => void;
 }
 
@@ -70,7 +70,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [items, restaurantId]);
   
-  const addItem = (item: MenuItem, quantity: number = 1) => {
+  const addItem = (item: MenuItem) => {
     // Find restaurant name
     const restaurant = restaurants.find(r => r.id === item.restaurantId);
     const restaurantName = restaurant?.name || 'Unknown Restaurant';
@@ -78,9 +78,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check if we need to clear the cart (items from different restaurants)
     if (restaurantId && item.restaurantId !== restaurantId && items.length > 0) {
       if (window.confirm("Your cart contains items from another restaurant. Would you like to clear your cart and add this item?")) {
-        setItems([{ ...item, quantity, restaurantName }]);
+        setItems([{ ...item, quantity: 1, restaurantName }]);
         setRestaurantId(item.restaurantId);
-        toast.success(`Added ${quantity} ${item.name} to your cart`);
+        toast.success(`Added ${item.name} to your cart`);
       }
       return;
     }
@@ -96,14 +96,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (existingItemIndex >= 0) {
       // Update quantity of existing item
       const newItems = [...items];
-      newItems[existingItemIndex].quantity += quantity;
+      newItems[existingItemIndex].quantity += 1;
       setItems(newItems);
     } else {
       // Add new item to cart
-      setItems([...items, { ...item, quantity, restaurantName }]);
+      setItems([...items, { ...item, quantity: 1, restaurantName }]);
     }
     
-    toast.success(`Added ${quantity} ${item.name} to your cart`);
+    toast.success(`Added ${item.name} to your cart`);
   };
   
   const removeItem = (itemId: string) => {

@@ -45,24 +45,6 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentN
     getStudentName();
   }, [propStudentName]);
 
-  // Function to handle account button click with explicit navigation
-  const handleAccountClick = () => {
-    console.log("Account button clicked, navigating to /student/login");
-    window.location.href = "/student/login";
-  };
-
-  // Function to handle orders button click
-  const handleOrdersClick = () => {
-    console.log("Orders button clicked, navigating to /student/orders/active");
-    window.location.href = "/student/orders/active";
-  };
-
-  // Function to handle cart button click
-  const handleCartClick = () => {
-    console.log("Cart button clicked, navigating to /student/cart");
-    window.location.href = "/student/cart";
-  };
-
   return (
     <header className="bg-white border-b sticky top-0 z-10">
       <div className="container mx-auto py-3 px-4 flex items-center justify-between">
@@ -74,7 +56,7 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentN
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={handleOrdersClick}
+            onClick={() => navigate("/student/orders/active")}
             className="flex items-center text-sm text-muted-foreground"
           >
             <Clock className="w-4 h-4 mr-1" />
@@ -84,7 +66,7 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentN
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={handleAccountClick}
+            onClick={() => navigate("/student/login")}
             className="flex items-center text-sm text-muted-foreground"
           >
             <User className="w-4 h-4 mr-1" />
@@ -97,7 +79,7 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentN
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={handleCartClick}
+            onClick={() => navigate("/student/cart")}
             className="relative flex items-center"
           >
             <ShoppingCart className="w-4 h-4 mr-1" />

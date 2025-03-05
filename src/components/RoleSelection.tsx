@@ -1,11 +1,10 @@
 
-import React, { useEffect } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { isUsingDefaultCredentials } from "@/lib/supabase";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
 
 interface RoleCardProps {
   title: string;
@@ -57,47 +56,24 @@ const RoleSelection: React.FC = () => {
       });
       console.log("Demo mode active: Using sample data");
     }
-    
-    // Call the function to remove duplicate shops
-    const removeDuplicateShops = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('remove-duplicate-shop');
-        if (error) {
-          console.error("Error removing duplicate shops:", error);
-        } else {
-          console.log("Duplicate shop check result:", data);
-        }
-      } catch (err) {
-        console.error("Failed to check for duplicate shops:", err);
-      }
-    };
-    
-    removeDuplicateShops();
   }, []);
 
   return (
-    <div className="flex flex-col items-center space-y-6">
-      {/* Add the CampusGrub logo */}
-      <div className="text-4xl font-bold fontLogo mb-4">
-        <span className="text-[#ea384c]">Campus</span><span className="text-black dark:text-white">Grub</span>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto w-full">
-        <RoleCard
-          title="I'm a Vendor"
-          description="Manage your menu, accept orders, and track deliveries."
-          route="/vendor/login"
-          className="border-primary hover:border-primary/80"
-          delay={0.2}
-        />
-        <RoleCard
-          title="I'm a Student"
-          description="Browse restaurants, order food, and enjoy campus delivery."
-          route="/student/restaurants"
-          className="border-secondary hover:border-secondary/80"
-          delay={0.4}
-        />
-      </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+      <RoleCard
+        title="I'm a Vendor"
+        description="Manage your menu, accept orders, and track deliveries."
+        route="/vendor/login"
+        className="border-primary hover:border-primary/80"
+        delay={0.2}
+      />
+      <RoleCard
+        title="I'm a Student"
+        description="Browse restaurants, order food, and enjoy campus delivery."
+        route="/student/restaurants"
+        className="border-secondary hover:border-secondary/80"
+        delay={0.4}
+      />
     </div>
   );
 };

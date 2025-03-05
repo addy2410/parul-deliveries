@@ -10,7 +10,6 @@ import { supabase } from "@/lib/supabase";
 const RegisterShop = () => {
   const [vendorId, setVendorId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [hasShop, setHasShop] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -35,24 +34,7 @@ const RegisterShop = () => {
           return;
         }
         
-        const userId = data.session.user.id;
-        setVendorId(userId);
-        
-        // Check if vendor already has a shop
-        const { data: shopData, error: shopError } = await supabase
-          .from('shops')
-          .select('*')
-          .eq('vendor_id', userId);
-          
-        if (shopError) {
-          console.error("Error checking for shop:", shopError);
-        } else if (shopData && shopData.length > 0) {
-          // Vendor already has a shop, redirect to dashboard
-          setHasShop(true);
-          toast.info("You already have a registered shop");
-          navigate("/vendor/dashboard");
-          return;
-        }
+        setVendorId(data.session.user.id);
       } catch (error) {
         console.error("Auth check error:", error);
         toast.error("Authentication error");
@@ -85,10 +67,6 @@ const RegisterShop = () => {
           {loading ? (
             <div className="flex justify-center p-8">
               <p>Loading authentication status...</p>
-            </div>
-          ) : hasShop ? (
-            <div className="flex justify-center p-8">
-              <p>You already have a registered shop. Redirecting to dashboard...</p>
             </div>
           ) : vendorId ? (
             <ShopRegistration 
