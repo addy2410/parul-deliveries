@@ -2,7 +2,6 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-// Using native crypto instead of bcrypt which was causing issues
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -18,10 +17,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
-    console.log('Creating student user - initialization');
-    
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('Missing required environment variables');
       return new Response(
         JSON.stringify({ success: false, error: 'Server configuration error' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -34,10 +30,7 @@ serve(async (req) => {
     const requestData = await req.json();
     const { phone, name, password, email } = requestData;
     
-    console.log(`Creating new user with name: ${name}, email: ${email}`);
-    
     if (!phone || !name || !password || !email) {
-      console.error('Missing required fields in request');
       return new Response(
         JSON.stringify({ success: false, error: 'Phone, name, email, and password are required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -51,7 +44,6 @@ serve(async (req) => {
       .or(`phone.eq.${phone},email.eq.${email}`);
       
     if (checkError) {
-      console.error('Error checking existing user:', checkError);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to check if user exists' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -80,50 +72,21 @@ serve(async (req) => {
       }
     }
     
-    // Hash the password using native crypto instead of bcrypt
-    let password_hash;
-    try {
-      // Convert password string to bytes
-      const encoder = new TextEncoder();
-      const passwordBytes = encoder.encode(password);
-      
-      // Generate a salt
-      const salt = crypto.getRandomValues(new Uint8Array(16));
-      
-      // Hash the password with the salt using SHA-256
-      const hashBuffer = await crypto.subtle.digest(
-        'SHA-256', 
-        new Uint8Array([...salt, ...passwordBytes])
-      );
-      
-      // Convert the hash to a string for storage
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const saltArray = Array.from(salt);
-      
-      // Store salt:hash
-      password_hash = `${saltArray.map(b => b.toString(16).padStart(2, '0')).join('')}:${hashArray.map(b => b.toString(16).padStart(2, '0')).join('')}`;
-      
-      console.log('Password hashed successfully');
-    } catch (hashError) {
-      console.error('Password hashing error:', hashError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Password hashing failed', details: hashError.message }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
-    }
+    // Hash the password securely
+    const encoder = new TextEncoder();
+    const passwordBytes = encoder.encode(password);
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const hashBuffer = await crypto.subtle.digest(
+      'SHA-256', 
+      new Uint8Array([...salt, ...passwordBytes])
+    );
     
-    // Generate a UUID for the student
-    const { data: studentId, error: uuidError } = await supabaseClient.rpc('gen_random_uuid');
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const saltArray = Array.from(salt);
+    const password_hash = `${saltArray.map(b => b.toString(16).padStart(2, '0')).join('')}:${hashArray.map(b => b.toString(16).padStart(2, '0')).join('')}`;
     
-    if (uuidError) {
-      console.error('Error generating UUID:', uuidError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to generate user ID' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
-    }
-    
-    console.log('Generated UUID:', studentId);
+    // Create the student user with a simple UUID generation
+    const studentId = crypto.randomUUID();
     
     // Create the user
     const { data: newUser, error: insertError } = await supabaseClient
@@ -135,14 +98,11 @@ serve(async (req) => {
       .single();
       
     if (insertError) {
-      console.error('Error creating user:', insertError);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to create user account', details: insertError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
-    
-    console.log('User created successfully:', newUser.id);
     
     // Return success with the new user ID
     return new Response(
@@ -156,7 +116,6 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Edge function error:', error);
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }

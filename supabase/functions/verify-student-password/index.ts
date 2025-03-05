@@ -17,10 +17,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
-    console.log('Verifying student password - starting authentication');
-    
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('Missing required environment variables');
       return new Response(
         JSON.stringify({ success: false, error: 'Server configuration error' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -33,10 +30,7 @@ serve(async (req) => {
     const requestData = await req.json();
     const { email, password } = requestData;
     
-    console.log(`Attempting to verify password for email: ${email}`);
-    
     if (!email || !password) {
-      console.error('Missing email or password in request');
       return new Response(
         JSON.stringify({ success: false, error: 'Email and password are required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -51,7 +45,6 @@ serve(async (req) => {
       .maybeSingle();
       
     if (fetchError) {
-      console.error('Error fetching student:', fetchError);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to fetch user data' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -59,24 +52,20 @@ serve(async (req) => {
     }
     
     if (!student) {
-      console.log('User not found for email:', email);
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid email or password' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       );
     }
     
-    console.log('Found student with ID:', student.id);
-    
     try {
-      // Verify the password using the same approach as in create-student-user
+      // Verify the password
       const passwordHash = student.password_hash;
       
       // Split the stored hash into salt and hash
       const [storedSaltHex, storedHashHex] = passwordHash.split(':');
       
       if (!storedSaltHex || !storedHashHex) {
-        console.error('Invalid password hash format');
         return new Response(
           JSON.stringify({ success: false, error: 'Invalid password hash format' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -103,8 +92,6 @@ serve(async (req) => {
       // Compare the hashes
       const passwordMatches = calculatedHashHex === storedHashHex;
       
-      console.log('Password verification result:', passwordMatches);
-      
       if (!passwordMatches) {
         return new Response(
           JSON.stringify({ success: false, error: 'Invalid email or password' }),
@@ -123,15 +110,12 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } catch (verificationError) {
-      console.error('Password verification error:', verificationError);
       return new Response(
         JSON.stringify({ success: false, error: 'Password verification failed', details: verificationError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
-    
   } catch (error) {
-    console.error('Edge function error:', error);
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
