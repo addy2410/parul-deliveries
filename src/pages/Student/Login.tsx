@@ -204,69 +204,33 @@ const StudentLogin = () => {
         return;
       }
       
-      // We now have a user created, but we need to wait a moment for the trigger to create
-      // the student_profiles record. Let's check a few times with a small delay.
-      let studentProfile = null;
-      let attempts = 0;
-      
-      while (!studentProfile && attempts < 3) {
-        // Short wait to allow the database trigger to execute
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        const { data: profile } = await supabase
-          .from('student_profiles')
-          .select('id, name')
-          .eq('id', data.user.id)
-          .single();
-          
-        if (profile) {
-          studentProfile = profile;
-          break;
-        }
-        
-        attempts++;
-      }
-      
       toast.dismiss(pendingToast);
       
-      // If for some reason the profile wasn't created by the trigger,
-      // we'll create it manually
-      if (!studentProfile) {
-        console.log("Student profile not created by trigger, creating manually");
-        const { data: newProfile, error: profileError } = await supabase
-          .from('student_profiles')
-          .insert([
-            { 
-              id: data.user.id,
-              name: registerName,
-              phone: '1234567890' // Default phone number
-            }
-          ])
-          .select();
-          
-        if (profileError) {
-          console.error("Error creating student profile:", profileError);
-          // Sign out since profile creation failed
-          await supabase.auth.signOut();
-          setErrorMessage("Error creating student profile. Please try again.");
-          toast.error("Error creating student profile. Please try again.");
-          return;
-        }
+      // Wait for a moment to allow the trigger to create the student profile
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Check if student profile was created
+      const { data: studentProfile, error: profileError } = await supabase
+        .from('student_profiles')
+        .select('id, name')
+        .eq('id', data.user.id)
+        .single();
         
-        studentProfile = newProfile?.[0];
+      if (profileError || !studentProfile) {
+        console.error("Error verifying student profile:", profileError);
+        toast.warning("Account created, but student profile setup may be delayed. Please try logging in again in a few moments.");
+      } else {
+        // Store user session
+        const sessionData = {
+          userId: data.user.id,
+          name: registerName,
+          email: registerEmail,
+        };
+        
+        localStorage.setItem('studentSession', JSON.stringify(sessionData));
+        toast.success("Registration successful!");
+        navigate('/student/restaurants');
       }
-      
-      // Store user session
-      const sessionData = {
-        userId: data.user.id,
-        name: registerName,
-        email: registerEmail,
-      };
-      
-      localStorage.setItem('studentSession', JSON.stringify(sessionData));
-      
-      toast.success("Registration successful!");
-      navigate('/student/restaurants');
       
     } catch (error: any) {
       console.error("Registration error:", error);
