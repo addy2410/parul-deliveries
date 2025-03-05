@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
@@ -11,24 +12,28 @@ import { useStudentAuth } from "@/hooks/useStudentAuth";
 import { Trash2, ShoppingCart, CreditCard } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { useParams } from "react-router-dom";
-import { restaurants } from "@/data/data";
 
 const Cart = () => {
   const { shopId } = useParams();
-  const { items, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
+  const { items, removeItem, updateQuantity, clearCart, totalPrice, restaurantName } = useCart();
   const { studentId, studentName, studentAddress } = useStudentAuth();
   const navigate = useNavigate();
   const [shopData, setShopData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Changed to false by default
   const [deliveryAddress, setDeliveryAddress] = useState(studentAddress || "");
   const [orderCreated, setOrderCreated] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState(null);
   const total = totalPrice;
-  const { restaurantName } = useCart();
 
   useEffect(() => {
-    if (!shopId) return;
+    // Only attempt to fetch shop data if we have a shopId
+    if (!shopId) {
+      setLoading(false);
+      return;
+    }
 
+    setLoading(true); // Set loading to true only when we're fetching
+    
     const fetchShopData = async () => {
       try {
         const { data, error } = await supabase
@@ -44,7 +49,7 @@ const Cart = () => {
 
         setShopData({
           ...data,
-          vendor_id: data.vendor_users.id,
+          vendor_id: data.vendor_users.id
         });
       } catch (error) {
         console.error("Error:", error);
@@ -81,9 +86,41 @@ const Cart = () => {
       return;
     }
 
+    // Validate if we have the required data for checkout
+    if (!items.length) {
+      toast.error("Your cart is empty");
+      return;
+    }
+
+    // Check if an active restaurant ID is found in the cart context
+    const activeRestaurantId = items[0]?.restaurantId;
+    if (!activeRestaurantId) {
+      toast.error("Cannot identify restaurant for this order");
+      return;
+    }
+
     try {
-      // Get restaurant name from context
-      const shopName = restaurantName || "Unknown Restaurant";
+      // Get vendor ID for the restaurant if not loaded yet
+      let vendorId = null;
+      
+      if (!shopData) {
+        // Fetch restaurant info to get vendor ID
+        const { data, error } = await supabase
+          .from("restaurants")
+          .select("*, vendor_users!inner(*)")
+          .eq("id", activeRestaurantId)
+          .single();
+          
+        if (error) {
+          console.error("Error fetching restaurant data:", error);
+          toast.error("Failed to prepare order");
+          return;
+        }
+        
+        vendorId = data.vendor_users.id;
+      } else {
+        vendorId = shopData.vendor_id;
+      }
       
       // Prepare the order items
       const orderItems = items.map(item => ({
@@ -97,12 +134,12 @@ const Cart = () => {
       const { data, error } = await supabase.from("orders").insert([
         {
           student_id: studentId,
-          vendor_id: shopData.vendor_id,
-          restaurant_id: shopId, // Using restaurant_id (previously changed from shop_id)
+          vendor_id: vendorId,
+          restaurant_id: activeRestaurantId || shopId,
           items: orderItems,
           total_amount: total,
           status: "pending",
-          delivery_location: studentAddress || "Campus",
+          delivery_location: deliveryAddress || "Campus",
           student_name: studentName || "Student"
         }
       ]).select();
@@ -122,14 +159,14 @@ const Cart = () => {
         // Create notification
         const { error: notifError } = await supabase.from("notifications").insert([
           {
-            recipient_id: shopData.vendor_id,
+            recipient_id: vendorId,
             type: "new_order",
             message: `New order from ${studentName || "a student"}`,
             data: {
               order_id: order.id,
               items: orderItems,
               total_amount: total,
-              delivery_location: studentAddress || "Campus"
+              delivery_location: deliveryAddress || "Campus"
             }
           }
         ]);
@@ -155,6 +192,7 @@ const Cart = () => {
     }
   };
 
+  // Don't show loading state when there's no shopId
   if (loading) {
     return <div className="container py-8">Loading...</div>;
   }
