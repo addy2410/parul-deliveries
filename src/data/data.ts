@@ -46,12 +46,74 @@ export interface Order {
 
 // Export data collections
 export const restaurants: Restaurant[] = [
-  // Only keeping BlueZ Biryani (removing CAPITOL, GREENZY and Main Food Court)
+  {
+    id: 'rest-1',
+    name: 'BlueZ Biryani',
+    description: 'Authentic Hyderabadi Biryani and kebabs',
+    logo: 'https://images.unsplash.com/photo-1513104890138-7c749659a591',
+    coverImage: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd',
+    location: 'Parul Mandir',
+    rating: 4.8,
+    cuisine: 'Hyderabadi',
+    tags: ['Hyderabadi', 'Biryani', 'Kebabs'],
+    deliveryFee: 30.00,
+    deliveryTime: '20-30 min',
+    isOpen: true
+  }
 ];
 
-// Update menu items with proper images for better visibility
+// Update menu items to only keep BlueZ Biryani items
 export const menuItems: MenuItem[] = [
-  // Only keeping BlueZ Biryani items (removed items for CAPITOL, GREENZY and Main Food Court)
+  {
+    id: 'item-1',
+    name: 'Classic Cheeseburger',
+    description: 'Juicy beef patty with cheese, lettuce, tomato, and special sauce',
+    price: 8.99,
+    image: 'https://images.unsplash.com/photo-1572802419224-296b0aeee0d9',
+    restaurantId: 'rest-1',
+    category: 'Burgers',
+    isAvailable: true
+  },
+  {
+    id: 'item-2',
+    name: 'Grilled Chicken Sandwich',
+    description: 'Marinated grilled chicken breast with avocado, bacon, and honey mustard',
+    price: 9.99,
+    image: 'https://images.unsplash.com/photo-1521305916504-4a1121188589',
+    restaurantId: 'rest-1',
+    category: 'Sandwiches',
+    isAvailable: true
+  },
+  {
+    id: 'item-3',
+    name: 'Hyderabadi Dum Biryani',
+    description: 'Fragrant basmati rice with spiced meat, cooked in a sealed pot',
+    price: 12.99,
+    image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8',
+    restaurantId: 'rest-1',
+    category: 'Biryani',
+    isAvailable: true
+  },
+  {
+    id: 'item-4',
+    name: 'Chicken 65',
+    description: 'Spicy, deep-fried chicken dish from Chennai, India',
+    price: 10.99,
+    image: 'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58',
+    restaurantId: 'rest-1',
+    category: 'Appetizers',
+    isAvailable: true
+  },
+  {
+    id: 'item-5',
+    name: 'Seekh Kebab',
+    description: 'Minced meat mixed with spices and grilled on skewers',
+    price: 14.99,
+    image: 'https://images.unsplash.com/photo-1529042410759-befb1204b468',
+    restaurantId: 'rest-1',
+    category: 'Kebabs',
+    isAvailable: true
+  }
 ];
 
 // Keep the rest of the file unchanged

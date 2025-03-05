@@ -44,10 +44,12 @@ const addLogoFontStyle = () => {
 const clearAllTestOrders = async () => {
   try {
     console.log("Clearing all test orders from the database...");
+    
+    // Using a more reliable approach to clear orders
     const { error } = await supabase
       .from('orders')
       .delete()
-      .not('id', 'eq', 'non-existing-id'); // This will delete all orders
+      .gte('id', '0'); // This will delete all orders since all UUIDs are greater than '0'
     
     if (error) {
       console.error("Error clearing test orders:", error);
