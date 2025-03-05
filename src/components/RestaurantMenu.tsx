@@ -1,309 +1,159 @@
-import React, { useState, useEffect } from "react";
-import { Badge } from "@/components/ui/badge";
+
+import React, { useState } from "react";
+import { useParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
-import { PlusCircle, MinusCircle, Plus, ShoppingCart, Check } from "lucide-react";
-import { toast } from "sonner";
+import { menuItems } from "@/data/data";
 import { useCart } from "@/context/CartContext";
+import { Button } from "@/components/ui/button";
+import { PlusCircle, MinusCircle, ShoppingCart } from "lucide-react";
+import { motion } from "framer-motion";
 
-type MenuItem = {
-  id: string;
-  name: string;
-  price: number;
-  category?: string;
-  image?: string;
-  description?: string;
-};
-
-type RestaurantMenuProps = {
-  menuItems: MenuItem[];
-  restaurantId: string;
-  restaurantName: string;
-};
-
-const RestaurantMenu: React.FC<RestaurantMenuProps> = ({
-  menuItems,
-  restaurantId,
-  restaurantName,
-}) => {
-  const { items, addItem, totalItems, totalPrice } = useCart();
-  const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-
+const RestaurantMenu = () => {
+  const { restaurantId } = useParams();
+  const { addToCart, cartItems, updateQuantity, totalPrice } = useCart();
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  
   // Group menu items by category
-  const groupedItems = menuItems.reduce((acc, item) => {
-    const category = item.category || "Other";
-    if (!acc[category]) {
-      acc[category] = [];
-    }
-    acc[category].push(item);
-    return acc;
-  }, {} as Record<string, MenuItem[]>);
-
-  // Sort categories so "Other" appears last
-  const sortedCategories = Object.keys(groupedItems).sort((a, b) => {
-    if (a === "Other") return 1;
-    if (b === "Other") return -1;
-    return a.localeCompare(b);
-  });
-
-  // Set initial active category
-  React.useEffect(() => {
-    if (sortedCategories.length > 0 && !activeCategory) {
-      setActiveCategory(sortedCategories[0]);
-    }
-  }, [sortedCategories, activeCategory]);
-
-  // Initialize quantities based on cart items
-  useEffect(() => {
-    const cartQuantities: Record<string, number> = {};
-    items.forEach(item => {
-      cartQuantities[item.id] = item.quantity;
-    });
-    setItemQuantities(cartQuantities);
-  }, [items]);
-
-  const handleAddToCart = (item: MenuItem) => {
-    const quantity = itemQuantities[item.id] || 1;
-    
-    // Create a cart item with all required properties for MenuItem type
-    addItem({
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      description: item.description || "",
-      image: item.image || "",
-      restaurantId: restaurantId
-    }, quantity);
-    
-    toast.success(`Added ${quantity} ${item.name} to cart`);
-  };
-
-  const incrementQuantity = (itemId: string) => {
-    setItemQuantities(prev => ({
-      ...prev,
-      [itemId]: (prev[itemId] || 0) + 1
-    }));
-  };
-
-  const decrementQuantity = (itemId: string) => {
-    setItemQuantities(prev => ({
-      ...prev,
-      [itemId]: Math.max((prev[itemId] || 1) - 1, 1)
-    }));
-  };
-
-  // Check if item is in cart
-  const isInCart = (itemId: string) => {
-    return items.some(item => item.id === itemId);
-  };
-
-  // Get item quantity from cart
-  const getCartQuantity = (itemId: string) => {
-    const item = items.find(item => item.id === itemId);
+  const filteredItems = menuItems.filter(
+    (item) => item.restaurantId === restaurantId
+  );
+  
+  const categories = [...new Set(filteredItems.map((item) => item.category))];
+  
+  const getItemQuantityInCart = (itemId: string) => {
+    const item = cartItems.find((item) => item.id === itemId);
     return item ? item.quantity : 0;
   };
 
-  if (menuItems.length === 0) {
-    return (
-      <div className="text-center py-10">
-        <p className="text-gray-500">No menu items available for this restaurant.</p>
-      </div>
-    );
-  }
-
-  // Get a food image based on food name
-  const getFoodImage = (item: MenuItem) => {
-    // Use the item's image if available
-    if (item.image) return item.image;
-    
-    // Some sample food images based on common Indian dishes
-    const foodImages: Record<string, string> = {
-      "Butter Chicken": "https://images.unsplash.com/photo-1588166524941-3bf61a9c41db",
-      "Paneer Tikka": "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8",
-      "Masala Dosa": "https://images.unsplash.com/photo-1650380881351-e97a730fe63f",
-      "Vada Pav": "https://images.unsplash.com/photo-1606491956689-2ea866880c84",
-      "Samosa": "https://images.unsplash.com/photo-1631788012442-633271ac4909",
-      "Biryani": "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8",
-      "Curry": "https://images.unsplash.com/photo-1565557623262-b51c2513a641",
-      "Naan": "https://images.unsplash.com/photo-1584617769270-a79cbb532dce",
-      "Lassi": "https://images.unsplash.com/photo-1626784215021-2e55ae968fba",
-      "Chai": "https://images.unsplash.com/photo-1577968897966-3d4325b36b61",
-      "Salad": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c",
-      "Quinoa": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c"
-    };
-    
-    // Check if item name contains any of the keys
-    for (const [key, value] of Object.entries(foodImages)) {
-      if (item.name.toLowerCase().includes(key.toLowerCase())) {
-        return value;
-      }
+  const handleAddItemClick = (item: any) => {
+    addToCart(item);
+  };
+  
+  const handleRemoveItemClick = (itemId: string) => {
+    const currentQuantity = getItemQuantityInCart(itemId);
+    if (currentQuantity > 1) {
+      updateQuantity(itemId, currentQuantity - 1);
+    } else {
+      // Remove item completely
+      updateQuantity(itemId, 0);
     }
-    
-    // Default image
-    return "https://images.unsplash.com/photo-1546069901-ba9599a7e63c";
   };
 
-  // Show cart summary if items in cart
-  const renderCartSummary = () => {
-    if (totalItems === 0) return null;
-    
-    return (
-      <div className="sticky bottom-4 left-0 right-0 z-40 mx-auto max-w-md">
-        <div className="bg-red-500 text-white rounded-full px-4 py-3 shadow-lg flex items-center justify-between">
-          <div className="flex items-center">
-            <ShoppingCart className="mr-2" />
-            <span>{totalItems} {totalItems === 1 ? 'item' : 'items'}</span>
-          </div>
-          <div className="font-medium">₹{totalPrice.toFixed(2)}</div>
-          <Button 
-            variant="secondary" 
-            size="sm" 
-            className="rounded-full bg-white text-red-500 hover:bg-gray-100"
-            onClick={() => window.location.href = '/student/cart'}
-          >
-            Checkout
-          </Button>
-        </div>
-      </div>
-    );
+  const toggleCategory = (category: string) => {
+    if (expandedCategory === category) {
+      setExpandedCategory(null);
+    } else {
+      setExpandedCategory(category);
+    }
   };
 
   return (
-    <div className="mt-4 relative">
-      {/* Category Navigation */}
-      <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 mb-6">
-        <div className="flex whitespace-nowrap space-x-2">
-          {sortedCategories.map((category) => (
-            <button
-              key={category}
-              onClick={() => setActiveCategory(category)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                activeCategory === category
-                  ? "bg-red-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Menu Items by Category */}
-      <div className="space-y-8 pb-20">
-        {sortedCategories.map((category) => (
-          <div 
-            key={category} 
-            className={activeCategory === category ? 'block' : 'hidden'}
+    <div className="space-y-6 pb-20">
+      {categories.map((category) => (
+        <div key={category} className="space-y-4">
+          <h3
+            className="text-xl font-semibold cursor-pointer"
+            onClick={() => toggleCategory(category)}
           >
-            <h2 className="text-2xl font-bold mb-4">{category}</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {groupedItems[category].map((item) => {
-                const cartQty = getCartQuantity(item.id);
-                const isItemInCart = cartQty > 0;
+            {category} 
+            <span className="text-muted-foreground text-sm ml-2">
+              ({filteredItems.filter((item) => item.category === category).length})
+            </span>
+          </h3>
+          <div className="grid grid-cols-1 gap-4">
+            {filteredItems
+              .filter((item) => item.category === category)
+              .map((item) => {
+                const quantityInCart = getItemQuantityInCart(item.id);
                 
                 return (
-                  <Card 
-                    key={item.id} 
-                    className="overflow-hidden border border-gray-100 hover:shadow-md transition-shadow"
+                  <motion.div 
+                    key={item.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
                   >
-                    <div className="flex">
-                      <div className="flex-grow p-4">
-                        <h3 className="font-semibold text-lg">{item.name}</h3>
-                        {item.description && (
-                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.description}</p>
-                        )}
-                        <div className="mt-2 font-medium text-red-500">
-                          ₹{item.price.toFixed(2)}
-                        </div>
-                        
-                        <div className="mt-3 flex items-center gap-2">
-                          {(itemQuantities[item.id] && itemQuantities[item.id] > 0) ? (
-                            <>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-8 w-8 rounded-full border-gray-300"
-                                onClick={() => decrementQuantity(item.id)}
-                              >
-                                <MinusCircle size={16} className="text-gray-600" />
-                              </Button>
-                              <span className="w-6 text-center font-medium">
-                                {itemQuantities[item.id] || 1}
-                              </span>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-8 w-8 rounded-full border-gray-300"
-                                onClick={() => incrementQuantity(item.id)}
-                              >
-                                <PlusCircle size={16} className="text-gray-600" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="ml-2 bg-red-500 hover:bg-red-600 text-white"
-                                onClick={() => handleAddToCart(item)}
-                              >
-                                Add to Cart
-                              </Button>
-                            </>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className={`flex items-center ${
-                                isItemInCart ? 'border-green-500 text-green-600' : 'border-gray-300 text-gray-700'
-                              }`}
-                              onClick={() => incrementQuantity(item.id)}
-                            >
-                              {isItemInCart ? (
-                                <>
-                                  <Check size={16} className="mr-1" />
-                                  {cartQty} in cart
-                                </>
-                              ) : (
-                                <>
-                                  <Plus size={16} className="mr-1" />
-                                  Add
-                                </>
-                              )}
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="w-24 h-24 bg-gray-100 relative">
-                        <img 
-                          src={getFoodImage(item)}
-                          alt={item.name} 
-                          className="w-full h-full object-cover" 
-                        />
-                        {!itemQuantities[item.id] && !isItemInCart && (
-                          <button 
-                            className="absolute bottom-2 right-2 bg-white rounded-full p-1 shadow-md hover:bg-gray-50"
-                            onClick={() => incrementQuantity(item.id)}
-                          >
-                            <Plus size={20} className="text-red-500" />
-                          </button>
-                        )}
-                        {isItemInCart && !itemQuantities[item.id] && (
-                          <div className="absolute top-2 right-2 bg-green-500 text-white rounded-full h-6 w-6 flex items-center justify-center shadow-md">
-                            {cartQty}
+                    <Card className="overflow-hidden">
+                      <CardContent className="p-0">
+                        <div className="md:flex">
+                          <div className="md:w-1/4 h-48 md:h-auto">
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="w-full h-full object-cover"
+                            />
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  </Card>
+                          <div className="p-4 md:w-3/4 flex flex-col justify-between">
+                            <div>
+                              <h4 className="font-medium text-lg">{item.name}</h4>
+                              <p className="text-muted-foreground text-sm my-2">
+                                {item.description}
+                              </p>
+                              <p className="font-medium">₹{item.price.toFixed(2)}</p>
+                            </div>
+                            <div className="mt-4 flex justify-end items-center">
+                              {quantityInCart > 0 ? (
+                                <div className="flex items-center space-x-2">
+                                  <Button 
+                                    variant="outline" 
+                                    size="icon" 
+                                    className="h-8 w-8 rounded-full"
+                                    onClick={() => handleRemoveItemClick(item.id)}
+                                  >
+                                    <MinusCircle size={16} />
+                                  </Button>
+                                  
+                                  <span className="font-medium">{quantityInCart}</span>
+                                  
+                                  <Button 
+                                    variant="outline" 
+                                    size="icon"
+                                    className="h-8 w-8 rounded-full bg-primary text-white hover:bg-primary/90"
+                                    onClick={() => handleAddItemClick(item)}
+                                  >
+                                    <PlusCircle size={16} />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button 
+                                  onClick={() => handleAddItemClick(item)}
+                                  className="flex items-center bg-primary rounded-full px-4 hover:bg-primary/90"
+                                >
+                                  <PlusCircle size={16} className="mr-1" /> Add
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
                 );
               })}
+          </div>
+        </div>
+      ))}
+      
+      {/* Cart summary that shows when items are added */}
+      {totalPrice > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t z-10"
+        >
+          <div className="container mx-auto">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="font-medium">{cartItems.reduce((sum, item) => sum + item.quantity, 0)} items</p>
+                <p className="font-bold text-lg">₹{totalPrice.toFixed(2)}</p>
+              </div>
+              <Button className="bg-primary hover:bg-primary/90">
+                <ShoppingCart size={16} className="mr-2" /> Checkout
+              </Button>
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* Cart summary fixed at bottom */}
-      {renderCartSummary()}
+        </motion.div>
+      )}
     </div>
   );
 };
