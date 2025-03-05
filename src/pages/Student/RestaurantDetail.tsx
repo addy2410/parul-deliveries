@@ -25,6 +25,7 @@ const StudentRestaurantDetail = () => {
     const fetchRestaurantData = async () => {
       try {
         setLoading(true);
+        console.log("Fetching restaurant data for ID:", id);
         
         // If using demo credentials or the ID is from sample data, use sample data
         if (isUsingDefaultCredentials() || id?.startsWith('rest-')) {
@@ -42,17 +43,17 @@ const StudentRestaurantDetail = () => {
         }
         
         // Otherwise fetch from Supabase
-        console.info("Fetching real restaurant data from Supabase");
+        console.info("Fetching real restaurant data from Supabase for ID:", id);
         
         // Fetch restaurant details
         const { data: shopData, error: shopError } = await supabase
           .from('shops')
           .select('*')
           .eq('id', id)
-          .single();
+          .maybeSingle();
           
-        if (shopError) {
-          console.error("Error fetching restaurant:", shopError);
+        if (shopError || !shopData) {
+          console.error("Error fetching restaurant:", shopError || "No data returned");
           toast.error("Could not load restaurant details");
           
           // Try to fall back to sample data
@@ -67,6 +68,8 @@ const StudentRestaurantDetail = () => {
           return;
         }
         
+        console.log("Successfully fetched shop data:", shopData);
+        
         // Transform shop data to match Restaurant interface
         const transformedShop = {
           id: shopData.id,
@@ -75,8 +78,8 @@ const StudentRestaurantDetail = () => {
           logo: shopData.logo || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352',
           coverImage: shopData.cover_image || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352',
           location: shopData.location,
-          rating: shopData.rating,
-          cuisine: shopData.cuisine,
+          rating: shopData.rating || 4.5,
+          cuisine: shopData.cuisine || 'Food',
           tags: shopData.tags || [shopData.cuisine || 'Food'],
           deliveryFee: 30.00,
           deliveryTime: shopData.delivery_time || '30-45 min',
@@ -84,6 +87,7 @@ const StudentRestaurantDetail = () => {
         };
         
         setRestaurant(transformedShop);
+        console.log("Transformed shop data:", transformedShop);
         
         // Fetch menu items for this restaurant
         const { data: menuData, error: menuError } = await supabase
@@ -94,6 +98,15 @@ const StudentRestaurantDetail = () => {
         if (menuError) {
           console.error("Error fetching menu items:", menuError);
           toast.error("Could not load menu items");
+          setLoading(false);
+          return;
+        }
+        
+        console.log("Successfully fetched menu items:", menuData);
+        
+        if (!menuData || menuData.length === 0) {
+          console.log("No menu items found for this restaurant");
+          setMenuItems([]);
           setLoading(false);
           return;
         }
@@ -110,6 +123,7 @@ const StudentRestaurantDetail = () => {
           isAvailable: true
         }));
         
+        console.log("Transformed menu items:", transformedMenuItems);
         setMenuItems(transformedMenuItems);
       } catch (err) {
         console.error("Unexpected error:", err);
@@ -167,8 +181,11 @@ const StudentRestaurantDetail = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         <StudentHeader />
-        <div className="container mx-auto p-8 flex justify-center items-center">
-          <p>Restaurant not found</p>
+        <div className="container mx-auto p-8 flex justify-center items-center flex-col gap-4">
+          <p className="text-xl">Restaurant not found</p>
+          <Button asChild>
+            <Link to="/student/restaurants">Go back to restaurants</Link>
+          </Button>
         </div>
       </div>
     );
