@@ -1,0 +1,6 @@
+
+# This file is the config file for the edge function
+# No changes are required
+
+[serve]
+port = 9999

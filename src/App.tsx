@@ -14,6 +14,7 @@ import VendorLogin from "./pages/Vendor/Login";
 import VendorDashboard from "./pages/Vendor/Dashboard";
 import VendorMenuManagement from "./pages/Vendor/MenuManagement";
 import RegisterShop from "./pages/Vendor/RegisterShop";
+import DeleteEmptyShop from "./pages/Vendor/DeleteEmptyShop";
 import StudentLogin from "./pages/Student/Login";
 import StudentRestaurants from "./pages/Student/Restaurants";
 import StudentRestaurantDetail from "./pages/Student/RestaurantDetail";
@@ -61,6 +62,7 @@ const App = () => {
               <Route path="/vendor/dashboard" element={<VendorDashboard />} />
               <Route path="/vendor/menu" element={<VendorMenuManagement />} />
               <Route path="/vendor/register-shop" element={<RegisterShop />} />
+              <Route path="/vendor/delete-empty-shop" element={<DeleteEmptyShop />} />
               
               {/* Student Routes */}
               <Route path="/student" element={<Navigate to="/student/login" replace />} />
