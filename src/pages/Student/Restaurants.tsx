@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { isUsingDefaultCredentials } from "@/lib/supabase";
 
 const StudentRestaurants = () => {
   const navigate = useNavigate();
@@ -33,49 +32,51 @@ const StudentRestaurants = () => {
     const fetchRestaurants = async () => {
       try {
         setLoading(true);
+        console.log("Attempting to fetch restaurants data");
         
-        // If using demo credentials, use the sample data
-        if (isUsingDefaultCredentials()) {
-          console.info("Using sample data for restaurants (demo mode)");
-          setRestaurantList(sampleRestaurants);
-          setLoading(false);
-          return;
-        }
-        
-        // Otherwise, fetch from Supabase
-        console.info("Fetching real restaurant data from Supabase");
-        const { data, error } = await supabase
+        // Fetch from Supabase
+        const { data: shopsData, error } = await supabase
           .from('shops')
           .select('*');
           
         if (error) {
           console.error("Error fetching restaurants:", error);
           toast.error("Could not load restaurants");
-          // Fallback to sample data if there's an error
           setRestaurantList(sampleRestaurants);
-        } else if (data && data.length > 0) {
-          console.log("Fetched shops from Supabase:", data);
+        } else if (shopsData && shopsData.length > 0) {
+          console.log("Successfully fetched shops from Supabase:", shopsData);
+          
           // Transform the Supabase data to match the Restaurant interface
-          const transformedData = data.map(shop => ({
+          const transformedData = shopsData.map(shop => ({
             id: shop.id,
             name: shop.name,
             description: shop.description || '',
-            // Use sample image if shop doesn't have custom images yet
             logo: shop.logo || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352',
             coverImage: shop.cover_image || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352',
             location: shop.location,
             rating: shop.rating || 4.5,
-            cuisine: shop.cuisine,
+            cuisine: shop.cuisine || 'Food',
             tags: shop.tags || [shop.cuisine || 'Food'],
-            deliveryFee: 30.00, // Default delivery fee
+            deliveryFee: 30.00,
             deliveryTime: shop.delivery_time || '30-45 min',
-            isOpen: shop.is_open
+            isOpen: shop.is_open !== false // Default to true if not specified
           }));
           
-          console.log("Transformed data:", transformedData);
+          console.log("Transformed shop data:", transformedData);
           
-          // Use only real data if available, otherwise combine with sample
-          setRestaurantList([...transformedData, ...sampleRestaurants]);
+          // Combine with sample restaurants to ensure we always have data to display
+          // Use a Set to deduplicate by ID if there are any overlaps
+          const combinedRestaurants = [...transformedData];
+          
+          // Add sample restaurants but only those that don't have the same name as real ones
+          const existingNames = new Set(transformedData.map(r => r.name));
+          for (const sample of sampleRestaurants) {
+            if (!existingNames.has(sample.name)) {
+              combinedRestaurants.push(sample);
+            }
+          }
+          
+          setRestaurantList(combinedRestaurants);
         } else {
           console.log("No shop data found, using sample data");
           setRestaurantList(sampleRestaurants);
@@ -83,7 +84,6 @@ const StudentRestaurants = () => {
       } catch (err) {
         console.error("Unexpected error fetching restaurants:", err);
         toast.error("An unexpected error occurred");
-        // Fallback to sample data
         setRestaurantList(sampleRestaurants);
       } finally {
         setLoading(false);
