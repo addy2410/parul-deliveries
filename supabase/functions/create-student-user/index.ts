@@ -15,10 +15,21 @@ serve(async (req) => {
   }
   
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    console.log('SUPABASE_URL available:', !!supabaseUrl);
+    console.log('SUPABASE_SERVICE_ROLE_KEY available:', !!supabaseServiceKey);
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing required environment variables');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Server configuration error' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     const { phone, name, password, email } = await req.json();
     
@@ -97,6 +108,8 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         userId: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
         message: 'User created successfully'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
