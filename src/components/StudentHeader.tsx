@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ShoppingBag, User, LogOut } from "lucide-react";
@@ -11,12 +10,23 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useCart } from "@/context/CartContext";
 
-const StudentHeader = () => {
+interface StudentHeaderProps {
+  studentName?: string;
+}
+
+const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentName }) => {
   const navigate = useNavigate();
   const { items } = useCart();
   const [userName, setUserName] = useState<string | null>(null);
   
   useEffect(() => {
+    // If a studentName prop is provided, use it directly
+    if (propStudentName) {
+      setUserName(propStudentName);
+      return;
+    }
+    
+    // Otherwise check for a stored session
     const checkStudentSession = () => {
       const studentSession = localStorage.getItem('studentSession');
       if (studentSession) {
@@ -35,7 +45,7 @@ const StudentHeader = () => {
     };
     
     checkStudentSession();
-  }, [navigate]);
+  }, [navigate, propStudentName]);
   
   const handleLogout = () => {
     localStorage.removeItem('studentSession');
@@ -70,7 +80,7 @@ const StudentHeader = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem asChild>
-                <Link to="/student/orders/past" className="cursor-pointer w-full">
+                <Link to="/student/orders/active" className="cursor-pointer w-full">
                   My Orders
                 </Link>
               </DropdownMenuItem>
