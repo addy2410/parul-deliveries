@@ -15,6 +15,8 @@ serve(async (req) => {
   }
   
   try {
+    console.log("SUPABASE_SERVICE_ROLE_KEY available:", !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -77,11 +79,11 @@ serve(async (req) => {
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
     
-    // Create the user
+    // Create the user with a default phone number
     const { data: newUser, error: insertError } = await supabaseClient
       .from('student_users')
       .insert([
-        { email, name, password_hash }
+        { email, name, password_hash, phone: '1234567890' }
       ])
       .select()
       .single();
@@ -89,7 +91,7 @@ serve(async (req) => {
     if (insertError) {
       console.error('Error creating user:', insertError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to create user account' }),
+        JSON.stringify({ success: false, error: 'Failed to create user account: ' + insertError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }

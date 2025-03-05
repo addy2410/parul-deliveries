@@ -1,4 +1,3 @@
-
 export interface MenuItem {
   id: string;
   name: string;
@@ -93,6 +92,7 @@ export const restaurants: Restaurant[] = [
 
 // Update menu items with proper images for better visibility
 export const menuItems: MenuItem[] = [
+  // CAPITOL Food Court Items (rest-1)
   {
     id: 'item-1',
     name: 'Butter Chicken',
@@ -114,6 +114,38 @@ export const menuItems: MenuItem[] = [
     isAvailable: true
   },
   {
+    id: 'item-7',
+    name: 'Dal Makhani',
+    description: 'Creamy black lentils slow-cooked with butter and spices.',
+    price: 160,
+    image: 'https://images.unsplash.com/photo-1585937421612-70a008356570',
+    restaurantId: 'rest-1',
+    category: 'Main Course',
+    isAvailable: true
+  },
+  {
+    id: 'item-8',
+    name: 'Naan Bread',
+    description: 'Soft, leavened flatbread baked in a tandoor.',
+    price: 40,
+    image: 'https://images.unsplash.com/photo-1565557623262-b51c2513a641',
+    restaurantId: 'rest-1',
+    category: 'Breads',
+    isAvailable: true
+  },
+  {
+    id: 'item-9',
+    name: 'Gulab Jamun',
+    description: 'Sweet milk solids balls soaked in sugar syrup.',
+    price: 80,
+    image: 'https://images.unsplash.com/photo-1566635445547-f3c54421e02c',
+    restaurantId: 'rest-1',
+    category: 'Desserts',
+    isAvailable: true
+  },
+  
+  // GREENZY Food Court Items (rest-2)
+  {
     id: 'item-3',
     name: 'Quinoa Salad Bowl',
     description: 'Nutritious salad with quinoa, fresh vegetables, and a light dressing.',
@@ -134,6 +166,38 @@ export const menuItems: MenuItem[] = [
     isAvailable: true
   },
   {
+    id: 'item-10',
+    name: 'Avocado Toast',
+    description: 'Whole grain toast topped with mashed avocado, olive oil, and seeds.',
+    price: 150,
+    image: 'https://images.unsplash.com/photo-1603046891744-76176c2e1ec6',
+    restaurantId: 'rest-2',
+    category: 'Breakfast',
+    isAvailable: true
+  },
+  {
+    id: 'item-11',
+    name: 'Green Detox Juice',
+    description: 'Freshly squeezed juice with kale, cucumber, apple, and ginger.',
+    price: 110,
+    image: 'https://images.unsplash.com/photo-1622597467836-f3e6707e1dd6',
+    restaurantId: 'rest-2',
+    category: 'Beverages',
+    isAvailable: true
+  },
+  {
+    id: 'item-12',
+    name: 'Buddha Bowl',
+    description: 'Balanced bowl with grains, roasted vegetables, and tahini dressing.',
+    price: 190,
+    image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
+    restaurantId: 'rest-2',
+    category: 'Main Course',
+    isAvailable: true
+  },
+  
+  // Main Food Court Items (rest-3)
+  {
     id: 'item-5',
     name: 'Masala Dosa',
     description: 'Crispy rice crepe filled with spiced potato mixture, served with chutney and sambar.',
@@ -152,9 +216,40 @@ export const menuItems: MenuItem[] = [
     restaurantId: 'rest-3',
     category: 'Snacks',
     isAvailable: true
+  },
+  {
+    id: 'item-13',
+    name: 'Chole Bhature',
+    description: 'Spicy chickpea curry served with fried bread.',
+    price: 120,
+    image: 'https://images.unsplash.com/photo-1626132527495-537fb4de4ad5',
+    restaurantId: 'rest-3',
+    category: 'North Indian',
+    isAvailable: true
+  },
+  {
+    id: 'item-14',
+    name: 'Hakka Noodles',
+    description: 'Stir-fried noodles with vegetables in a spicy sauce.',
+    price: 130,
+    image: 'https://images.unsplash.com/photo-1569058242253-92a9c755a0ec',
+    restaurantId: 'rest-3',
+    category: 'Chinese',
+    isAvailable: true
+  },
+  {
+    id: 'item-15',
+    name: 'Samosa',
+    description: 'Crispy pastry filled with spiced potatoes and peas.',
+    price: 30,
+    image: 'https://images.unsplash.com/photo-1601050690597-df0568f70950',
+    restaurantId: 'rest-3',
+    category: 'Snacks',
+    isAvailable: true
   }
 ];
 
+// Keep the rest of the file unchanged
 export const sampleOrders: Order[] = [
   {
     id: 'order-1001',
