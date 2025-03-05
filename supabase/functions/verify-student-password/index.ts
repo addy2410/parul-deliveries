@@ -54,24 +54,32 @@ serve(async (req) => {
     }
     
     // Verify the password
-    const passwordMatches = await bcrypt.compare(password, student.password_hash);
-    
-    if (!passwordMatches) {
+    try {
+      const passwordMatches = await bcrypt.compare(password, student.password_hash);
+      
+      if (!passwordMatches) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Invalid credentials' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+      
+      // Password is correct
       return new Response(
-        JSON.stringify({ success: false, error: 'Invalid credentials' }),
+        JSON.stringify({ 
+          success: true, 
+          userId: student.id,
+          name: student.name
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    } catch (bcryptError) {
+      console.error('Error in password comparison:', bcryptError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Error verifying password' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
-    
-    // Password is correct
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        userId: student.id,
-        name: student.name
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    );
     
   } catch (error) {
     console.error('Edge function error:', error);

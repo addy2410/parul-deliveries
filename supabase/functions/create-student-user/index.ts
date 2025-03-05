@@ -125,120 +125,125 @@ serve(async (req) => {
       );
     }
     
+    // Generate a UUID for the user
+    let userId;
     try {
-      // Hash the password - using try/catch to handle potential hashing errors
-      console.log("Hashing password");
-      let password_hash;
-      try {
-        const salt = await bcrypt.genSalt(10);
-        password_hash = await bcrypt.hash(password, salt);
-      } catch (hashError) {
-        console.error('Error hashing password:', hashError);
-        return new Response(
-          JSON.stringify({ success: false, error: 'Password processing failed' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      }
-      
-      // Generate a UUID for the user
-      let userId;
-      try {
-        userId = crypto.randomUUID();
-        console.log("Generated user ID:", userId);
-      } catch (uuidError) {
-        console.error('Error generating UUID:', uuidError);
-        return new Response(
-          JSON.stringify({ success: false, error: 'User ID generation failed' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      }
-      
-      // Create the user with a default phone number - use try/catch for database operation
-      console.log("Inserting new student user with ID:", userId);
-      try {
-        const { data: newUser, error: insertError } = await supabaseClient
-          .from('student_users')
-          .insert([
-            { 
-              id: userId,
-              email, 
-              name, 
-              password_hash, 
-              phone: '1234567890' 
-            }
-          ])
-          .select();
-          
-        if (insertError) {
-          console.error('Error creating user:', insertError);
-          return new Response(
-            JSON.stringify({ success: false, error: 'Failed to create user account: ' + insertError.message }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
-        }
-        
-        console.log("Insert operation completed, checking results");
-        if (!newUser || newUser.length === 0) {
-          console.error('User created but no data returned');
-          
-          // Double-check if the user was actually created
-          console.log("Double-checking if user was created");
-          const { data: checkUser, error: checkError } = await supabaseClient
-            .from('student_users')
-            .select('id, name, email')
-            .eq('email', email)
-            .maybeSingle();
-            
-          if (checkError) {
-            console.error('Error checking if user was created:', checkError);
-            return new Response(
-              JSON.stringify({ success: false, error: 'Failed to verify user creation: ' + checkError.message }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-            );
-          }
-          
-          if (checkUser) {
-            console.log("Found user after creation:", checkUser);
-            return new Response(
-              JSON.stringify({ 
-                success: true, 
-                userId: checkUser.id,
-                name: checkUser.name,
-                message: 'User created successfully'
-              }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-            );
-          }
-          
-          return new Response(
-            JSON.stringify({ success: false, error: 'User creation failed with unknown error' }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
-        }
-        
-        console.log("Student user created successfully:", newUser[0].id);
-        
-        // Return success with the new user ID
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            userId: newUser[0].id,
-            name: newUser[0].name,
-            message: 'User created successfully'
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      } catch (dbError) {
-        console.error('Database operation error:', dbError);
-        return new Response(
-          JSON.stringify({ success: false, error: 'Database operation failed: ' + dbError.message }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      }
-    } catch (error) {
-      console.error('Error during student creation process:', error);
+      userId = crypto.randomUUID();
+      console.log("Generated user ID:", userId);
+    } catch (uuidError) {
+      console.error('Error generating UUID:', uuidError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Student creation process failed: ' + error.message }),
+        JSON.stringify({ success: false, error: 'User ID generation failed' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+    
+    // Hash the password - FIXED THIS SECTION for better error handling
+    let password_hash;
+    try {
+      console.log("Hashing password");
+      // Using a simpler method to generate salt and hash password
+      password_hash = await bcrypt.hash(password);
+      console.log("Password hashed successfully");
+    } catch (hashError) {
+      console.error('Error hashing password:', hashError);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Password processing failed', 
+          details: hashError.message || 'Unknown hashing error'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+    
+    if (!password_hash) {
+      console.error('Password hash is null or undefined');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Password hash generation failed' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+    
+    // Create the user with a default phone number
+    console.log("Inserting new student user with ID:", userId);
+    try {
+      const { data: newUser, error: insertError } = await supabaseClient
+        .from('student_users')
+        .insert([
+          { 
+            id: userId,
+            email, 
+            name, 
+            password_hash, 
+            phone: '1234567890' 
+          }
+        ])
+        .select();
+        
+      if (insertError) {
+        console.error('Error creating user:', insertError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to create user account: ' + insertError.message }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+      
+      console.log("Insert operation completed, checking results");
+      if (!newUser || newUser.length === 0) {
+        console.error('User created but no data returned');
+        
+        // Double-check if the user was actually created
+        console.log("Double-checking if user was created");
+        const { data: checkUser, error: checkError } = await supabaseClient
+          .from('student_users')
+          .select('id, name, email')
+          .eq('email', email)
+          .maybeSingle();
+          
+        if (checkError) {
+          console.error('Error checking if user was created:', checkError);
+          return new Response(
+            JSON.stringify({ success: false, error: 'Failed to verify user creation: ' + checkError.message }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+        
+        if (checkUser) {
+          console.log("Found user after creation:", checkUser);
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              userId: checkUser.id,
+              name: checkUser.name,
+              message: 'User created successfully'
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+        
+        return new Response(
+          JSON.stringify({ success: false, error: 'User creation failed with unknown error' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+      
+      console.log("Student user created successfully:", newUser[0].id);
+      
+      // Return success with the new user ID
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          userId: newUser[0].id,
+          name: newUser[0].name,
+          message: 'User created successfully'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    } catch (dbError) {
+      console.error('Database operation error:', dbError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Database operation failed: ' + dbError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
