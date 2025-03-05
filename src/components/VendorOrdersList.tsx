@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +18,7 @@ interface Order {
   id: string;
   student_id: string;
   vendor_id: string;
-  shop_id: string;
+  restaurant_id: string; // Changed from shop_id to restaurant_id
   items: OrderItem[];
   total_amount: number;
   status: string;
@@ -54,7 +55,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           .order('created_at', { ascending: false });
           
         if (shopId) {
-          query = query.eq('shop_id', shopId);
+          query = query.eq('restaurant_id', shopId); // Changed from shop_id to restaurant_id
         }
         
         const { data, error } = await query;

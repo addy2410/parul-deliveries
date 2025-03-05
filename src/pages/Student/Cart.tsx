@@ -1,415 +1,355 @@
-
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trash2, ArrowLeft, Home, ClipboardCheck } from "lucide-react";
 import { toast } from "sonner";
-import StudentHeader from "@/components/StudentHeader";
 import { supabase } from "@/lib/supabase";
+import { useStudentAuth } from "@/hooks/useStudentAuth";
+import { Trash2, ShoppingCart, CreditCard } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { useParams } from "react-router-dom";
+import { restaurants } from "@/data/data";
 
-const StudentCart = () => {
+const Cart = () => {
+  const { shopId } = useParams();
+  const { items, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
+  const { studentId, studentName, studentAddress } = useStudentAuth();
   const navigate = useNavigate();
-  const { items, removeFromCart, clearCart, totalPrice } = useCart();
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [deliveryLocation, setDeliveryLocation] = useState("Campus Main Building");
-  const [studentId, setStudentId] = useState<string | null>(null);
-  const [studentName, setStudentName] = useState<string>("Student");
-  const [checkoutComplete, setCheckoutComplete] = useState(false);
-  const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
-  
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const deliveryFee = subtotal > 0 ? 30 : 0;
-  const total = subtotal + deliveryFee;
-  
+  const [shopData, setShopData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [deliveryAddress, setDeliveryAddress] = useState(studentAddress || "");
+  const [orderCreated, setOrderCreated] = useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState(null);
+  const total = totalPrice;
+  const { restaurantName } = useCart();
+
   useEffect(() => {
-    // Check if user is authenticated
-    const checkAuth = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      
-      if (error || !data.session) {
-        // Try to get from localStorage as fallback (for development)
-        const storedSession = localStorage.getItem('studentSession');
-        if (storedSession) {
-          try {
-            const session = JSON.parse(storedSession);
-            setStudentId(session.userId);
-            setStudentName(session.name || "Student");
-          } catch (e) {
-            console.error("Error parsing stored session:", e);
-          }
+    if (!shopId) return;
+
+    const fetchShopData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("restaurants")
+          .select("*, vendor_users!inner(*)")
+          .eq("id", shopId)
+          .single();
+
+        if (error) {
+          console.error("Error fetching shop data:", error);
+          return;
         }
-        return;
-      }
-      
-      setStudentId(data.session.user.id);
-      
-      // Get student name from profile
-      const { data: profile, error: profileError } = await supabase
-        .from('student_profiles')
-        .select('name')
-        .eq('id', data.session.user.id)
-        .single();
-        
-      if (!profileError && profile) {
-        setStudentName(profile.name);
-      } else {
-        // Fallback to email if name not available
-        setStudentName(data.session.user.email?.split('@')[0] || "Student");
+
+        setShopData({
+          ...data,
+          vendor_id: data.vendor_users.id,
+        });
+      } catch (error) {
+        console.error("Error:", error);
+      } finally {
+        setLoading(false);
       }
     };
-    
-    checkAuth();
-  }, []);
-  
-  const groupedCartItems = items.reduce((acc: any, item) => {
-    if (!acc[item.restaurantId]) {
-      acc[item.restaurantId] = {
-        restaurantName: item.restaurantName,
-        items: []
-      };
+
+    fetchShopData();
+  }, [shopId]);
+
+  useEffect(() => {
+    if (studentAddress) {
+      setDeliveryAddress(studentAddress);
     }
-    acc[item.restaurantId].items.push(item);
-    return acc;
-  }, {});
-  
-  const handleRemoveFromCart = (itemId: string) => {
-    removeFromCart(itemId);
-    toast.success("Item removed from cart");
+  }, [studentAddress]);
+
+  const handleRemoveItem = (id) => {
+    removeItem(id);
   };
-  
+
+  const handleQuantityChange = (id, newQuantity) => {
+    updateQuantity(id, parseInt(newQuantity));
+  };
+
   const handleClearCart = () => {
     clearCart();
-    toast.success("Cart cleared");
   };
 
   const handleCheckout = async () => {
-    if (items.length === 0) {
-      toast.error("Your cart is empty");
-      return;
-    }
-    
     if (!studentId) {
-      toast.error("Please login to place an order");
+      toast.error("You need to be logged in to checkout");
       navigate("/student/login");
       return;
     }
 
     try {
-      setIsSubmitting(true);
+      // Get restaurant name from context
+      const shopName = restaurantName || "Unknown Restaurant";
       
-      // Check if we have items from a single shop only
-      const shopIds = Array.from(new Set(items.map(item => item.restaurantId)));
-      if (shopIds.length > 1) {
-        toast.error("You can only order from one restaurant at a time");
-        return;
-      }
-      
-      const shopId = shopIds[0];
-      
-      // Get vendor ID for this shop
-      const { data: shopData, error: shopError } = await supabase
-        .from('shops')
-        .select('vendor_id')
-        .eq('id', shopId)
-        .single();
-        
-      if (shopError || !shopData) {
-        toast.error("Error finding restaurant details");
-        console.error("Error fetching shop:", shopError);
-        return;
-      }
-      
-      // Prepare order items format for the database
+      // Prepare the order items
       const orderItems = items.map(item => ({
         menuItemId: item.id,
         name: item.name,
         price: item.price,
         quantity: item.quantity
       }));
-      
+
       // Create the order with pending status
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert([
-          {
-            student_id: studentId,
-            vendor_id: shopData.vendor_id,
-            restaurant_id: shopId, // Changed from shop_id to restaurant_id
-            items: orderItems,
-            total_amount: total,
-            status: 'pending',
-            delivery_location: deliveryLocation,
-            student_name: studentName
-          }
-        ])
-        .select();
-        
-      if (orderError) {
-        console.error("Error creating order:", orderError);
+      const { data, error } = await supabase.from("orders").insert([
+        {
+          student_id: studentId,
+          vendor_id: shopData.vendor_id,
+          restaurant_id: shopId, // Using restaurant_id (previously changed from shop_id)
+          items: orderItems,
+          total_amount: total,
+          status: "pending",
+          delivery_location: studentAddress || "Campus",
+          student_name: studentName || "Student"
+        }
+      ]).select();
+
+      if (error) {
+        console.error("Failed to create order:", error);
         toast.error("Failed to create order");
         return;
       }
-      
-      // Order created successfully
-      toast.success("Checkout complete! Waiting for vendor confirmation.");
-      setCheckoutComplete(true);
-      setCurrentOrderId(orderData[0]?.id);
-      
-    } catch (error) {
-      console.error("Error processing checkout:", error);
-      toast.error("An unexpected error occurred");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  
-  const handlePlaceOrder = () => {
-    if (!checkoutComplete) {
-      toast.error("Please checkout first before proceeding to payment");
-      return;
-    }
-    
-    setIsPaymentModalOpen(true);
-  };
-  
-  const handlePaymentComplete = async () => {
-    try {
-      // Payment already processed, just need to clear cart and navigate
-      clearCart();
-      
-      // Navigate to order success page with the order ID
-      navigate("/student/order-success", {
-        state: { 
-          orderId: currentOrderId,
-          total: total.toFixed(2) 
+
+      console.log("Order created successfully:", data);
+
+      // Order created successfully, now create notification for the vendor
+      if (data && data.length > 0) {
+        const order = data[0];
+        
+        // Create notification
+        const { error: notifError } = await supabase.from("notifications").insert([
+          {
+            recipient_id: shopData.vendor_id,
+            type: "new_order",
+            message: `New order from ${studentName || "a student"}`,
+            data: {
+              order_id: order.id,
+              items: orderItems,
+              total_amount: total,
+              delivery_location: studentAddress || "Campus"
+            }
+          }
+        ]);
+
+        if (notifError) {
+          console.error("Failed to create notification:", notifError);
         }
-      });
-    } catch (error) {
-      console.error("Error finalizing order:", error);
-      toast.error("An unexpected error occurred");
-    } finally {
-      setIsPaymentModalOpen(false);
+
+        // Show success toast and enable Proceed to Payment button
+        toast.success("Order sent to vendor for confirmation!");
+        setOrderCreated(true);
+        setCreatedOrderId(order.id);
+      }
+    } catch (e) {
+      console.error("Error during checkout:", e);
+      toast.error("An error occurred during checkout");
     }
   };
 
-  const handleViewOrderStatus = () => {
-    if (currentOrderId) {
-      navigate(`/student/order/${currentOrderId}/tracking`);
+  const handleProceedToPayment = () => {
+    if (createdOrderId) {
+      navigate(`/student/payment/${createdOrderId}`);
     }
   };
+
+  if (loading) {
+    return <div className="container py-8">Loading...</div>;
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <StudentHeader />
-      
-      <div className="container mx-auto p-4">
-        {items.length === 0 ? (
-          <Card className="max-w-md mx-auto mt-16">
-            <CardContent className="flex flex-col items-center justify-center p-6">
-              <CardTitle className="text-lg font-semibold mb-2">Your cart is empty</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Looks like you haven't added anything to your cart yet.
-              </CardDescription>
-              <Button asChild className="mt-4 bg-[#ea384c] hover:bg-[#d02e40]">
-                <Link to="/student/restaurants">
-                  <Home className="mr-2 h-4 w-4" />
-                  Back to Restaurants
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="md:col-span-2">
-              <div className="mb-6 flex justify-between items-center">
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to="/student/restaurants" className="flex items-center gap-1">
-                    <ArrowLeft size={16} />
-                    Back to Restaurants
-                  </Link>
-                </Button>
-                <Button 
-                  variant="destructive" 
-                  size="sm"
-                  onClick={handleClearCart}
-                  className="gap-2"
-                >
-                  <Trash2 size={16} />
-                  Clear Cart
-                </Button>
-              </div>
-              
-              <ScrollArea className="h-[450px]">
+    <div className="container py-8">
+      <h1 className="text-2xl font-bold mb-6">Your Cart</h1>
+
+      {items.length === 0 ? (
+        <div className="text-center py-12">
+          <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Your cart is empty</h2>
+          <p className="text-muted-foreground mb-6">
+            Add items from a restaurant to get started
+          </p>
+          <Button onClick={() => navigate("/student/restaurants")}>
+            Browse Restaurants
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex justify-between items-center">
+                  <span>Cart Items</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleClearCart}
+                    className="text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Clear Cart
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-4">
-                  {Object.entries(groupedCartItems).map(([restaurantId, { restaurantName, items }]: [string, any]) => (
-                    <Card key={restaurantId}>
-                      <CardHeader>
-                        <CardTitle>{restaurantName}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-4">
-                        <ul className="space-y-2">
-                          {items.map(item => (
-                            <li key={item.id} className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm">{item.name}</span>
-                                <span className="text-xs text-muted-foreground">x{item.quantity}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">₹{(item.price * item.quantity).toFixed(2)}</span>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  onClick={() => handleRemoveFromCart(item.id)}
-                                >
-                                  <Trash2 size={16} />
-                                </Button>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
+                  {items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between py-2 border-b"
+                    >
+                      <div className="flex items-center">
+                        <div
+                          className="w-16 h-16 rounded-md bg-cover bg-center mr-4"
+                          style={{
+                            backgroundImage: `url(${item.image})`,
+                          }}
+                        ></div>
+                        <div>
+                          <h3 className="font-medium">{item.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            ₹{item.price.toFixed(2)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.restaurantName}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 rounded-r-none"
+                            onClick={() =>
+                              handleQuantityChange(item.id, item.quantity - 1)
+                            }
+                            disabled={item.quantity <= 1}
+                          >
+                            -
+                          </Button>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) =>
+                              handleQuantityChange(
+                                item.id,
+                                parseInt(e.target.value) || 1
+                              )
+                            }
+                            className="h-8 w-12 rounded-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 rounded-l-none"
+                            onClick={() =>
+                              handleQuantityChange(item.id, item.quantity + 1)
+                            }
+                          >
+                            +
+                          </Button>
+                        </div>
+                        <div className="text-right min-w-[80px]">
+                          <div className="font-medium">
+                            ₹{(item.price * item.quantity).toFixed(2)}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-destructive"
+                            onClick={() => handleRemoveItem(item.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   ))}
                 </div>
-              </ScrollArea>
-            </div>
-            
-            <Card className="md:col-span-1">
-              <CardHeader>
-                <CardTitle>Order Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between text-sm">
-                  <span>Subtotal</span>
-                  <span>₹{subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Delivery Fee</span>
-                  <span>₹{deliveryFee.toFixed(2)}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between font-medium">
-                  <span>Total</span>
-                  <span>₹{total.toFixed(2)}</span>
-                </div>
-                
-                <div className="mt-4">
-                  <label className="text-sm font-medium block mb-2">
-                    Delivery Location
-                  </label>
-                  <select 
-                    className="w-full p-2 border rounded-md"
-                    value={deliveryLocation}
-                    onChange={(e) => setDeliveryLocation(e.target.value)}
-                  >
-                    <option value="Campus Main Building">Campus Main Building</option>
-                    <option value="Boys Hostel">Boys Hostel</option>
-                    <option value="Girls Hostel">Girls Hostel</option>
-                    <option value="Library">Library</option>
-                    <option value="Student Center">Student Center</option>
-                    <option value="Sports Complex">Sports Complex</option>
-                  </select>
-                </div>
-                
-                {!checkoutComplete ? (
-                  <Button 
-                    className="w-full mt-4 bg-blue-600 hover:bg-blue-700"
-                    onClick={handleCheckout}
-                    disabled={isSubmitting}
-                  >
-                    <ClipboardCheck className="mr-2 h-4 w-4" />
-                    {isSubmitting ? "Processing..." : "Checkout"}
-                  </Button>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="text-sm p-2 bg-green-50 border border-green-200 rounded text-green-700">
-                      Checkout complete! Waiting for vendor confirmation
-                    </div>
-                    <Button 
-                      className="w-full mt-2"
-                      variant="outline"
-                      onClick={handleViewOrderStatus}
-                    >
-                      Check Order Status
-                    </Button>
-                    <Button 
-                      className="w-full mt-2 bg-[#ea384c] hover:bg-[#d02e40]"
-                      onClick={handlePlaceOrder}
-                    >
-                      Proceed to Payment
-                    </Button>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </div>
-        )}
-      </div>
-      
-      {isPaymentModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Payment</CardTitle>
-              <CardDescription>Choose your payment method</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4">
-                <Button 
-                  variant="outline" 
-                  className="justify-start border-2 border-blue-500 hover:bg-blue-50"
-                  onClick={handlePaymentComplete}
-                  disabled={isSubmitting}
-                >
-                  <img src="https://images.unsplash.com/photo-1493962853295-0fd70327578a" alt="UPI" className="w-6 h-6 mr-2" />
-                  UPI Payment
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="justify-start border-2 border-green-500 hover:bg-green-50"
-                  onClick={handlePaymentComplete}
-                  disabled={isSubmitting}
-                >
-                  <img src="https://images.unsplash.com/photo-1582562124811-c09040d0a901" alt="Card" className="w-6 h-6 mr-2" />
-                  Credit/Debit Card
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="justify-start border-2 border-orange-500 hover:bg-orange-50"
-                  onClick={handlePaymentComplete}
-                  disabled={isSubmitting}
-                >
-                  <img src="https://images.unsplash.com/photo-1466721591366-2d5fba72006d" alt="COD" className="w-6 h-6 mr-2" />
-                  Cash on Delivery
-                </Button>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button 
-                variant="outline" 
-                onClick={() => setIsPaymentModalOpen(false)}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button 
-                className="bg-[#ea384c] hover:bg-[#d02e40]"
-                onClick={handlePaymentComplete}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? "Processing..." : `Pay ₹${total.toFixed(2)}`}
-              </Button>
-            </CardFooter>
-          </Card>
+
+          <div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Order Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Subtotal</span>
+                      <span>₹{total.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Delivery Fee
+                      </span>
+                      <span>₹0.00</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between font-medium text-lg">
+                      <span>Total</span>
+                      <span>₹{total.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Delivery Address
+                    </label>
+                    <Textarea
+                      placeholder="Enter your delivery address"
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      className="resize-none"
+                    />
+                  </div>
+
+                  {!orderCreated ? (
+                    <Button
+                      className="w-full bg-primary"
+                      size="lg"
+                      onClick={handleCheckout}
+                      disabled={items.length === 0 || !studentId}
+                    >
+                      Place Order
+                    </Button>
+                  ) : (
+                    <Button
+                      className="w-full bg-green-600 hover:bg-green-700"
+                      size="lg"
+                      onClick={handleProceedToPayment}
+                    >
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Proceed to Payment
+                    </Button>
+                  )}
+
+                  {!studentId && (
+                    <p className="text-sm text-muted-foreground text-center">
+                      Please{" "}
+                      <a
+                        href="/student/login"
+                        className="text-primary underline"
+                      >
+                        log in
+                      </a>{" "}
+                      to complete your order
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
     </div>
   );
 };
 
-export default StudentCart;
+export default Cart;

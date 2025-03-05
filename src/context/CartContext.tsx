@@ -26,6 +26,7 @@ interface CartContextType {
   totalItems: number;
   totalPrice: number;
   restaurantId: string | null;
+  restaurantName: string | null;
   
   // Aliases for backward compatibility with existing components
   cartItems: CartItem[];
@@ -38,6 +39,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  const [restaurantName, setRestaurantName] = useState<string | null>(null);
   
   // Calculate derived values
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -47,6 +49,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const savedCart = localStorage.getItem("campus-grub-cart");
     const savedRestaurantId = localStorage.getItem("campus-grub-restaurant");
+    const savedRestaurantName = localStorage.getItem("campus-grub-restaurant-name");
     
     if (savedCart) {
       try {
@@ -60,6 +63,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (savedRestaurantId) {
       setRestaurantId(savedRestaurantId);
     }
+
+    if (savedRestaurantName) {
+      setRestaurantName(savedRestaurantName);
+    }
   }, []);
   
   // Save cart to localStorage whenever it changes
@@ -68,18 +75,22 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (restaurantId) {
       localStorage.setItem("campus-grub-restaurant", restaurantId);
     }
-  }, [items, restaurantId]);
+    if (restaurantName) {
+      localStorage.setItem("campus-grub-restaurant-name", restaurantName);
+    }
+  }, [items, restaurantId, restaurantName]);
   
   const addItem = (item: MenuItem, quantity: number = 1) => {
     // Find restaurant name
     const restaurant = restaurants.find(r => r.id === item.restaurantId);
-    const restaurantName = restaurant?.name || 'Unknown Restaurant';
+    const currentRestaurantName = restaurant?.name || 'Unknown Restaurant';
     
     // Check if we need to clear the cart (items from different restaurants)
     if (restaurantId && item.restaurantId !== restaurantId && items.length > 0) {
       if (window.confirm("Your cart contains items from another restaurant. Would you like to clear your cart and add this item?")) {
-        setItems([{ ...item, quantity, restaurantName }]);
+        setItems([{ ...item, quantity, restaurantName: currentRestaurantName }]);
         setRestaurantId(item.restaurantId);
+        setRestaurantName(currentRestaurantName);
         toast.success(`Added ${quantity} ${item.name} to your cart`);
       }
       return;
@@ -88,6 +99,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set restaurant ID if it's not set yet
     if (!restaurantId) {
       setRestaurantId(item.restaurantId);
+      setRestaurantName(currentRestaurantName);
     }
     
     // Check if item already exists in cart
@@ -100,7 +112,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setItems(newItems);
     } else {
       // Add new item to cart
-      setItems([...items, { ...item, quantity, restaurantName }]);
+      setItems([...items, { ...item, quantity, restaurantName: currentRestaurantName }]);
     }
     
     toast.success(`Added ${quantity} ${item.name} to your cart`);
@@ -113,7 +125,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // If cart is empty, clear restaurant ID
     if (newItems.length === 0) {
       setRestaurantId(null);
+      setRestaurantName(null);
       localStorage.removeItem("campus-grub-restaurant");
+      localStorage.removeItem("campus-grub-restaurant-name");
     }
     
     toast.info("Item removed from cart");
@@ -135,8 +149,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearCart = () => {
     setItems([]);
     setRestaurantId(null);
+    setRestaurantName(null);
     localStorage.removeItem("campus-grub-cart");
     localStorage.removeItem("campus-grub-restaurant");
+    localStorage.removeItem("campus-grub-restaurant-name");
     toast.info("Cart cleared");
   };
   
@@ -150,6 +166,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       totalItems,
       totalPrice,
       restaurantId,
+      restaurantName,
       
       // Aliases for backward compatibility
       cartItems: items,
