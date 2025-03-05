@@ -109,8 +109,10 @@ const VendorLogin = () => {
       }
       
       if (signUpData.user) {
-        toast.success("Account created successfully! Redirecting to shop registration.");
-        navigate("/vendor/register-shop");
+        toast.success("Account created successfully! Please sign in to continue.");
+        // Change: Don't automatically redirect to shop registration
+        // Instead, switch to login tab so they can sign in
+        setActiveTab("login");
       }
     } catch (error: any) {
       console.error("Signup error:", error);
