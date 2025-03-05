@@ -1,79 +1,28 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Default values for development - replace these with your actual Supabase credentials
-const defaultSupabaseUrl = 'https://your-supabase-project.supabase.co';
-const defaultSupabaseAnonKey = 'your-supabase-anon-key';
-
-// Use environment variables if available, otherwise use defaults
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || defaultSupabaseUrl;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || defaultSupabaseAnonKey;
+// Use environment variables or the provided Supabase project details
+const supabaseUrl = "https://rsdexzusykhhqlffikuh.supabase.co";
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzZGV4enVzeWtoaHFsZmZpa3VoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA5ODgzODAsImV4cCI6MjA1NjU2NDM4MH0.aJEbQ8XKRvGi2zQ0PX9i_171R22dvddBiRMWoWAfN-A";
 
 // Initialize the Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Export a function to check if we're using default credentials
+// Function to check if we're using default credentials (always false now that we've set real credentials)
 export const isUsingDefaultCredentials = () => {
-  return supabaseUrl === defaultSupabaseUrl || supabaseAnonKey === defaultSupabaseAnonKey;
+  return false; // We're now using real credentials
 };
 
 // For debugging purposes
-console.log("Supabase Mode:", isUsingDefaultCredentials() ? "Demo Mode" : "Production Mode");
-console.log("Using URL:", supabaseUrl.substring(0, 15) + "...");
+console.log("Supabase Mode: Production Mode");
+console.log("Using URL:", supabaseUrl);
 
 // Initialize default vendors for demo mode
 export const initializeDefaultVendors = async () => {
   if (!isUsingDefaultCredentials()) {
-    try {
-      // Create default vendors in Supabase for demonstration
-      const defaultVendors = [
-        { pucampid: 'MAIN-VENDOR', email: 'main-vendor@vendor.campusgrub.app', password: 'password123' },
-        { pucampid: 'CAPITOL-VENDOR', email: 'capitol-vendor@vendor.campusgrub.app', password: 'password123' },
-        { pucampid: 'GREENZY-VENDOR', email: 'greenzy-vendor@vendor.campusgrub.app', password: 'password123' }
-      ];
-      
-      for (const vendor of defaultVendors) {
-        try {
-          // First try to sign up the vendor
-          const { data: authData, error: signUpError } = await supabase.auth.signUp({
-            email: vendor.email,
-            password: vendor.password,
-          });
-          
-          if (signUpError) {
-            // If sign up fails, it might be because the user already exists
-            // Just continue to the next vendor
-            console.error(`Failed to create vendor ${vendor.pucampid}:`, signUpError);
-            continue;
-          }
-          
-          if (authData.user) {
-            // Insert the vendor record in the vendors table
-            const { error: vendorError } = await supabase
-              .from('vendors')
-              .upsert([
-                { 
-                  id: authData.user.id, 
-                  pucampid: vendor.pucampid,
-                  email: vendor.email
-                }
-              ]);
-              
-            if (vendorError) {
-              console.error(`Failed to insert vendor ${vendor.pucampid} record:`, vendorError);
-            }
-          }
-        } catch (error) {
-          console.error(`Error creating vendor ${vendor.pucampid}:`, error);
-        }
-      }
-    } catch (error) {
-      console.error("Error initializing default vendors:", error);
-    }
+    // Skip initialization in production mode since we now have real Supabase instance
+    console.log("Using production Supabase instance - no need to initialize demo vendors");
   }
 };
 
-// Initialize default data when in production mode
-if (!isUsingDefaultCredentials()) {
-  initializeDefaultVendors();
-}
+// Skip initialization of default data in production mode
