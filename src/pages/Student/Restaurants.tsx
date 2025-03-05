@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,14 +37,12 @@ const StudentRestaurants = () => {
         // Fetch from Supabase
         const { data: shopsData, error } = await supabase
           .from('shops')
-          .select('*')
-          .eq('name', 'BlueZ Biryani'); // Only fetch BlueZ Biryani
+          .select('*');
           
         if (error) {
           console.error("Error fetching restaurants:", error);
           toast.error("Could not load restaurants");
-          // Use only BlueZ Biryani from sample data
-          setRestaurantList(sampleRestaurants.filter(r => r.name === 'BlueZ Biryani'));
+          setRestaurantList(sampleRestaurants);
         } else if (shopsData && shopsData.length > 0) {
           console.log("Successfully fetched shops from Supabase:", shopsData);
           
@@ -53,7 +52,7 @@ const StudentRestaurants = () => {
             name: shop.name,
             description: shop.description || '',
             logo: shop.logo || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352',
-            coverImage: shop.cover_image || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352',
+            coverImage: getRestaurantCoverImage(shop.name),
             location: shop.location,
             rating: shop.rating || 4.5,
             cuisine: shop.cuisine || 'Food',
@@ -65,21 +64,27 @@ const StudentRestaurants = () => {
           
           console.log("Transformed shop data:", transformedData);
           
-          // Only use BlueZ Biryani from sample data if needed
-          if (transformedData.length === 0) {
-            const blueZFromSample = sampleRestaurants.filter(r => r.name === 'BlueZ Biryani');
-            setRestaurantList(blueZFromSample);
-          } else {
-            setRestaurantList(transformedData);
+          // Ensure we always have BlueZ Biryani
+          const blueZExists = transformedData.some(r => r.name === 'BlueZ Biryani');
+          if (!blueZExists) {
+            const blueZFromSample = sampleRestaurants.find(r => r.name === 'BlueZ Biryani');
+            if (blueZFromSample) {
+              transformedData.push({
+                ...blueZFromSample,
+                coverImage: '/lovable-uploads/aa5d95d7-7ead-42b3-89c2-f57ff25788fd.png'
+              });
+            }
           }
+          
+          setRestaurantList(transformedData);
         } else {
-          console.log("No shop data found, using BlueZ Biryani from sample data");
-          setRestaurantList(sampleRestaurants.filter(r => r.name === 'BlueZ Biryani'));
+          console.log("No shop data found, using sample data for BlueZ Biryani");
+          setRestaurantList(sampleRestaurants);
         }
       } catch (err) {
         console.error("Unexpected error fetching restaurants:", err);
         toast.error("An unexpected error occurred");
-        setRestaurantList(sampleRestaurants.filter(r => r.name === 'BlueZ Biryani'));
+        setRestaurantList(sampleRestaurants);
       } finally {
         setLoading(false);
       }
@@ -87,6 +92,20 @@ const StudentRestaurants = () => {
 
     fetchRestaurants();
   }, []);
+
+  // Function to get the cover image based on restaurant name
+  const getRestaurantCoverImage = (name: string) => {
+    switch(name) {
+      case "GREENZY Food Court":
+        return "/lovable-uploads/e3228c0f-3685-4b2d-ac13-b7c97ad2bf95.png";
+      case "Main Food Court":
+        return "/lovable-uploads/a8945afc-0ae4-4a10-afce-cf42bf3a646b.png";
+      case "BlueZ Biryani":
+        return "/lovable-uploads/aa5d95d7-7ead-42b3-89c2-f57ff25788fd.png";
+      default:
+        return "https://images.unsplash.com/photo-1493770348161-369560ae357d";
+    }
+  };
 
   // Filter restaurants based on search term and active category
   const filteredRestaurants = restaurantList.filter(restaurant => {
@@ -215,13 +234,7 @@ const StudentRestaurants = () => {
                   <Link to={`/student/restaurant/${restaurant.id}`}>
                     <div className="relative h-48 overflow-hidden">
                       <img 
-                        src={
-                          restaurant.name === "GREENZY Food Court" 
-                            ? "/lovable-uploads/6063a852-8cc1-4393-b40f-0703add0cba7.png"
-                            : restaurant.name === "Main Food Court"
-                              ? "/lovable-uploads/66a8fbfe-db5c-45b2-a572-42477b6e107e.png"
-                              : restaurant.coverImage
-                        } 
+                        src={getRestaurantCoverImage(restaurant.name)} 
                         alt={restaurant.name} 
                         className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" 
                       />

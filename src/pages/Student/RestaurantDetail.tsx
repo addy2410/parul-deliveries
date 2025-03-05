@@ -37,6 +37,20 @@ const RestaurantDetail = () => {
   const navigate = useNavigate();
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
 
+  // Function to get the cover image based on restaurant name
+  const getRestaurantCoverImage = (name: string) => {
+    switch(name) {
+      case "GREENZY Food Court":
+        return "/lovable-uploads/e3228c0f-3685-4b2d-ac13-b7c97ad2bf95.png";
+      case "Main Food Court":
+        return "/lovable-uploads/a8945afc-0ae4-4a10-afce-cf42bf3a646b.png";
+      case "BlueZ Biryani":
+        return "/lovable-uploads/aa5d95d7-7ead-42b3-89c2-f57ff25788fd.png";
+      default:
+        return "https://images.unsplash.com/photo-1493770348161-369560ae357d";
+    }
+  };
+
   // Fetch restaurant details
   const {
     data: restaurantData,
@@ -128,13 +142,7 @@ const RestaurantDetail = () => {
       <div 
         className="h-48 md:h-64 w-full bg-cover bg-center relative" 
         style={{ 
-          backgroundImage: `url(${
-            restaurant.name === "GREENZY Food Court" 
-              ? "/lovable-uploads/6063a852-8cc1-4393-b40f-0703add0cba7.png"
-              : restaurant.name === "Main Food Court"
-                ? "/lovable-uploads/66a8fbfe-db5c-45b2-a572-42477b6e107e.png"
-                : "https://images.unsplash.com/photo-1493770348161-369560ae357d"
-          })` 
+          backgroundImage: `url(${getRestaurantCoverImage(restaurant.name)})` 
         }}
       >
         <div className="absolute inset-0 bg-black bg-opacity-40"></div>
