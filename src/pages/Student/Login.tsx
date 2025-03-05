@@ -44,42 +44,25 @@ const StudentLogin = () => {
     setIsLoading(true);
     
     try {
-      // Sign in with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
+      // Custom login endpoint for students
+      const response = await fetch(`${supabase.functions.url}/verify-student-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
       });
       
-      if (authError) {
-        console.error("Auth error:", authError);
-        toast.error(authError.message || "Invalid login credentials");
-        return;
-      }
+      const data = await response.json();
       
-      // Check if this user exists in the student_users table
-      const { data: studentData, error: fetchError } = await supabase
-        .from('student_users')
-        .select('*')
-        .eq('email', email)
-        .maybeSingle();
-        
-      if (fetchError) {
-        console.error("Error fetching student:", fetchError);
-        throw new Error("Failed to authenticate");
-      }
-      
-      if (!studentData) {
-        // Sign out from Supabase since this is not a student account
-        await supabase.auth.signOut();
-        toast.error("This email is not registered as a student. Please sign up first.");
-        setActiveTab("signup");
-        return;
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Login failed");
       }
       
       // Login successful
-      localStorage.setItem('currentStudentId', studentData.id);
-      localStorage.setItem('studentName', studentData.name);
-      localStorage.setItem('studentEmail', email);
+      localStorage.setItem('currentStudentId', data.userId);
+      localStorage.setItem('studentName', data.name);
+      localStorage.setItem('studentEmail', data.email);
       toast.success("Login successful!");
       navigate("/student/restaurants");
     } catch (error: any) {
@@ -111,80 +94,28 @@ const StudentLogin = () => {
     setIsLoading(true);
     
     try {
-      // First check if phone number is already registered
-      const { data: existingPhoneCheck, error: phoneCheckError } = await supabase
-        .from('student_users')
-        .select('phone')
-        .eq('phone', phoneNumber);
-        
-      if (phoneCheckError) {
-        console.error("Error checking existing phone:", phoneCheckError);
-        throw new Error("Failed to check user status");
-      }
-      
-      if (existingPhoneCheck && existingPhoneCheck.length > 0) {
-        toast.error("Phone number already registered. Please login instead.");
-        setActiveTab("login");
-        return;
-      }
-      
-      // Now check if email is already registered
-      const { data: existingEmailCheck, error: emailCheckError } = await supabase
-        .from('student_users')
-        .select('email')
-        .eq('email', email);
-        
-      if (emailCheckError) {
-        console.error("Error checking existing email:", emailCheckError);
-        throw new Error("Failed to check user status");
-      }
-      
-      if (existingEmailCheck && existingEmailCheck.length > 0) {
-        toast.error("Email already registered. Please login instead.");
-        setActiveTab("login");
-        return;
-      }
-      
-      // Create the auth user first
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-            phone: phoneNumber
-          }
-        }
+      // Custom endpoint for student signup
+      const response = await fetch(`${supabase.functions.url}/create-student-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          phone: phoneNumber, 
+          name, 
+          password,
+          email
+        }),
       });
       
-      if (signUpError) {
-        console.error("Signup error:", signUpError);
-        throw new Error(signUpError.message || "Failed to create user account");
-      }
+      const data = await response.json();
       
-      // Create the student user profile
-      const { data: studentData, error: createStudentError } = await supabase
-        .from('student_users')
-        .insert([
-          { 
-            id: authData.user?.id,
-            name,
-            phone: phoneNumber,
-            email,
-          }
-        ])
-        .select()
-        .single();
-      
-      if (createStudentError) {
-        console.error("Error creating student:", createStudentError);
-        // If there's an error creating the student profile, try to clean up the auth user
-        await supabase.auth.signOut();
-        throw new Error("Failed to create student profile. Please try again.");
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Signup failed");
       }
       
       // Set local storage for the session
-      localStorage.setItem('currentStudentId', authData.user?.id || '');
+      localStorage.setItem('currentStudentId', data.userId);
       localStorage.setItem('studentName', name);
       localStorage.setItem('studentEmail', email);
       

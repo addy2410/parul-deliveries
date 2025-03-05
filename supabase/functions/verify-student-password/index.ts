@@ -63,18 +63,7 @@ serve(async (req) => {
       );
     }
     
-    // Sign in user with Supabase Auth
-    const { data: signInData, error: signInError } = await supabaseClient.auth.admin.signInWithEmail(email, password);
-    
-    if (signInError) {
-      console.error('Error signing in with Auth:', signInError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Authentication failed' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
-    }
-    
-    // Password is correct
+    // Return success with the user information
     return new Response(
       JSON.stringify({ 
         success: true, 
