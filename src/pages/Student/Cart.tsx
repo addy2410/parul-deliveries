@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,14 +11,14 @@ import StudentHeader from "@/components/StudentHeader";
 
 const StudentCart = () => {
   const navigate = useNavigate();
-  const { cartItems, removeFromCart, clearCart } = useCart();
+  const { items, removeFromCart, clearCart } = useCart();
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const deliveryFee = subtotal > 0 ? 30 : 0;
   const total = subtotal + deliveryFee;
   
-  const groupedCartItems = cartItems.reduce((acc: any, item) => {
+  const groupedCartItems = items.reduce((acc: any, item) => {
     if (!acc[item.restaurantId]) {
       acc[item.restaurantId] = {
         restaurantName: item.restaurantName,
@@ -30,8 +29,8 @@ const StudentCart = () => {
     return acc;
   }, {});
   
-  const handleRemoveFromCart = (menuItemId: string) => {
-    removeFromCart(menuItemId);
+  const handleRemoveFromCart = (itemId: string) => {
+    removeFromCart(itemId);
     toast.success("Item removed from cart");
   };
   
@@ -41,7 +40,7 @@ const StudentCart = () => {
   };
   
   const handlePlaceOrder = () => {
-    if (cartItems.length === 0) {
+    if (items.length === 0) {
       toast.error("Your cart is empty");
       return;
     }
@@ -61,7 +60,7 @@ const StudentCart = () => {
       <StudentHeader />
       
       <div className="container mx-auto p-4">
-        {cartItems.length === 0 ? (
+        {items.length === 0 ? (
           <Card className="max-w-md mx-auto mt-16">
             <CardContent className="flex flex-col items-center justify-center p-6">
               <CardTitle className="text-lg font-semibold mb-2">Your cart is empty</CardTitle>
@@ -107,7 +106,7 @@ const StudentCart = () => {
                       <CardContent className="p-4">
                         <ul className="space-y-2">
                           {items.map(item => (
-                            <li key={item.menuItemId} className="flex items-center justify-between">
+                            <li key={item.id} className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm">{item.name}</span>
                                 <span className="text-xs text-muted-foreground">x{item.quantity}</span>
@@ -117,7 +116,7 @@ const StudentCart = () => {
                                 <Button 
                                   variant="ghost" 
                                   size="icon"
-                                  onClick={() => handleRemoveFromCart(item.menuItemId)}
+                                  onClick={() => handleRemoveFromCart(item.id)}
                                 >
                                   <Trash2 size={16} />
                                 </Button>
