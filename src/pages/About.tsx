@@ -1,55 +1,136 @@
 
 import React from "react";
-import { Container } from "@/components/ui/container";
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { ArrowLeft, Heart, GraduationCap, Coffee, Star, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 const About = () => {
-  const navigate = useNavigate();
-
   return (
-    <div className="min-h-screen bg-purple-50">
-      <Container className="py-12">
-        <Button 
-          variant="ghost" 
-          onClick={() => navigate(-1)}
-          className="mb-6"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
-        </Button>
+    <div className="min-h-screen purple-pattern flex flex-col">
+      {/* Header with back button */}
+      <header className="bg-white/80 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+        <div className="container mx-auto py-4 px-4 flex justify-between items-center">
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/student/restaurants">
+              <ArrowLeft size={16} className="mr-1" /> Back to Restaurants
+            </Link>
+          </Button>
+          <h1 className="text-xl font-bold text-purple-800">Campus Eats</h1>
+        </div>
+      </header>
 
-        <div className="max-w-3xl mx-auto space-y-8">
-          <h1 className="text-3xl font-bold text-center text-purple-900">About CampusGrub</h1>
-          
-          <div className="bg-white p-8 rounded-lg shadow-sm">
-            <h2 className="text-xl font-semibold mb-4 text-purple-800">Made By Parul University Dropout Student</h2>
-            <h3 className="text-lg font-medium mb-4 text-purple-700">Aditya Mishra</h3>
+      {/* Hero Section with fun animated elements */}
+      <section className="py-16 px-4 bg-gradient-to-br from-purple-50 to-purple-100">
+        <div className="container mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center max-w-3xl mx-auto relative"
+          >
+            {/* Decorative elements */}
+            <motion.div 
+              className="absolute -top-10 -left-10 w-20 h-20 bg-purple-200 rounded-full opacity-40"
+              animate={{ 
+                scale: [1, 1.1, 1],
+                rotate: [0, 5, 0]
+              }}
+              transition={{
+                repeat: Infinity,
+                duration: 5
+              }}
+            />
+            <motion.div 
+              className="absolute -bottom-10 -right-10 w-24 h-24 bg-pink-200 rounded-full opacity-30"
+              animate={{ 
+                scale: [1, 1.2, 1],
+                rotate: [0, -5, 0]
+              }}
+              transition={{
+                repeat: Infinity,
+                duration: 6,
+                delay: 0.5
+              }}
+            />
             
-            <p className="text-gray-700 mb-4">
-              CampusGrub was created to solve the problem of food delivery within the campus. 
-              Students often struggle to get food from different food courts and vendors across the campus, 
-              especially during busy hours or when they're studying.
-            </p>
-            
-            <p className="text-gray-700 mb-4">
-              Our platform connects students with campus food vendors, making it easy to browse menus, 
-              place orders, and get food delivered right to your location within the campus.
-            </p>
-            
-            <p className="text-gray-700 mb-4">
-              For vendors, CampusGrub provides a simple way to reach more students, manage orders, 
-              and grow their business without investing in their own delivery infrastructure.
-            </p>
-            
-            <h3 className="text-lg font-medium mt-8 mb-4 text-purple-700">Our Mission</h3>
-            <p className="text-gray-700">
-              To make campus dining more convenient, efficient, and enjoyable for everyone in the 
-              Parul University community.
-            </p>
+            <div className="inline-block mb-6 bg-purple-200 p-3 rounded-2xl">
+              <GraduationCap className="h-10 w-10 text-purple-700" />
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold mb-6 text-purple-900">
+              About Campus Eats
+            </h1>
+            <motion.p 
+              className="text-xl text-purple-800 mb-8 font-medium"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+            >
+              Made by a Parul University dropout student named Aditya Mishra
+            </motion.p>
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="inline-flex items-center justify-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-full font-medium shadow-lg"
+            >
+              <Heart className="h-5 w-5" />
+              Made with love in Vadodara
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Fun Facts Section */}
+      <section className="py-12 px-4">
+        <div className="container mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              {
+                icon: <Coffee className="h-8 w-8 text-purple-600" />,
+                title: "Coffee Powered",
+                description: "This app was fueled by approximately 137 cups of coffee during development."
+              },
+              {
+                icon: <Star className="h-8 w-8 text-purple-600" />,
+                title: "Student Favorite",
+                description: "Most popular amongst engineering and business students at Parul University."
+              },
+              {
+                icon: <Users className="h-8 w-8 text-purple-600" />,
+                title: "Created For Students",
+                description: "Understanding the needs of hungry students was our primary motivation."
+              }
+            ].map((feature, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                viewport={{ once: true }}
+                whileHover={{ y: -5 }}
+                className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-purple-100"
+              >
+                <div className="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+                  {feature.icon}
+                </div>
+                <h3 className="text-xl font-semibold mb-2 text-purple-900">{feature.title}</h3>
+                <p className="text-purple-700">{feature.description}</p>
+              </motion.div>
+            ))}
           </div>
         </div>
-      </Container>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-purple-900 text-white py-8 px-4 mt-auto">
+        <div className="container mx-auto text-center">
+          <p className="mb-4">© 2024 Campus Eats - By Aditya Mishra</p>
+          <div className="flex justify-center space-x-4">
+            <Link to="/student/restaurants" className="hover:text-purple-300 transition-colors">Home</Link>
+            <Link to="/" className="hover:text-purple-300 transition-colors">Sign In</Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import ShopRegistration from "@/components/Vendor/ShopRegistration";
-import { supabase } from "@/lib/supabase";
+import { supabase, isUsingDefaultCredentials } from "@/lib/supabase";
 
 const RegisterShop = () => {
   const [vendorId, setVendorId] = useState<string | null>(null);
@@ -16,34 +16,34 @@ const RegisterShop = () => {
     const checkVendorAuth = async () => {
       try {
         setLoading(true);
-        // Check if we have vendor info in localStorage
-        const storedVendorId = localStorage.getItem('currentVendorId');
-        
-        if (storedVendorId) {
+        if (isUsingDefaultCredentials()) {
+          // In demo mode, check localStorage
+          console.log("Using demo mode authentication check");
+          const storedVendorId = localStorage.getItem('currentVendorId');
+          if (!storedVendorId) {
+            toast.error("You need to login first");
+            navigate("/vendor/login");
+            return;
+          }
           setVendorId(storedVendorId);
-          setLoading(false);
-          return;
+        } else {
+          // In production, check Supabase auth
+          console.log("Checking Supabase authentication");
+          const { data, error } = await supabase.auth.getSession();
+          console.log("Auth session data:", data?.session ? "Session exists" : "No session");
+          if (error) {
+            console.error("Auth error:", error.message);
+            toast.error(`Authentication error: ${error.message}`);
+            navigate("/vendor/login");
+            return;
+          }
+          if (!data.session) {
+            toast.error("You need to login first");
+            navigate("/vendor/login");
+            return;
+          }
+          setVendorId(data.session.user.id);
         }
-        
-        // If not in localStorage, check Supabase auth
-        const { data, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error("Auth error:", error.message);
-          toast.error(`Authentication error: ${error.message}`);
-          navigate("/vendor/login");
-          return;
-        }
-        
-        if (!data.session) {
-          toast.error("You need to login first");
-          navigate("/vendor/login");
-          return;
-        }
-        
-        // Store vendor ID in localStorage for future use
-        localStorage.setItem('currentVendorId', data.session.user.id);
-        setVendorId(data.session.user.id);
       } catch (error) {
         console.error("Auth check error:", error);
         toast.error("Authentication error");

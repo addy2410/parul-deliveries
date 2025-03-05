@@ -3,16 +3,8 @@ import React from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-
-// Create a CampusGrub logo component
-const CampusGrubLogo = () => (
-  <div className="flex items-center justify-center mb-8">
-    <div className="text-3xl font-extrabold">
-      <span className="text-[#ea384c]">Campus</span>
-      <span className="text-black">Grub</span>
-    </div>
-  </div>
-);
+import { isUsingDefaultCredentials } from "@/lib/supabase";
+import { toast } from "sonner";
 
 interface RoleCardProps {
   title: string;
@@ -26,6 +18,11 @@ const RoleCard: React.FC<RoleCardProps> = ({ title, description, route, classNam
   const navigate = useNavigate();
   
   const handleCardClick = () => {
+    // Always navigate, even with default credentials - just show a toast warning
+    if (isUsingDefaultCredentials()) {
+      toast.warning("Using demo mode with sample data. Set up Supabase for full functionality.");
+      console.log("Using demo mode with sample data");
+    }
     navigate(route);
   };
   
@@ -38,7 +35,7 @@ const RoleCard: React.FC<RoleCardProps> = ({ title, description, route, classNam
       whileTap={{ scale: 0.98 }}
     >
       <Card 
-        className={`cursor-pointer overflow-hidden ${className} transition-all duration-300 border-2 hover:shadow-xl`}
+        className={`cursor-pointer overflow-hidden ${className} shadow-lg border-2 hover:shadow-xl transition-all duration-300`}
         onClick={handleCardClick}
       >
         <CardContent className="p-8">
@@ -51,25 +48,32 @@ const RoleCard: React.FC<RoleCardProps> = ({ title, description, route, classNam
 };
 
 const RoleSelection: React.FC = () => {
+  // Show a demo mode message on component mount
+  React.useEffect(() => {
+    if (isUsingDefaultCredentials()) {
+      toast.info("Demo mode active: Using sample data since Supabase is not configured.", {
+        duration: 5000,
+      });
+      console.log("Demo mode active: Using sample data");
+    }
+  }, []);
+
   return (
-    <div className="flex flex-col items-center">
-      <CampusGrubLogo />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-        <RoleCard
-          title="I'm a Vendor"
-          description="Manage your menu, accept orders, and track deliveries."
-          route="/vendor/auth"
-          className="border-primary/50 hover:border-primary"
-          delay={0.2}
-        />
-        <RoleCard
-          title="I'm a Student"
-          description="Browse restaurants, order food, and enjoy campus delivery."
-          route="/student/restaurants"
-          className="border-secondary/50 hover:border-secondary"
-          delay={0.4}
-        />
-      </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+      <RoleCard
+        title="I'm a Vendor"
+        description="Manage your menu, accept orders, and track deliveries."
+        route="/vendor/login"
+        className="border-primary hover:border-primary/80"
+        delay={0.2}
+      />
+      <RoleCard
+        title="I'm a Student"
+        description="Browse restaurants, order food, and enjoy campus delivery."
+        route="/student/restaurants"
+        className="border-secondary hover:border-secondary/80"
+        delay={0.4}
+      />
     </div>
   );
 };

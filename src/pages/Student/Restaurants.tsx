@@ -44,11 +44,6 @@ const StudentRestaurants = () => {
   // Function to handle Learn More button click
   const handleLearnMoreClick = () => {
     navigate("/about");
-    
-    // Use setTimeout to make sure the navigation happens before scrolling
-    setTimeout(() => {
-      window.scrollTo(0, 0);
-    }, 100);
   };
 
   return (

@@ -1,5 +1,14 @@
 
-import { MenuItem } from "./types";
+export interface MenuItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  image: string;
+  restaurantId: string;
+  category: string;
+  isAvailable?: boolean;
+}
 
 export interface Restaurant {
   id: string;
@@ -129,7 +138,7 @@ export const menuItems: MenuItem[] = [
     name: 'Masala Dosa',
     description: 'Crispy rice crepe filled with spiced potato mixture, served with chutney and sambar.',
     price: 90,
-    image: '/lovable-uploads/1271dc67-e1e0-43ca-a49d-85a5eb8f1622.jpg',
+    image: 'https://images.unsplash.com/photo-1650380881351-e97a730fe63f',
     restaurantId: 'rest-3',
     category: 'South Indian',
     isAvailable: true

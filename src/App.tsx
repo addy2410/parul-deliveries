@@ -11,12 +11,10 @@ import { CartProvider } from "./context/CartContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import VendorLogin from "./pages/Vendor/Login";
-import VendorAuth from "./pages/Vendor/Auth";
 import VendorDashboard from "./pages/Vendor/Dashboard";
 import VendorMenuManagement from "./pages/Vendor/MenuManagement";
 import RegisterShop from "./pages/Vendor/RegisterShop";
 import StudentLogin from "./pages/Student/Login";
-import StudentAuth from "./pages/Student/Auth";
 import StudentRestaurants from "./pages/Student/Restaurants";
 import StudentRestaurantDetail from "./pages/Student/RestaurantDetail";
 import StudentCart from "./pages/Student/Cart";
@@ -60,15 +58,13 @@ const App = () => {
               
               {/* Vendor Routes */}
               <Route path="/vendor/login" element={<VendorLogin />} />
-              <Route path="/vendor/auth" element={<VendorAuth />} />
               <Route path="/vendor/dashboard" element={<VendorDashboard />} />
               <Route path="/vendor/menu" element={<VendorMenuManagement />} />
               <Route path="/vendor/register-shop" element={<RegisterShop />} />
               
               {/* Student Routes */}
-              <Route path="/student" element={<Navigate to="/student/auth" replace />} />
+              <Route path="/student" element={<Navigate to="/student/login" replace />} />
               <Route path="/student/login" element={<StudentLogin />} />
-              <Route path="/student/auth" element={<StudentAuth />} />
               <Route path="/student/restaurants" element={<StudentRestaurants />} />
               <Route path="/student/restaurant/:id" element={<StudentRestaurantDetail />} />
               <Route path="/student/cart" element={<StudentCart />} />

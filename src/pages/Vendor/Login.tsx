@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase, isUsingDefaultCredentials } from "@/lib/supabase";
 
 const VendorLogin = () => {
   const [pucampid, setPucampid] = useState("");
@@ -27,51 +27,98 @@ const VendorLogin = () => {
     setIsLoading(true);
     
     try {
-      // Always use real Supabase authentication
-      const email = `${pucampid.toLowerCase()}@campus-vendor.com`;
+      let vendorId;
       
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (authError) {
-        // If login fails, check if we need to create a new account
-        if (pucampid.startsWith("VEN") && password.length >= 6) {
-          // Try to sign up
-          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-            email,
-            password,
-          });
-          
-          if (signUpError) throw signUpError;
-          
+      // Check if using default credentials (demo mode)
+      if (isUsingDefaultCredentials()) {
+        // In demo mode, use localStorage for user storage
+        const storedVendors = JSON.parse(localStorage.getItem('vendors') || '[]');
+        
+        // Check if vendor exists
+        const existingVendor = storedVendors.find(
+          (v: any) => v.pucampid === pucampid && v.password === password
+        );
+        
+        if (existingVendor) {
+          // Vendor exists, use existing ID
+          vendorId = existingVendor.id;
+          toast.success("Login successful");
+        } else if (pucampid.startsWith("VEN") && password.length >= 6) {
+          // New vendor, create record
+          vendorId = `vendor-${Date.now()}`;
+          const newVendor = { id: vendorId, pucampid, password };
+          localStorage.setItem('vendors', JSON.stringify([...storedVendors, newVendor]));
           toast.success("Account created and logged in");
         } else {
-          throw authError;
+          throw new Error("Invalid credentials format");
+        }
+        
+        // Store current vendor ID
+        localStorage.setItem('currentVendorId', vendorId);
+        
+        // Check if vendor has a shop
+        const shops = JSON.parse(localStorage.getItem('shops') || '[]');
+        const vendorShop = shops.find((shop: any) => shop.vendor_id === vendorId);
+        
+        if (vendorShop) {
+          // Vendor has a shop, store it and redirect to dashboard
+          localStorage.setItem('currentVendorShop', JSON.stringify(vendorShop));
+          navigate("/vendor/dashboard");
+        } else {
+          // Vendor doesn't have a shop yet, redirect to shop registration
+          navigate("/vendor/register-shop");
         }
       } else {
-        toast.success("Login successful");
-      }
-      
-      // Check if vendor has a shop
-      const { data: shopData, error: shopError } = await supabase
-        .from('shops')
-        .select('*')
-        .eq('vendor_id', authData?.user?.id)
-        .single();
+        // Real Supabase authentication for production mode
+        const email = `${pucampid.toLowerCase()}@campus-vendor.com`;
         
-      if (shopError && shopError.code !== 'PGRST116') {
-        // An error other than "no rows returned"
-        console.error("Error checking for shop:", shopError);
-      }
-      
-      if (shopData) {
-        // Vendor has a shop, redirect to dashboard
-        navigate("/vendor/dashboard");
-      } else {
-        // Vendor doesn't have a shop yet, redirect to shop registration
-        navigate("/vendor/register-shop");
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
+        if (authError) {
+          // If login fails, check if we need to create a new account
+          if (pucampid.startsWith("VEN") && password.length >= 6) {
+            // Try to sign up
+            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+              email,
+              password,
+            });
+            
+            if (signUpError) throw signUpError;
+            
+            vendorId = signUpData.user?.id;
+            toast.success("Account created and logged in");
+          } else {
+            throw authError;
+          }
+        } else {
+          vendorId = authData.user?.id;
+          toast.success("Login successful");
+        }
+        
+        if (!vendorId) throw new Error("Failed to authenticate");
+        
+        // Check if vendor has a shop
+        const { data: shopData, error: shopError } = await supabase
+          .from('shops')
+          .select('*')
+          .eq('vendor_id', vendorId)
+          .single();
+          
+        if (shopError && shopError.code !== 'PGRST116') {
+          // An error other than "no rows returned"
+          console.error("Error checking for shop:", shopError);
+        }
+        
+        if (shopData) {
+          // Vendor has a shop, redirect to dashboard
+          navigate("/vendor/dashboard");
+        } else {
+          // Vendor doesn't have a shop yet, redirect to shop registration
+          navigate("/vendor/register-shop");
+        }
       }
     } catch (error) {
       console.error("Login error:", error);
@@ -168,9 +215,6 @@ const VendorLogin = () => {
             <CardFooter className="flex flex-col space-y-2">
               <div className="text-center text-xs text-gray-500 mt-4">
                 <p>For demonstration purposes, enter any PUCAMPID that starts with "VEN" (like VEN12345) and a password with at least 6 characters.</p>
-                <p className="mt-1">Or try the default restaurants with these credentials:</p>
-                <p className="font-semibold mt-1">CAPITOL-VENDOR / GREENZY-VENDOR / MAIN-VENDOR</p>
-                <p>Password for all: campus123</p>
               </div>
             </CardFooter>
           </Card>
