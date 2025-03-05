@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ interface Order {
   id: string;
   student_id: string;
   vendor_id: string;
-  restaurant_id: string;  // Changed from shop_id to restaurant_id
+  restaurant_id: string;
   items: OrderItem[];
   total_amount: number;
   status: string;
