@@ -28,7 +28,6 @@ const Cart = () => {
 
   // Check authentication status on mount
   useEffect(() => {
-    // Verify student authentication
     const checkAuth = () => {
       const session = localStorage.getItem('studentSession');
       if (session) {
@@ -36,15 +35,23 @@ const Cart = () => {
           const parsedSession = JSON.parse(session);
           if (parsedSession && parsedSession.userId) {
             setIsAuthenticated(true);
+          } else {
+            console.error("Invalid session structure:", parsedSession);
           }
         } catch (error) {
           console.error("Error parsing student session:", error);
         }
+      } else {
+        console.log("No student session found in localStorage");
       }
     };
     
     checkAuth();
-  }, []);
+    
+    // Add more detailed logging to help debug the authentication issue
+    console.log("Student ID from useStudentAuth:", studentId);
+    console.log("Is authenticated state:", isAuthenticated);
+  }, [studentId]);
 
   // Only attempt to fetch shop data if we have a shopId
   useEffect(() => {
@@ -101,7 +108,25 @@ const Cart = () => {
   };
 
   const handleCheckout = async () => {
-    if (!isAuthenticated || !studentId) {
+    console.log("Checkout clicked - Auth status:", isAuthenticated, "Student ID:", studentId);
+    
+    // Check authentication directly from localStorage to ensure we have the most up-to-date status
+    const session = localStorage.getItem('studentSession');
+    let currentStudentId = null;
+    
+    if (session) {
+      try {
+        const parsedSession = JSON.parse(session);
+        if (parsedSession && parsedSession.userId) {
+          currentStudentId = parsedSession.userId;
+          console.log("Student ID from localStorage:", currentStudentId);
+        }
+      } catch (error) {
+        console.error("Error parsing session data:", error);
+      }
+    }
+    
+    if (!currentStudentId) {
       toast.error("You need to be logged in to checkout");
       navigate("/student/login");
       return;
@@ -123,6 +148,7 @@ const Cart = () => {
     try {
       // Get vendor ID for the restaurant if not loaded yet
       let vendorId = null;
+      let currentStudentName = studentName;
       
       if (!shopData) {
         // Fetch restaurant info to get vendor ID
@@ -143,6 +169,17 @@ const Cart = () => {
         vendorId = shopData.vendor_id;
       }
       
+      // If we don't have student name from the hook, try to get it from session
+      if (!currentStudentName && session) {
+        try {
+          const parsedSession = JSON.parse(session);
+          currentStudentName = parsedSession.name || "Student";
+        } catch (error) {
+          console.error("Error getting student name:", error);
+          currentStudentName = "Student";
+        }
+      }
+      
       // Prepare the order items
       const orderItems = items.map(item => ({
         menuItemId: item.id,
@@ -154,14 +191,14 @@ const Cart = () => {
       // Create the order with pending status
       const { data, error } = await supabase.from("orders").insert([
         {
-          student_id: studentId,
+          student_id: currentStudentId,
           vendor_id: vendorId,
           restaurant_id: activeRestaurantId || shopId,
           items: orderItems,
           total_amount: total,
           status: "pending",
           delivery_location: deliveryAddress || "Campus",
-          student_name: studentName || "Student"
+          student_name: currentStudentName || "Student"
         }
       ]).select();
 
@@ -182,7 +219,7 @@ const Cart = () => {
           {
             recipient_id: vendorId,
             type: "new_order",
-            message: `New order from ${studentName || "a student"}`,
+            message: `New order from ${currentStudentName || "a student"}`,
             data: {
               order_id: order.id,
               items: orderItems,
@@ -194,12 +231,18 @@ const Cart = () => {
 
         if (notifError) {
           console.error("Failed to create notification:", notifError);
+        } else {
+          console.log("Notification created successfully for vendor:", vendorId);
         }
 
         // Show success toast and enable Proceed to Payment button
         toast.success("Order sent to vendor for confirmation!");
         setOrderCreated(true);
         setCreatedOrderId(order.id);
+        
+        // Clear the cart after successful order creation
+        // We comment this out for now since we want the user to have the option to proceed to payment
+        // clearCart();
       }
     } catch (e) {
       console.error("Error during checkout:", e);

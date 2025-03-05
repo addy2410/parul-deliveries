@@ -58,6 +58,7 @@ const VendorNotifications: React.FC<VendorNotificationsProps> = ({ vendorId, onO
           return;
         }
         
+        console.log("Fetched notifications:", data);
         setNotifications(data || []);
       } catch (error) {
         console.error("Error fetching notifications:", error);
@@ -77,6 +78,7 @@ const VendorNotifications: React.FC<VendorNotificationsProps> = ({ vendorId, onO
         table: 'notifications',
         filter: `recipient_id=eq.${vendorId}`
       }, (payload) => {
+        console.log("Realtime notification received:", payload);
         setNotifications(prev => [payload.new as Notification, ...prev]);
         toast.info("New notification received");
       })
@@ -89,6 +91,8 @@ const VendorNotifications: React.FC<VendorNotificationsProps> = ({ vendorId, onO
 
   const handleAcceptOrder = async (orderId: string) => {
     try {
+      console.log("Accepting order:", orderId);
+      
       // First, find the delivery time estimate based on order items
       // In a real app, this might be calculated based on the number/type of items
       const estimatedTime = Math.floor(Math.random() * 20) + 15; // 15-35 minutes
@@ -131,6 +135,8 @@ const VendorNotifications: React.FC<VendorNotificationsProps> = ({ vendorId, onO
 
   const handleDeclineOrder = async (orderId: string) => {
     try {
+      console.log("Declining order:", orderId);
+      
       // Update order status to 'cancelled'
       const { error } = await supabase
         .from('orders')
