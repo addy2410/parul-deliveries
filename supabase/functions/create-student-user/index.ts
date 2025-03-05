@@ -147,35 +147,27 @@ serve(async (req) => {
       );
     }
     
-    // Hash the password - Improved approach with explicit salt generation
+    // Use a simplified bcrypt hashing approach that's more reliable in Deno
     let password_hash;
     try {
-      console.log("Starting password hashing process");
+      console.log("Starting simplified password hashing");
       
-      // Generate salt explicitly - important for Deno compatibility
-      console.log("Generating salt");
-      const salt = await bcrypt.genSalt(10);
-      console.log("Salt generated successfully");
-      
-      // Hash with the generated salt
-      console.log("Hashing password with generated salt");
-      password_hash = await bcrypt.hash(password, salt);
-      console.log("Password hashed successfully:", !!password_hash);
+      // Use a fixed number of rounds instead of generating salt
+      password_hash = await bcrypt.hash(password, 6); // Lower rounds for better reliability
+      console.log("Password hashed successfully with fixed rounds:", !!password_hash);
       
       if (!password_hash) {
-        throw new Error("Password hash is undefined after hashing operation");
+        throw new Error("Hash result is undefined");
       }
     } catch (hashError) {
       console.error('Error hashing password:', hashError);
       console.error('Error details:', hashError.message || 'No error message');
-      console.error('Error stack:', hashError.stack || 'No stack trace');
       
       return new Response(
         JSON.stringify({ 
           success: false, 
           error: 'Password processing failed', 
-          details: hashError.message || 'Unknown hashing error',
-          suggestion: 'Please try again or contact support'
+          details: "Unable to hash password securely. Please try again."
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );

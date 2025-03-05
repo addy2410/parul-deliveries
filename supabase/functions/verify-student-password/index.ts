@@ -70,7 +70,7 @@ serve(async (req) => {
       );
     }
     
-    // Verify the password with improved error handling
+    // Verify the password with simplified approach
     try {
       console.log("Comparing password with stored hash");
       
@@ -78,6 +78,7 @@ serve(async (req) => {
         throw new Error("Stored password hash is not a string");
       }
       
+      // Use basic compare without additional options
       const passwordMatches = await bcrypt.compare(password, student.password_hash);
       console.log("Password comparison result:", passwordMatches);
       
@@ -100,13 +101,12 @@ serve(async (req) => {
     } catch (bcryptError) {
       console.error('Error in password comparison:', bcryptError);
       console.error('Error details:', bcryptError.message || 'No error message');
-      console.error('Error stack:', bcryptError.stack || 'No stack trace');
       
       return new Response(
         JSON.stringify({ 
           success: false, 
           error: 'Error verifying password',
-          details: bcryptError.message || 'Unknown bcrypt error'
+          details: "Password verification failed. Please try again."
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
