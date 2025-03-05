@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -64,8 +63,8 @@ const App = () => {
               <Route path="/vendor/register-shop" element={<RegisterShop />} />
               <Route path="/vendor/delete-empty-shop" element={<DeleteEmptyShop />} />
               
-              {/* Student Routes */}
-              <Route path="/student" element={<Navigate to="/student/login" replace />} />
+              {/* Student Routes - Allow direct access to restaurants */}
+              <Route path="/student" element={<Navigate to="/student/restaurants" replace />} />
               <Route path="/student/login" element={<StudentLogin />} />
               <Route path="/student/restaurants" element={<StudentRestaurants />} />
               <Route path="/student/restaurant/:id" element={<StudentRestaurantDetail />} />

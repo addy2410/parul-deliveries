@@ -46,6 +46,7 @@ const RestaurantMenu: React.FC<RestaurantMenuProps> = ({
   });
 
   const handleAddToCart = (item: MenuItem) => {
+    // Create a cart item with all required properties
     addItem({
       id: item.id,
       name: item.name,
