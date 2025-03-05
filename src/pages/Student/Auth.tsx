@@ -27,8 +27,8 @@ const StudentAuth = () => {
   // Check if user is already logged in
   useEffect(() => {
     const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
+      const studentId = localStorage.getItem('currentStudentId');
+      if (studentId) {
         navigate("/student/restaurants");
       }
     };
@@ -79,10 +79,21 @@ const StudentAuth = () => {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password: signupPassword,
+        options: {
+          data: {
+            phone: signupPhone,
+            name: signupName
+          }
+        }
       });
       
       if (authError) {
+        console.error("Auth signup error:", authError);
         throw authError;
+      }
+      
+      if (!authData.user?.id) {
+        throw new Error("Failed to create user account");
       }
       
       // Store additional user data in student_users table
@@ -90,7 +101,7 @@ const StudentAuth = () => {
         .from('student_users')
         .insert([
           { 
-            id: authData.user?.id,
+            id: authData.user.id,
             phone: signupPhone,
             name: signupName,
             password_hash: signupPassword, // In a real app, this should be hashed properly
@@ -103,7 +114,7 @@ const StudentAuth = () => {
       }
       
       // Store user info in localStorage for easy access
-      localStorage.setItem('currentStudentId', authData.user?.id || '');
+      localStorage.setItem('currentStudentId', authData.user.id);
       localStorage.setItem('studentName', signupName);
       localStorage.setItem('studentPhone', signupPhone);
       
@@ -138,7 +149,14 @@ const StudentAuth = () => {
       });
       
       if (authError) {
-        throw authError;
+        console.error("Login error:", authError);
+        toast.error("Invalid phone number or password. Please try again.");
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!authData.user) {
+        throw new Error("Failed to authenticate");
       }
       
       // Fetch the student data
@@ -149,6 +167,7 @@ const StudentAuth = () => {
         .maybeSingle();
       
       if (studentError || !studentData) {
+        console.error("Error fetching student data:", studentError);
         throw new Error("Failed to retrieve student information");
       }
       
@@ -161,7 +180,7 @@ const StudentAuth = () => {
       navigate("/student/restaurants");
     } catch (error: any) {
       console.error("Login error:", error);
-      toast.error("Invalid phone number or password. Please try again.");
+      toast.error("Login failed. Please check your credentials and try again.");
     } finally {
       setIsLoading(false);
     }

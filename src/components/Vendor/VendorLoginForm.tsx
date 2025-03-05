@@ -37,33 +37,42 @@ const VendorLoginForm: React.FC<VendorLoginFormProps> = ({
     setIsLoading(true);
     
     try {
-      const email = `${pucampid.toLowerCase()}@campus-vendor.com`;
+      const formattedPucampid = pucampid.toUpperCase();
+      const email = `${formattedPucampid.toLowerCase()}@vendor.campusgrub.app`;
       
+      // Try to sign in
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
       if (authError) {
-        throw authError;
+        console.error("Login error:", authError);
+        toast.error("Invalid PUCAMPID or password. Please try again.");
+        setIsLoading(false);
+        return;
       }
       
-      toast.success("Login successful");
+      if (!authData.user) {
+        throw new Error("Failed to authenticate");
+      }
       
       // Store user info in localStorage
       localStorage.setItem('currentVendorId', authData.user.id);
-      localStorage.setItem('vendorPUCAMPID', pucampid);
+      localStorage.setItem('vendorPUCAMPID', formattedPucampid);
       
       // Check if vendor has a shop
       const { data: shopData, error: shopError } = await supabase
         .from('shops')
         .select('*')
-        .eq('vendor_id', authData?.user?.id)
+        .eq('vendor_id', authData.user.id)
         .maybeSingle();
         
       if (shopError && shopError.code !== 'PGRST116') {
         console.error("Error checking for shop:", shopError);
       }
+      
+      toast.success("Login successful");
       
       if (shopData) {
         // Vendor has a shop, redirect to dashboard

@@ -20,12 +20,15 @@ export const isUsingDefaultCredentials = () => false;
 console.log("Supabase Mode: Production Mode");
 console.log("Using URL:", supabaseUrl.substring(0, 15) + "...");
 
+// Update domain for emails to match what we're using for authentication
+const validEmailDomain = "vendor.campusgrub.app";
+
 // Initialize demo vendors if they don't exist yet
 export const initializeDefaultVendors = async () => {
   try {
     // Check if we have our demo vendors
     const vendorIds = ['CAPITOL-VENDOR', 'GREENZY-VENDOR', 'MAIN-VENDOR']; 
-    const emails = vendorIds.map(id => `${id.toLowerCase()}@campus-vendor.com`);
+    const emails = vendorIds.map(id => `${id.toLowerCase()}@${validEmailDomain}`);
     
     // Check each vendor
     for (let i = 0; i < vendorIds.length; i++) {
@@ -43,32 +46,73 @@ export const initializeDefaultVendors = async () => {
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password: 'campus123',
+          options: {
+            data: {
+              pucampid: vendorId,
+              vendor_type: 'campus'
+            }
+          }
         });
         
         if (signUpError) {
           console.error(`Failed to create vendor ${vendorId}:`, signUpError);
-        } else {
+        } else if (signUpData.user) {
           console.log(`Created vendor ${vendorId}`);
+          
+          // Insert vendor data
+          const { error: vendorError } = await supabase
+            .from('vendors')
+            .insert([{ 
+              id: signUpData.user.id,
+              pucampid: vendorId,
+              email
+            }]);
+            
+          if (vendorError) {
+            console.error(`Failed to create vendor record for ${vendorId}:`, vendorError);
+          }
         }
       }
     }
     
     // Create user VEN12345 if it doesn't exist
+    const testVendorId = 'VEN12345';
+    const testEmail = `${testVendorId.toLowerCase()}@${validEmailDomain}`;
+    
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-      email: 'ven12345@campus-vendor.com',
+      email: testEmail,
       password: 'sss123'
     });
     
     if (signInError && signInError.message.includes("Invalid login credentials")) {
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: 'ven12345@campus-vendor.com',
+        email: testEmail,
         password: 'sss123',
+        options: {
+          data: {
+            pucampid: testVendorId,
+            vendor_type: 'campus'
+          }
+        }
       });
       
       if (signUpError) {
         console.error("Failed to create VEN12345 vendor:", signUpError);
-      } else {
+      } else if (signUpData.user) {
         console.log("Created VEN12345 vendor");
+        
+        // Insert vendor data
+        const { error: vendorError } = await supabase
+          .from('vendors')
+          .insert([{ 
+            id: signUpData.user.id,
+            pucampid: testVendorId,
+            email: testEmail
+          }]);
+          
+        if (vendorError) {
+          console.error(`Failed to create vendor record for ${testVendorId}:`, vendorError);
+        }
       }
     }
     
