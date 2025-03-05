@@ -18,7 +18,7 @@ interface StudentHeaderProps {
 
 const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentName }) => {
   const navigate = useNavigate();
-  const { items } = useCart();
+  const { items, totalItems, totalPrice } = useCart();
   const [userName, setUserName] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   
@@ -71,19 +71,28 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentN
     <header className="bg-white shadow py-4">
       <div className="container mx-auto px-4 flex justify-between items-center">
         <Link to="/student/restaurants" className="flex items-center">
-          <span className="text-xl font-bold fontLogo text-primary">
-            CampusGrub
-          </span>
+          <img 
+            src="/lovable-uploads/6141984c-ed22-4eeb-9eff-2185e2a74953.png" 
+            alt="CampusGrub" 
+            className="h-7" 
+          />
         </Link>
 
         <div className="flex items-center space-x-4">
           <Link to="/student/cart" className="relative" onClick={handleCartClick}>
-            <ShoppingBag className="h-6 w-6" />
-            {items.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                {items.length}
-              </span>
-            )}
+            <div className="flex items-center">
+              <ShoppingBag className="h-6 w-6" />
+              {items.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {totalItems}
+                </span>
+              )}
+              {totalPrice > 0 && (
+                <span className="ml-2 text-sm font-medium hidden md:inline">
+                  ₹{totalPrice.toFixed(2)}
+                </span>
+              )}
+            </div>
           </Link>
 
           {isLoggedIn ? (

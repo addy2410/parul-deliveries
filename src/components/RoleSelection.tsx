@@ -61,8 +61,12 @@ const RoleSelection: React.FC = () => {
   return (
     <div className="flex flex-col items-center space-y-6">
       {/* Add the CampusGrub logo */}
-      <div className="text-4xl font-bold fontLogo mb-4">
-        <span className="text-[#ea384c]">Campus</span><span className="text-black">Grub</span>
+      <div className="mb-6">
+        <img 
+          src="/lovable-uploads/6141984c-ed22-4eeb-9eff-2185e2a74953.png" 
+          alt="CampusGrub" 
+          className="h-12 md:h-16"
+        />
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto w-full">

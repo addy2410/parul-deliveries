@@ -19,6 +19,12 @@ export default {
 			}
 		},
 		extend: {
+			backgroundImage: {
+				'grid-pattern': 'linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px)',
+			},
+			backgroundSize: {
+				'grid-pattern': '20px 20px',
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
