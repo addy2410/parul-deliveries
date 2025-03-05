@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -97,9 +96,12 @@ const OrderTracking = () => {
     
     fetchOrder();
     
-    // Set up real-time subscription to order updates
+    // Set up real-time subscription with a custom channel name to ensure uniqueness
+    const channelName = `order-tracking-${id}-${Math.random().toString(36).substring(2, 15)}`;
+    console.log(`Setting up real-time channel: ${channelName}`);
+    
     const channel = supabase
-      .channel(`order-tracking-${id}`)
+      .channel(channelName)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -109,19 +111,24 @@ const OrderTracking = () => {
         console.log("Real-time order update received:", payload);
         const updatedOrder = payload.new as Order;
         
-        setOrder(prev => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            ...updatedOrder,
-            items: prev.items // Keep the parsed items
-          };
-        });
-        
-        // Update progress value based on new status
+        // Immediately update the progress value
         const newProgressValue = getOrderProgress(updatedOrder.status);
         console.log("Status updated to:", updatedOrder.status, "New progress value:", newProgressValue);
+        
+        // Force a state update for both order and progress value
         setProgressValue(newProgressValue);
+        
+        setOrder(prev => {
+          if (!prev) return null;
+          const updated = {
+            ...prev,
+            ...updatedOrder,
+            status: updatedOrder.status, // Explicitly set status to ensure it updates
+            items: prev.items // Keep the parsed items
+          };
+          console.log("Updated order state:", updated);
+          return updated;
+        });
         
         // Show toast for status updates
         if (payload.old.status !== updatedOrder.status) {
@@ -134,12 +141,27 @@ const OrderTracking = () => {
       })
       .subscribe((status) => {
         console.log("Subscription status:", status);
+        if (status === 'SUBSCRIBED') {
+          console.log("Successfully subscribed to real-time updates for order:", id);
+        } else {
+          console.error("Failed to subscribe to real-time updates. Status:", status);
+        }
       });
       
     return () => {
+      console.log("Cleaning up real-time subscription");
       supabase.removeChannel(channel);
     };
   }, [id]);
+  
+  // Add a separate effect to update progress when order changes
+  useEffect(() => {
+    if (order) {
+      const newProgress = getOrderProgress(order.status);
+      console.log("Order status changed, updating progress to:", newProgress);
+      setProgressValue(newProgress);
+    }
+  }, [order?.status]);
   
   if (loading) {
     return (
@@ -178,7 +200,7 @@ const OrderTracking = () => {
     );
   }
   
-  console.log("Current order status:", order.status, "Progress value:", progressValue);
+  console.log("Rendering OrderTracking with status:", order.status, "Progress value:", progressValue);
   
   return (
     <div className="min-h-screen bg-gray-50">
