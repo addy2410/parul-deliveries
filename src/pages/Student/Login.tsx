@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -115,7 +114,7 @@ const StudentLogin = () => {
     
     try {
       console.log("Attempting registration with email:", registerEmail);
-      const { data, error } = await supabase.functions.invoke('create-student-user', {
+      const response = await supabase.functions.invoke('create-student-user', {
         body: { 
           name: registerName, 
           email: registerEmail, 
@@ -123,7 +122,9 @@ const StudentLogin = () => {
         }
       });
       
-      console.log("Registration response:", data);
+      console.log("Registration response:", response);
+      
+      const { error, data } = response;
       
       if (error) {
         console.error("Registration error from function invocation:", error);
@@ -132,10 +133,10 @@ const StudentLogin = () => {
         return;
       }
       
-      if (!data.success) {
-        console.error("Registration failed:", data.error);
-        setErrorMessage(data.error || "Registration failed. Please try again.");
-        toast.error(data.error || "Registration failed. Please try again.");
+      if (!data || !data.success) {
+        console.error("Registration failed:", data?.error || "Unknown error");
+        setErrorMessage(data?.error || "Registration failed. Please try again.");
+        toast.error(data?.error || "Registration failed. Please try again.");
         return;
       }
       

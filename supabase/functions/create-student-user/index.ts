@@ -16,8 +16,6 @@ serve(async (req) => {
   
   try {
     console.log("Starting create-student-user function");
-    console.log("SUPABASE_SERVICE_ROLE_KEY available:", !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
-    console.log("SUPABASE_URL available:", !!Deno.env.get('SUPABASE_URL'));
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
@@ -33,15 +31,33 @@ serve(async (req) => {
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
     // Parse request body
-    const requestData = await req.json();
+    let requestData;
+    try {
+      requestData = await req.json();
+    } catch (parseError) {
+      console.error("Failed to parse request JSON:", parseError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid request format' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+    
     const { email, name, password } = requestData;
     
-    console.log(`Creating new student user with email: ${email}, name: ${name}`);
+    console.log(`Attempting to create new student user with email: ${email}`);
     
     if (!email || !name || !password) {
       console.error("Missing required fields:", { email: !!email, name: !!name, password: !!password });
       return new Response(
         JSON.stringify({ success: false, error: 'Email, name, and password are required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+    
+    if (password.length < 6) {
+      console.error("Password too short");
+      return new Response(
+        JSON.stringify({ success: false, error: 'Password must be at least 6 characters long' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
@@ -96,13 +112,17 @@ serve(async (req) => {
       const salt = await bcrypt.genSalt(10);
       const password_hash = await bcrypt.hash(password, salt);
       
+      // Generate a proper UUID for the user
+      const userId = crypto.randomUUID();
+      console.log("Generated user ID:", userId);
+      
       // Create the user with a default phone number
       console.log("Inserting new student user");
       const { data: newUser, error: insertError } = await supabaseClient
         .from('student_users')
         .insert([
           { 
-            id: crypto.randomUUID(), // Explicitly generate UUID
+            id: userId,
             email, 
             name, 
             password_hash, 
@@ -119,10 +139,32 @@ serve(async (req) => {
         );
       }
       
+      console.log("Insert operation completed, checking results");
       if (!newUser || newUser.length === 0) {
         console.error('User created but no data returned');
+        
+        // Double-check if the user was actually created
+        const { data: checkUser } = await supabaseClient
+          .from('student_users')
+          .select('id, name')
+          .eq('email', email)
+          .maybeSingle();
+          
+        if (checkUser) {
+          console.log("Found user after creation:", checkUser);
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              userId: checkUser.id,
+              name: checkUser.name,
+              message: 'User created successfully'
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
         return new Response(
-          JSON.stringify({ success: false, error: 'User created but no data returned' }),
+          JSON.stringify({ success: false, error: 'User creation failed with unknown error' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
         );
       }
@@ -150,7 +192,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Edge function error:', error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: error.message || 'Unknown server error' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
