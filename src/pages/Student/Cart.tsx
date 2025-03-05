@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
@@ -90,8 +89,9 @@ const Cart = () => {
     setLoading(true);
     
     try {
-      // Get vendor ID for the restaurant
-      // Instead of using a join query that's failing, get the restaurant directly
+      // Get vendor ID for the restaurant using direct query
+      console.log("Fetching shop data for restaurant ID:", activeRestaurantId);
+      
       const { data: shopData, error: shopError } = await supabase
         .from("shops")
         .select("*")
@@ -124,6 +124,17 @@ const Cart = () => {
       }));
 
       // Create the order with pending status
+      console.log("Creating order with data:", {
+        student_id: currentStudentId,
+        vendor_id: vendorId,
+        restaurant_id: activeRestaurantId,
+        items: orderItems,
+        total_amount: total,
+        status: "pending",
+        delivery_location: deliveryAddress || "Campus",
+        student_name: currentStudentName || "Student"
+      });
+      
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
         .insert([{
@@ -152,6 +163,7 @@ const Cart = () => {
         const order = orderData[0];
         
         // Create notification
+        console.log("Creating notification for vendor:", vendorId);
         const { error: notifError } = await supabase
           .from("notifications")
           .insert([{
@@ -182,12 +194,6 @@ const Cart = () => {
       toast.error("An error occurred during checkout");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleProceedToPayment = () => {
-    if (createdOrderId) {
-      navigate(`/student/payment/${createdOrderId}`);
     }
   };
 
