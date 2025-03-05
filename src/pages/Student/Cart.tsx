@@ -139,7 +139,7 @@ const StudentCart = () => {
           {
             student_id: studentId,
             vendor_id: shopData.vendor_id,
-            shop_id: shopId,
+            restaurant_id: shopId, // Changed from shop_id to restaurant_id
             items: orderItems,
             total_amount: total,
             status: 'pending',
