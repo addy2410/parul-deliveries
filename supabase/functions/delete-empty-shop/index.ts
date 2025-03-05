@@ -19,81 +19,70 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Find all shops named "Santushti Shakes"
-    const { data: shops, error: shopError } = await supabaseClient
+    // First, identify shops without menu items
+    const { data: shops, error: shopsError } = await supabaseClient
       .from('shops')
-      .select('id, name')
-      .eq('name', 'Santushti Shakes');
-      
-    if (shopError) {
-      console.error('Error fetching shops:', shopError);
+      .select('id, name');
+    
+    if (shopsError) {
+      console.error("Failed to fetch shops:", shopsError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to fetch shops' }),
+        JSON.stringify({ success: false, error: 'Failed to fetch shops: ' + shopsError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
     
-    console.log(`Found ${shops.length} shops named "Santushti Shakes"`);
-    
-    if (shops.length <= 1) {
-      return new Response(
-        JSON.stringify({ success: true, message: 'Only one shop found, no need to delete' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // For each shop, check if it has menu items
-    const emptyShops = [];
-    for (const shop of shops) {
+    // Check each shop for menu items
+    let emptyShops = [];
+    for (const shop of shops || []) {
       const { data: menuItems, error: menuError } = await supabaseClient
         .from('menu_items')
         .select('id')
         .eq('shop_id', shop.id);
         
       if (menuError) {
-        console.error(`Error fetching menu items for shop ${shop.id}:`, menuError);
+        console.error(`Failed to check menu items for shop ${shop.id}:`, menuError);
         continue;
       }
       
       if (!menuItems || menuItems.length === 0) {
-        emptyShops.push(shop.id);
+        emptyShops.push(shop);
       }
     }
     
-    console.log(`Found ${emptyShops.length} empty shops to delete`);
-    
+    // Delete the empty shops
     if (emptyShops.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, message: 'No empty shops found to delete' }),
+        JSON.stringify({ success: true, message: "No empty shops found to delete.", deletedCount: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Delete empty shops
-    const { error: deleteError } = await supabaseClient
-      .from('shops')
-      .delete()
-      .in('id', emptyShops);
+    let deletedShops = 0;
+    for (const shop of emptyShops) {
+      const { error: deleteError } = await supabaseClient
+        .from('shops')
+        .delete()
+        .eq('id', shop.id);
+        
+      if (deleteError) {
+        console.error(`Failed to delete shop ${shop.id}:`, deleteError);
+        continue;
+      }
       
-    if (deleteError) {
-      console.error('Error deleting empty shops:', deleteError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to delete empty shops' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
+      deletedShops++;
     }
     
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Successfully deleted ${emptyShops.length} empty shops`,
-        deletedShopIds: emptyShops
+        message: `Successfully deleted ${deletedShops} empty shops.`,
+        deletedCount: deletedShops
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-    
   } catch (error) {
-    console.error('Edge function error:', error);
+    console.error("Failed to delete empty shops:", error);
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }

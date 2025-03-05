@@ -16,63 +16,24 @@ const DeleteEmptyShop = () => {
   const handleDeleteEmptyShops = async () => {
     setIsLoading(true);
     try {
-      // First, identify shops without menu items
-      const { data: shops, error: shopsError } = await supabase
-        .from('shops')
-        .select('id, name');
+      // Call the Supabase Edge Function
+      const { data, error } = await supabase.functions.invoke('delete-empty-shop');
       
-      if (shopsError) {
-        console.error("Failed to fetch shops:", shopsError);
-        toast.error("Failed to fetch shops: " + shopsError.message);
-        setResult("Error: " + shopsError.message);
-        setIsLoading(false);
+      if (error) {
+        console.error("Failed to invoke delete-empty-shop function:", error);
+        toast.error("Failed to delete empty shops: " + error.message);
+        setResult("Error: " + error.message);
         return;
       }
       
-      // Check each shop for menu items
-      let emptyShops = [];
-      for (const shop of shops || []) {
-        const { data: menuItems, error: menuError } = await supabase
-          .from('menu_items')
-          .select('id')
-          .eq('shop_id', shop.id);
-          
-        if (menuError) {
-          console.error(`Failed to check menu items for shop ${shop.id}:`, menuError);
-          continue;
-        }
-        
-        if (!menuItems || menuItems.length === 0) {
-          emptyShops.push(shop);
-        }
+      if (data.success) {
+        setDeletedCount(data.deletedCount);
+        setResult(data.message);
+        toast.success(data.message);
+      } else {
+        setResult("Error: " + data.error);
+        toast.error(data.error);
       }
-      
-      // Delete the empty shops
-      if (emptyShops.length === 0) {
-        setResult("No empty shops found to delete.");
-        toast.info("No empty shops found to delete.");
-        setIsLoading(false);
-        return;
-      }
-      
-      let deletedShops = 0;
-      for (const shop of emptyShops) {
-        const { error: deleteError } = await supabase
-          .from('shops')
-          .delete()
-          .eq('id', shop.id);
-          
-        if (deleteError) {
-          console.error(`Failed to delete shop ${shop.id}:`, deleteError);
-          continue;
-        }
-        
-        deletedShops++;
-      }
-      
-      setDeletedCount(deletedShops);
-      setResult(`Successfully deleted ${deletedShops} empty shops.`);
-      toast.success(`Successfully deleted ${deletedShops} empty shops.`);
     } catch (error: any) {
       console.error("Failed to delete empty shops:", error);
       toast.error("An unexpected error occurred");

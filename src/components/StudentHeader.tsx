@@ -1,96 +1,90 @@
 
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ShoppingCart, User, Clock } from "lucide-react";
+import { ShoppingBag, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useCart } from "@/context/CartContext";
-import { supabase, isUsingDefaultCredentials } from "@/lib/supabase";
 
-interface StudentHeaderProps {
-  studentName?: string;
-}
-
-const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentName }) => {
-  const { totalItems } = useCart();
+const StudentHeader = () => {
   const navigate = useNavigate();
-  const [studentName, setStudentName] = useState(propStudentName || '');
-
+  const { items } = useCart();
+  const [userName, setUserName] = useState<string | null>(null);
+  
   useEffect(() => {
-    const getStudentName = async () => {
-      if (propStudentName) {
-        setStudentName(propStudentName);
-        return;
-      }
-
-      try {
-        if (isUsingDefaultCredentials()) {
-          // In demo mode, check localStorage
-          const storedName = localStorage.getItem('studentName');
-          if (storedName) {
-            setStudentName(storedName);
-          }
-        } else {
-          // In production, check Supabase auth
-          const { data } = await supabase.auth.getSession();
-          if (data.session) {
-            // You could fetch more info from a profile table if needed
-            setStudentName(data.session.user.phone || data.session.user.email || '');
-          }
+    const checkStudentSession = () => {
+      const studentSession = localStorage.getItem('studentSession');
+      if (studentSession) {
+        try {
+          const { name } = JSON.parse(studentSession);
+          setUserName(name);
+        } catch (error) {
+          console.error("Error parsing student session:", error);
+          // If there's an error, clear the session and redirect to login
+          handleLogout();
         }
-      } catch (error) {
-        console.error("Error fetching student name:", error);
+      } else {
+        // No session found, redirect to login
+        navigate('/student/login');
       }
     };
-
-    getStudentName();
-  }, [propStudentName]);
+    
+    checkStudentSession();
+  }, [navigate]);
+  
+  const handleLogout = () => {
+    localStorage.removeItem('studentSession');
+    navigate('/student/login');
+  };
 
   return (
-    <header className="bg-white border-b sticky top-0 z-10">
-      <div className="container mx-auto py-3 px-4 flex items-center justify-between">
-        <Link to="/student/restaurants" className="text-xl font-bold fontLogo text-[#ea384c]">
-          Campus<span className="text-black">Grub</span>
+    <header className="bg-white shadow py-4">
+      <div className="container mx-auto px-4 flex justify-between items-center">
+        <Link to="/student/restaurants" className="flex items-center">
+          <span className="text-xl font-bold fontLogo text-primary">
+            Campus Eats
+          </span>
         </Link>
-        
-        <nav className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => navigate("/student/orders/active")}
-            className="flex items-center text-sm text-muted-foreground"
-          >
-            <Clock className="w-4 h-4 mr-1" />
-            <span className="hidden sm:inline">My Orders</span>
-          </Button>
-          
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => navigate("/student/login")}
-            className="flex items-center text-sm text-muted-foreground"
-          >
-            <User className="w-4 h-4 mr-1" />
-            <span className="hidden sm:inline">Account</span>
-            {studentName && (
-              <span className="ml-1 text-xs opacity-75 hidden sm:inline">({studentName})</span>
-            )}
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => navigate("/student/cart")}
-            className="relative flex items-center"
-          >
-            <ShoppingCart className="w-4 h-4 mr-1" />
-            <span className="hidden sm:inline">Cart</span>
-            {totalItems > 0 && (
-              <span className="absolute -top-2 -right-2 bg-[#ea384c] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                {totalItems}
+
+        <div className="flex items-center space-x-4">
+          <Link to="/student/cart" className="relative">
+            <ShoppingBag className="h-6 w-6" />
+            {items.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                {items.length}
               </span>
             )}
-          </Button>
-        </nav>
+          </Link>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="p-2">
+                <User className="h-5 w-5" />
+                {userName && <span className="ml-2 hidden md:inline">{userName}</span>}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link to="/student/orders/past" className="cursor-pointer w-full">
+                  My Orders
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/student/address-book" className="cursor-pointer w-full">
+                  Address Book
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                <LogOut className="h-4 w-4 mr-2" /> Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </header>
   );
