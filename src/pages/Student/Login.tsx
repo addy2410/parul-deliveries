@@ -23,15 +23,27 @@ const StudentLogin = () => {
   // Check if user is already logged in
   useEffect(() => {
     const checkStudentSession = async () => {
-      const studentSession = localStorage.getItem('studentSession');
-      if (studentSession) {
-        try {
-          const { userId, name } = JSON.parse(studentSession);
-          if (userId && name) {
-            navigate('/student/restaurants');
-          }
-        } catch (error) {
-          console.error("Invalid session data", error);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        // Verify this is a student user by checking student_profiles
+        const { data: studentProfile } = await supabase
+          .from('student_profiles')
+          .select('id, name')
+          .eq('id', session.user.id)
+          .single();
+          
+        if (studentProfile) {
+          // This is a student, store session info and redirect
+          const sessionData = {
+            userId: session.user.id,
+            name: studentProfile.name,
+            email: session.user.email,
+          };
+          localStorage.setItem('studentSession', JSON.stringify(sessionData));
+          navigate('/student/restaurants');
+        } else {
+          // Not a student, sign out
+          await supabase.auth.signOut();
           localStorage.removeItem('studentSession');
         }
       }
@@ -55,33 +67,49 @@ const StudentLogin = () => {
     try {
       const pendingToast = toast.loading("Logging in...");
       
-      const response = await supabase.functions.invoke('verify-student-password', {
-        body: { email: loginEmail, password: loginPassword }
+      // Use Supabase Auth for login
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
       });
       
       toast.dismiss(pendingToast);
       
-      if (response.error) {
-        console.error("Login error from function invocation:", response.error);
-        setErrorMessage(response.error.message || "Login failed. Please try again.");
-        toast.error(response.error.message || "Login failed. Please try again.");
+      if (error) {
+        console.error("Login error:", error);
+        setErrorMessage(error.message || "Login failed. Please check your credentials.");
+        toast.error(error.message || "Login failed. Please check your credentials.");
         return;
       }
       
-      const { data } = response;
+      if (!data || !data.user) {
+        console.error("Login failed: No user data returned");
+        setErrorMessage("Login failed. Please check your credentials.");
+        toast.error("Login failed. Please check your credentials.");
+        return;
+      }
       
-      if (!data || !data.success) {
-        console.error("Login failed:", data?.error);
-        setErrorMessage(data?.error || "Login failed. Please check your credentials.");
-        toast.error(data?.error || "Login failed. Please check your credentials.");
+      // Verify this is a student user by checking student_profiles
+      const { data: studentProfile, error: profileError } = await supabase
+        .from('student_profiles')
+        .select('id, name')
+        .eq('id', data.user.id)
+        .single();
+        
+      if (profileError || !studentProfile) {
+        console.error("This account is not registered as a student:", profileError);
+        // Sign out since this is not a student account
+        await supabase.auth.signOut();
+        setErrorMessage("This account is not registered as a student.");
+        toast.error("This account is not registered as a student.");
         return;
       }
       
       // Store user session
       const sessionData = {
-        userId: data.userId,
-        name: data.name,
-        email: loginEmail,
+        userId: data.user.id,
+        name: studentProfile.name,
+        email: data.user.email,
       };
       
       localStorage.setItem('studentSession', JSON.stringify(sessionData));
@@ -125,37 +153,113 @@ const StudentLogin = () => {
         password: registerPassword.length // Just log the length for security
       });
       
-      const response = await supabase.functions.invoke('create-student-user', {
-        body: { 
-          name: registerName, 
-          email: registerEmail, 
-          password: registerPassword
-        }
-      });
-      
-      console.log("Registration response:", response);
-      toast.dismiss(pendingToast);
-      
-      if (response.error) {
-        console.error("Registration error from function invocation:", response.error);
-        setErrorMessage(`Registration failed: ${response.error.message || "Unknown error"}`);
-        toast.error(`Registration failed: ${response.error.message || "Unknown error"}`);
+      // First check if this user is already registered as a vendor
+      const { data: existingVendors, error: vendorCheckError } = await supabase
+        .from('vendors')
+        .select('id')
+        .eq('email', registerEmail)
+        .limit(1);
+        
+      if (vendorCheckError) {
+        console.error("Error checking for existing vendor:", vendorCheckError);
+        toast.dismiss(pendingToast);
+        setErrorMessage("Error checking account. Please try again.");
+        toast.error("Error checking account. Please try again.");
         return;
       }
       
-      const { data } = response;
-      
-      if (!data || !data.success) {
-        console.error("Registration failed with data:", data);
-        setErrorMessage(data?.error || "Registration failed. Please try again.");
-        toast.error(data?.error || "Registration failed. Please try again.");
+      if (existingVendors && existingVendors.length > 0) {
+        console.error("Email already registered as vendor");
+        toast.dismiss(pendingToast);
+        setErrorMessage("Email already registered as a vendor.");
+        toast.error("Email already registered as a vendor.");
         return;
+      }
+      
+      // Use Supabase Auth to create the user
+      const { data, error } = await supabase.auth.signUp({
+        email: registerEmail,
+        password: registerPassword,
+        options: {
+          data: {
+            name: registerName,
+            user_type: 'student'
+          }
+        }
+      });
+      
+      if (error) {
+        console.error("Registration error:", error);
+        toast.dismiss(pendingToast);
+        setErrorMessage(error.message || "Registration failed. Please try again.");
+        toast.error(error.message || "Registration failed. Please try again.");
+        return;
+      }
+      
+      if (!data || !data.user) {
+        console.error("Registration failed: No user data returned");
+        toast.dismiss(pendingToast);
+        setErrorMessage("Registration failed. Please try again.");
+        toast.error("Registration failed. Please try again.");
+        return;
+      }
+      
+      // We now have a user created, but we need to wait a moment for the trigger to create
+      // the student_profiles record. Let's check a few times with a small delay.
+      let studentProfile = null;
+      let attempts = 0;
+      
+      while (!studentProfile && attempts < 3) {
+        // Short wait to allow the database trigger to execute
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const { data: profile } = await supabase
+          .from('student_profiles')
+          .select('id, name')
+          .eq('id', data.user.id)
+          .single();
+          
+        if (profile) {
+          studentProfile = profile;
+          break;
+        }
+        
+        attempts++;
+      }
+      
+      toast.dismiss(pendingToast);
+      
+      // If for some reason the profile wasn't created by the trigger,
+      // we'll create it manually
+      if (!studentProfile) {
+        console.log("Student profile not created by trigger, creating manually");
+        const { data: newProfile, error: profileError } = await supabase
+          .from('student_profiles')
+          .insert([
+            { 
+              id: data.user.id,
+              name: registerName,
+              phone: '1234567890' // Default phone number
+            }
+          ])
+          .select();
+          
+        if (profileError) {
+          console.error("Error creating student profile:", profileError);
+          // Sign out since profile creation failed
+          await supabase.auth.signOut();
+          setErrorMessage("Error creating student profile. Please try again.");
+          toast.error("Error creating student profile. Please try again.");
+          return;
+        }
+        
+        studentProfile = newProfile?.[0];
       }
       
       // Store user session
       const sessionData = {
-        userId: data.userId,
-        name: data.name,
+        userId: data.user.id,
+        name: registerName,
         email: registerEmail,
       };
       
