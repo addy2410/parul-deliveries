@@ -16,16 +16,5 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-/**
- * Checks if the application is using the default demo credentials.
- * This is now always set to false since we have a real Supabase instance.
- * 
- * @returns {boolean} False as we're using the real Supabase credentials
- */
-export const isUsingDefaultCredentials = (): boolean => {
-  return false;
-};
-
 // Log for debugging purposes
 console.log("Supabase initialized with URL:", supabaseUrl);
-console.log("Using demo mode:", isUsingDefaultCredentials());

@@ -8,176 +8,130 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { supabase, isUsingDefaultCredentials } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+// Define form validation schemas
+const loginSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters")
+});
+
+const signupSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  phone: z.string().min(10, "Please enter a valid phone number"),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters")
+});
 
 const StudentLogin = () => {
   const navigate = useNavigate();
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [name, setName] = useState("");
-  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
   
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!phoneNumber || !password) {
-      toast.error("Please enter both phone number and password");
-      return;
+  // Initialize login form
+  const loginForm = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: ""
     }
-    
+  });
+  
+  // Initialize signup form
+  const signupForm = useForm<z.infer<typeof signupSchema>>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      name: "",
+      phone: "",
+      email: "",
+      password: ""
+    }
+  });
+  
+  const handleLogin = async (values: z.infer<typeof loginSchema>) => {
     setIsLoading(true);
     
     try {
-      if (isUsingDefaultCredentials()) {
-        // Demo mode
-        const studentUsers = JSON.parse(localStorage.getItem('studentUsers') || '[]');
-        const existingUser = studentUsers.find((user: any) => user.phone === phoneNumber && user.password === password);
-        
-        if (existingUser) {
-          localStorage.setItem('currentStudentId', existingUser.id);
-          localStorage.setItem('studentName', existingUser.name);
-          toast.success("Login successful!");
-          navigate("/student/restaurants");
-        } else {
-          toast.error("Invalid credentials. Please check your phone number and password.");
-        }
-      } else {
-        // Supabase authentication
-        // Query for the student with this phone number
-        const { data: students, error: fetchError } = await supabase
+      // Use Supabase authentication for login
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: values.email,
+        password: values.password,
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data.user) {
+        // Get student profile data
+        const { data: studentData, error: studentError } = await supabase
           .from('student_users')
           .select('*')
-          .eq('phone', phoneNumber)
-          .maybeSingle();
+          .eq('id', data.user.id)
+          .single();
           
-        if (fetchError) {
-          console.error("Error fetching student:", fetchError);
-          throw new Error("Failed to authenticate");
+        if (studentError) {
+          console.error("Error fetching student profile:", studentError);
+          // Even if we can't fetch profile, auth worked, so let's continue
         }
         
-        if (!students) {
-          toast.error("Phone number not registered. Please sign up first.");
-          setActiveTab("signup");
-          return;
+        // Store student info in localStorage
+        localStorage.setItem('currentStudentId', data.user.id);
+        
+        if (studentData) {
+          localStorage.setItem('studentName', studentData.name);
+          localStorage.setItem('studentPhone', studentData.phone);
+          localStorage.setItem('studentEmail', studentData.email);
         }
         
-        // Verify the password
-        const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-student-password', {
-          body: { 
-            phone: phoneNumber,
-            password: password
-          }
-        });
-        
-        if (verifyError || !verifyData?.success) {
-          toast.error("Invalid credentials. Please check your password.");
-          return;
-        }
-        
-        // Login successful
-        localStorage.setItem('currentStudentId', students.id);
-        localStorage.setItem('studentName', students.name);
         toast.success("Login successful!");
         navigate("/student/restaurants");
       }
     } catch (error: any) {
       console.error("Login error:", error);
-      toast.error(error.message || "Login failed. Please try again.");
+      toast.error(error.message || "Login failed. Please check your credentials and try again.");
     } finally {
       setIsLoading(false);
     }
   };
   
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!phoneNumber || !name || !password) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-    
-    if (phoneNumber.length < 10) {
-      toast.error("Please enter a valid phone number");
-      return;
-    }
-    
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
-    
+  const handleSignup = async (values: z.infer<typeof signupSchema>) => {
     setIsLoading(true);
     
     try {
-      if (isUsingDefaultCredentials()) {
-        // Demo mode
-        const studentUsers = JSON.parse(localStorage.getItem('studentUsers') || '[]');
-        const existingUser = studentUsers.find((user: any) => user.phone === phoneNumber);
-        
-        if (existingUser) {
-          toast.error("Phone number already registered. Please login instead.");
-          setActiveTab("login");
-          return;
-        }
-        
-        // Create new user
-        const studentId = `student-${Date.now()}`;
-        const newUser = {
-          id: studentId,
-          phone: phoneNumber,
-          name: name,
-          password: password
-        };
-        
-        localStorage.setItem('studentUsers', JSON.stringify([...studentUsers, newUser]));
-        localStorage.setItem('currentStudentId', studentId);
-        localStorage.setItem('studentName', name);
-        
-        toast.success("Signup successful!");
-        navigate("/student/restaurants");
-      } else {
-        // Check if phone number already exists
-        const { data: existingUsers, error: checkError } = await supabase
-          .from('student_users')
-          .select('phone')
-          .eq('phone', phoneNumber);
-          
-        if (checkError) {
-          console.error("Error checking existing user:", checkError);
-          throw new Error("Failed to check user status");
-        }
-        
-        if (existingUsers && existingUsers.length > 0) {
-          toast.error("Phone number already registered. Please login instead.");
-          setActiveTab("login");
-          return;
-        }
-        
-        // Create new user with hashed password
-        const { data: signupData, error: signupError } = await supabase.functions.invoke('create-student-user', {
-          body: { 
-            phone: phoneNumber,
-            name: name,
-            password: password
+      // Create new user with Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          data: {
+            name: values.name,
+            phone: values.phone,
+            is_student: true // Flag to identify student users
           }
-        });
-        
-        if (signupError || !signupData?.success) {
-          console.error("Signup error:", signupError || signupData?.error);
-          throw new Error(signupData?.error || "Failed to create user account");
         }
-        
-        // Set local storage for the session
-        localStorage.setItem('currentStudentId', signupData.userId);
-        localStorage.setItem('studentName', name);
-        
-        toast.success("Signup successful!");
-        navigate("/student/restaurants");
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data.user) {
+        toast.success("Account created successfully! Please check your email to confirm your account.");
+        setActiveTab("login");
       }
     } catch (error: any) {
       console.error("Signup error:", error);
-      toast.error(error.message || "Signup failed. Please try again.");
+      if (error.message.includes("User already registered")) {
+        toast.error("This email is already registered. Please login instead.");
+        setActiveTab("login");
+      } else {
+        toast.error(error.message || "Signup failed. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -211,31 +165,45 @@ const StudentLogin = () => {
             
             <CardContent className="space-y-4 pt-4">
               <TabsContent value="login" className="mt-0">
-                <form onSubmit={handleLogin}>
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="login-phone">Phone Number</Label>
-                      <Input
-                        id="login-phone"
-                        type="tel"
-                        placeholder="Enter your phone number"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        disabled={isLoading}
-                      />
-                    </div>
+                <Form {...loginForm}>
+                  <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
+                    <FormField
+                      control={loginForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email Address</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="email"
+                              placeholder="Enter your email address"
+                              disabled={isLoading}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     
-                    <div className="grid gap-2">
-                      <Label htmlFor="login-password">Password</Label>
-                      <Input
-                        id="login-password"
-                        type="password"
-                        placeholder="Enter your password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        disabled={isLoading}
-                      />
-                    </div>
+                    <FormField
+                      control={loginForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="Enter your password"
+                              disabled={isLoading}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     
                     <Button 
                       type="submit" 
@@ -244,48 +212,88 @@ const StudentLogin = () => {
                     >
                       {isLoading ? "Logging in..." : "Login"}
                     </Button>
-                  </div>
-                </form>
+                  </form>
+                </Form>
               </TabsContent>
               
               <TabsContent value="signup" className="mt-0">
-                <form onSubmit={handleSignup}>
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="signup-phone">Phone Number</Label>
-                      <Input
-                        id="signup-phone"
-                        type="tel"
-                        placeholder="Enter your phone number"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        disabled={isLoading}
-                      />
-                    </div>
+                <Form {...signupForm}>
+                  <form onSubmit={signupForm.handleSubmit(handleSignup)} className="space-y-4">
+                    <FormField
+                      control={signupForm.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Your Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              placeholder="Enter your full name"
+                              disabled={isLoading}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     
-                    <div className="grid gap-2">
-                      <Label htmlFor="signup-name">Your Name</Label>
-                      <Input
-                        id="signup-name"
-                        type="text"
-                        placeholder="Enter your full name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        disabled={isLoading}
-                      />
-                    </div>
+                    <FormField
+                      control={signupForm.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phone Number</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="tel"
+                              placeholder="Enter your phone number"
+                              disabled={isLoading}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     
-                    <div className="grid gap-2">
-                      <Label htmlFor="signup-password">Password</Label>
-                      <Input
-                        id="signup-password"
-                        type="password"
-                        placeholder="Create a password (min 6 characters)"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        disabled={isLoading}
-                      />
-                    </div>
+                    <FormField
+                      control={signupForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email Address</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="email"
+                              placeholder="Enter your email address"
+                              disabled={isLoading}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={signupForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="Create a password (min 6 characters)"
+                              disabled={isLoading}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     
                     <Button 
                       type="submit" 
@@ -294,8 +302,8 @@ const StudentLogin = () => {
                     >
                       {isLoading ? "Creating Account..." : "Create Account"}
                     </Button>
-                  </div>
-                </form>
+                  </form>
+                </Form>
               </TabsContent>
             </CardContent>
           </Tabs>
