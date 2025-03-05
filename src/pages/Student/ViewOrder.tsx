@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { toast } from "sonner";
 import StudentHeader from "@/components/StudentHeader";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { Progress } from "@/components/ui/progress";
 
 interface OrderItem {
   menuItemId: string;
@@ -220,14 +220,10 @@ const ViewOrder = () => {
               
               <CardContent className="space-y-6">
                 <div className="relative pt-4">
-                  <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
-                    <motion.div 
-                      className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-green-500"
-                      initial={{ width: "0%" }}
-                      animate={{ width: `${deliveryProgress}%` }}
-                      transition={{ duration: 0.5 }}
-                    />
-                  </div>
+                  <Progress
+                    value={deliveryProgress}
+                    className="h-2 mb-4 rounded bg-gray-200"
+                  />
                   
                   <div className="text-center">
                     <p className="font-medium">{getStatusText(order.status)}</p>

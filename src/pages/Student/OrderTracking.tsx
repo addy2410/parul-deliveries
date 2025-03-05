@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { Progress } from "@/components/ui/progress";
 
 interface OrderItem {
   menuItemId: string;
@@ -34,6 +35,7 @@ const OrderTracking = () => {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [progressValue, setProgressValue] = useState(0);
   
   useEffect(() => {
     if (!id) return;
@@ -63,10 +65,15 @@ const OrderTracking = () => {
           return;
         }
         
-        setOrder({
+        const orderData = {
           ...data,
           items: Array.isArray(data.items) ? data.items : []
-        });
+        };
+        
+        setOrder(orderData);
+        
+        // Update progress value based on current status
+        setProgressValue(getOrderProgress(orderData.status));
       } catch (error) {
         console.error("Error fetching order:", error);
       } finally {
@@ -97,6 +104,9 @@ const OrderTracking = () => {
           };
         });
         
+        // Update progress value based on new status
+        setProgressValue(getOrderProgress(updatedOrder.status));
+        
         // Show toast for status updates
         if (payload.old.status !== updatedOrder.status) {
           if (updatedOrder.status === 'cancelled') {
@@ -112,6 +122,20 @@ const OrderTracking = () => {
       supabase.removeChannel(channel);
     };
   }, [id]);
+  
+  const getOrderProgress = () => {
+    if (!order) return 0;
+    
+    switch(order.status) {
+      case 'pending': return 0;
+      case 'preparing': return 33;
+      case 'ready': return 66;
+      case 'delivering': return 90;
+      case 'delivered': return 100;
+      case 'cancelled': return 0;
+      default: return 0;
+    }
+  };
   
   if (loading) {
     return (
@@ -150,18 +174,6 @@ const OrderTracking = () => {
     );
   }
   
-  const getOrderProgress = () => {
-    switch(order.status) {
-      case 'pending': return 0;
-      case 'preparing': return 33;
-      case 'ready': return 66;
-      case 'delivering': return 90;
-      case 'delivered': return 100;
-      case 'cancelled': return 0;
-      default: return 0;
-    }
-  };
-  
   return (
     <div className="min-h-screen bg-gray-50">
       <StudentHeader />
@@ -199,14 +211,10 @@ const OrderTracking = () => {
           ) : (
             <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
               <div className="relative">
-                <div className="overflow-hidden h-2 mb-10 text-xs flex rounded bg-gray-200">
-                  <motion.div 
-                    initial={{ width: "0%" }}
-                    animate={{ width: `${getOrderProgress()}%` }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                    className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-[#ea384c]"
-                  />
-                </div>
+                <Progress 
+                  value={progressValue} 
+                  className="h-2 mb-10 rounded bg-gray-200"
+                />
                 
                 <div className="flex justify-between -mt-6">
                   <div className={`flex flex-col items-center ${order.status === 'pending' ? 'text-[#ea384c]' : 'text-green-500'}`}>
