@@ -21,7 +21,7 @@ interface Order {
   id: string;
   student_id: string;
   vendor_id: string;
-  restaurant_id: string; // Changed from shop_id to restaurant_id
+  restaurant_id: string;
   items: any[];
   total_amount: number;
   status: string;

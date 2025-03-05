@@ -18,7 +18,7 @@ interface Order {
   id: string;
   student_id: string;
   vendor_id: string;
-  restaurant_id: string; // Changed from shop_id to restaurant_id
+  restaurant_id: string;
   items: OrderItem[];
   total_amount: number;
   status: string;
@@ -55,7 +55,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           .order('created_at', { ascending: false });
           
         if (shopId) {
-          query = query.eq('restaurant_id', shopId); // Changed from shop_id to restaurant_id
+          query = query.eq('restaurant_id', shopId);
         }
         
         const { data, error } = await query;

@@ -20,7 +20,7 @@ interface OrderItem {
 interface Order {
   id: string;
   student_id: string;
-  shop_id: string;
+  restaurant_id: string;
   items: OrderItem[];
   total_amount: number;
   status: string;
@@ -43,10 +43,19 @@ const OrderTracking = () => {
         setLoading(true);
         
         // Check if user is authenticated
-        const { data: session } = await supabase.auth.getSession();
-        
-        if (!session.session) {
+        const session = localStorage.getItem('studentSession');
+        if (!session) {
           toast.error("Please login to view your order");
+          return;
+        }
+        
+        let studentId;
+        try {
+          const parsedSession = JSON.parse(session);
+          studentId = parsedSession.userId;
+        } catch (error) {
+          console.error("Error parsing student session:", error);
+          toast.error("Authentication error");
           return;
         }
         
@@ -55,7 +64,7 @@ const OrderTracking = () => {
           .from('orders')
           .select('*')
           .eq('id', id)
-          .eq('student_id', session.session.user.id)
+          .eq('student_id', studentId)
           .single();
           
         if (error) {
@@ -99,7 +108,11 @@ const OrderTracking = () => {
         
         // Show toast for status updates
         if (payload.old.status !== updatedOrder.status) {
-          toast.success(`Order status updated to: ${updatedOrder.status}`);
+          if (updatedOrder.status === 'cancelled') {
+            toast.error("Your order has been cancelled");
+          } else {
+            toast.success(`Order status updated to: ${updatedOrder.status}`);
+          }
         }
       })
       .subscribe();
@@ -185,7 +198,7 @@ const OrderTracking = () => {
                 <AlertTriangle size={48} className="mx-auto text-red-500 mb-4" />
                 <h2 className="text-xl font-bold text-red-700 mb-2">Order Cancelled</h2>
                 <p className="text-red-600">
-                  Your order items were not available at the moment.
+                  Sorry, your item was not available at the moment.
                 </p>
                 <Button asChild className="mt-4 bg-[#ea384c] hover:bg-[#d02e40]">
                   <Link to="/student/restaurants">Order Again</Link>
