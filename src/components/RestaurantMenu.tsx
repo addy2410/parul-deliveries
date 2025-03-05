@@ -1,9 +1,10 @@
+
 import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, MinusCircle } from "lucide-react";
+import { PlusCircle, MinusCircle, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useCart } from "@/context/CartContext";
 
@@ -29,6 +30,7 @@ const RestaurantMenu: React.FC<RestaurantMenuProps> = ({
 }) => {
   const { addItem } = useCart();
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   // Group menu items by category
   const groupedItems = menuItems.reduce((acc, item) => {
@@ -46,6 +48,13 @@ const RestaurantMenu: React.FC<RestaurantMenuProps> = ({
     if (b === "Other") return -1;
     return a.localeCompare(b);
   });
+
+  // Set initial active category
+  React.useEffect(() => {
+    if (sortedCategories.length > 0 && !activeCategory) {
+      setActiveCategory(sortedCategories[0]);
+    }
+  }, [sortedCategories, activeCategory]);
 
   const handleAddToCart = (item: MenuItem) => {
     const quantity = itemQuantities[item.id] || 1;
@@ -90,25 +99,6 @@ const RestaurantMenu: React.FC<RestaurantMenuProps> = ({
     );
   }
 
-  // Get a placeholder image based on category
-  const getCategoryImage = (category: string) => {
-    const images = {
-      "Main Course": "https://images.unsplash.com/photo-1585032226651-759b368d7246",
-      "Appetizer": "https://images.unsplash.com/photo-1533630654593-b421ef38ba89",
-      "Dessert": "https://images.unsplash.com/photo-1551024601-bec78aea704b",
-      "Drinks": "https://images.unsplash.com/photo-1544145945-f90425340c7e",
-      "Snacks": "https://images.unsplash.com/photo-1513104890138-7c749659a591",
-      "Breakfast": "https://images.unsplash.com/photo-1533089860892-a7c6f10a081a",
-      "Special": "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a",
-      "South Indian": "https://images.unsplash.com/photo-1630409351217-bc4fa4e1c36c",
-      "North Indian": "https://images.unsplash.com/photo-1610057099431-d73a1c9d2f2f",
-      "Chinese": "https://images.unsplash.com/photo-1563245372-f21724e3856d",
-      "Fast Food": "https://images.unsplash.com/photo-1551782450-a2132b4ba21d"
-    };
-    
-    return images[category as keyof typeof images] || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c";
-  };
-
   // Get a food image based on food name
   const getFoodImage = (item: MenuItem) => {
     // Use the item's image if available
@@ -125,7 +115,9 @@ const RestaurantMenu: React.FC<RestaurantMenuProps> = ({
       "Curry": "https://images.unsplash.com/photo-1565557623262-b51c2513a641",
       "Naan": "https://images.unsplash.com/photo-1584617769270-a79cbb532dce",
       "Lassi": "https://images.unsplash.com/photo-1626784215021-2e55ae968fba",
-      "Chai": "https://images.unsplash.com/photo-1577968897966-3d4325b36b61"
+      "Chai": "https://images.unsplash.com/photo-1577968897966-3d4325b36b61",
+      "Salad": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c",
+      "Quinoa": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c"
     };
     
     // Check if item name contains any of the keys
@@ -135,100 +127,120 @@ const RestaurantMenu: React.FC<RestaurantMenuProps> = ({
       }
     }
     
-    // Default based on category
-    return getCategoryImage(item.category || "Other");
+    // Default image
+    return "https://images.unsplash.com/photo-1546069901-ba9599a7e63c";
   };
 
   return (
-    <div className="mt-6 space-y-6">
-      {sortedCategories.map((category) => (
-        <div key={category} className="mb-8">
-          <div className="flex items-center mb-4">
-            <h3 className="text-xl font-bold text-gray-800">{category}</h3>
-            <div className="flex-grow ml-4">
-              <Separator className="bg-orange-200" />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {groupedItems[category].map((item) => (
-              <Card 
-                key={item.id} 
-                className="overflow-hidden border border-orange-100 hover:shadow-lg transition-shadow"
-              >
-                <div className="flex flex-col md:flex-row">
-                  <div className="w-full md:w-1/3 h-36 overflow-hidden bg-orange-50">
-                    <img 
-                      src={getFoodImage(item)} 
-                      alt={item.name} 
-                      className="w-full h-full object-cover" 
-                    />
-                  </div>
-                  
-                  <CardContent className="p-4 flex flex-col justify-between w-full md:w-2/3">
-                    <div>
-                      <h4 className="font-semibold text-gray-800">{item.name}</h4>
+    <div className="mt-4">
+      {/* Category Navigation */}
+      <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 mb-6">
+        <div className="flex whitespace-nowrap space-x-2">
+          {sortedCategories.map((category) => (
+            <button
+              key={category}
+              onClick={() => setActiveCategory(category)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                activeCategory === category
+                  ? "bg-red-500 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Menu Items by Category */}
+      <div className="space-y-8">
+        {sortedCategories.map((category) => (
+          <div 
+            key={category} 
+            className={activeCategory === category ? 'block' : 'hidden'}
+          >
+            <h2 className="text-2xl font-bold mb-4">{category}</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {groupedItems[category].map((item) => (
+                <Card 
+                  key={item.id} 
+                  className="overflow-hidden border border-gray-100 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex">
+                    <div className="flex-grow p-4">
+                      <h3 className="font-semibold text-lg">{item.name}</h3>
                       {item.description && (
                         <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.description}</p>
                       )}
-                      <Badge variant="outline" className="mt-2 bg-orange-50 text-orange-800 border-orange-200">
+                      <div className="mt-2 font-medium text-red-500">
                         ₹{item.price.toFixed(2)}
-                      </Badge>
-                    </div>
-                    
-                    <div className="flex items-center justify-end space-x-2 mt-4">
-                      {(itemQuantities[item.id] && itemQuantities[item.id] > 0) ? (
-                        <>
+                      </div>
+                      
+                      <div className="mt-3 flex items-center gap-2">
+                        {(itemQuantities[item.id] && itemQuantities[item.id] > 0) ? (
+                          <>
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8 rounded-full border-gray-300"
+                              onClick={() => decrementQuantity(item.id)}
+                            >
+                              <MinusCircle size={16} className="text-gray-600" />
+                            </Button>
+                            <span className="w-6 text-center font-medium">
+                              {itemQuantities[item.id] || 1}
+                            </span>
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8 rounded-full border-gray-300"
+                              onClick={() => incrementQuantity(item.id)}
+                            >
+                              <PlusCircle size={16} className="text-gray-600" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="ml-2 bg-red-500 hover:bg-red-600 text-white"
+                              onClick={() => handleAddToCart(item)}
+                            >
+                              Add to Cart
+                            </Button>
+                          </>
+                        ) : (
                           <Button
-                            size="icon"
                             variant="outline"
-                            className="h-8 w-8 border-orange-300"
-                            onClick={() => decrementQuantity(item.id)}
-                          >
-                            <MinusCircle size={16} className="text-orange-600" />
-                          </Button>
-                          <span className="w-6 text-center font-medium">
-                            {itemQuantities[item.id] || 1}
-                          </span>
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-8 w-8 border-orange-300"
+                            size="sm"
+                            className="flex items-center border-gray-300 text-gray-700"
                             onClick={() => incrementQuantity(item.id)}
                           >
-                            <PlusCircle size={16} className="text-orange-600" />
+                            <Plus size={16} className="mr-1" />
+                            Add
                           </Button>
-                        </>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex items-center border-orange-300 text-orange-700 hover:bg-orange-50"
+                        )}
+                      </div>
+                    </div>
+                    <div className="w-24 h-24 bg-gray-100 relative">
+                      <img 
+                        src={getFoodImage(item)}
+                        alt={item.name} 
+                        className="w-full h-full object-cover" 
+                      />
+                      {!itemQuantities[item.id] && (
+                        <button 
+                          className="absolute bottom-2 right-2 bg-white rounded-full p-1 shadow-md hover:bg-gray-50"
                           onClick={() => incrementQuantity(item.id)}
                         >
-                          <PlusCircle size={16} className="mr-1 text-orange-600" />
-                          Add
-                        </Button>
-                      )}
-                      {(itemQuantities[item.id] && itemQuantities[item.id] > 0) && (
-                        <Button
-                          size="sm"
-                          className="ml-2 bg-[#ea384c] hover:bg-[#d02e40] text-white"
-                          onClick={() => handleAddToCart(item)}
-                        >
-                          Add to Cart
-                        </Button>
+                          <Plus size={20} className="text-red-500" />
+                        </button>
                       )}
                     </div>
-                  </CardContent>
-                </div>
-              </Card>
-            ))}
+                  </div>
+                </Card>
+              ))}
+            </div>
           </div>
-          
-          <Separator className="my-8 bg-gray-100" />
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 };
