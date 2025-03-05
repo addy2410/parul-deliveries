@@ -17,6 +17,8 @@ interface MenuItem {
   price: number;
   shop_id: string;
   category?: string;
+  description?: string;
+  is_available?: boolean;
 }
 
 interface Shop {
@@ -127,26 +129,21 @@ const VendorMenuManagement = () => {
     setIsSubmitting(true);
     
     try {
-      console.log("Adding menu item:", {
+      const newMenuItem = {
         shop_id: shop.id,
         name: newItemName.trim(),
         price: price,
         category: newItemCategory,
         description: `Delicious ${newItemName.trim()}`,
         is_available: true
-      });
+      };
+      
+      console.log("Adding menu item:", newMenuItem);
       
       // Store in Supabase
       const { data: newItem, error } = await supabase
         .from('menu_items')
-        .insert([{
-          shop_id: shop.id,
-          name: newItemName.trim(),
-          price: price,
-          category: newItemCategory,
-          description: `Delicious ${newItemName.trim()}`,
-          is_available: true
-        }])
+        .insert([newMenuItem])
         .select()
         .single();
         

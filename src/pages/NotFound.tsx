@@ -24,10 +24,16 @@ const NotFound = () => {
         <p className="text-xl text-gray-600 mb-6">Oops! Page not found</p>
         
         {isRestaurantPath ? (
-          <p className="text-gray-500 mb-6">
-            The restaurant you are looking for might have been removed, had its name changed, 
-            or is temporarily unavailable.
-          </p>
+          <div>
+            <p className="text-gray-500 mb-6">
+              The restaurant you are looking for might have been removed, had its name changed, 
+              or is temporarily unavailable.
+            </p>
+            <p className="text-sm text-amber-600 mb-6">
+              Note: If you just registered a new restaurant, you may need to refresh your browser cache 
+              or wait a few minutes for the data to be available.
+            </p>
+          </div>
         ) : (
           <p className="text-gray-500 mb-6">
             The page you are looking for might have been removed, had its name changed, 
