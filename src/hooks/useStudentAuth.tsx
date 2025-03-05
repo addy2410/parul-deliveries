@@ -57,6 +57,24 @@ export function useStudentAuth() {
     }
   };
 
+  const login = (userData: StudentSession) => {
+    localStorage.setItem('studentSession', JSON.stringify(userData));
+    setStudentId(userData.userId);
+    setStudentName(userData.name);
+    setStudentEmail(userData.email);
+    setStudentAddress(userData.address || null);
+    setIsAuthenticated(true);
+  };
+
+  const logout = () => {
+    localStorage.removeItem('studentSession');
+    setStudentId(null);
+    setStudentName(null);
+    setStudentEmail(null);
+    setStudentAddress(null);
+    setIsAuthenticated(false);
+  };
+
   return {
     studentId,
     studentName,
@@ -64,6 +82,8 @@ export function useStudentAuth() {
     studentAddress,
     loading,
     isAuthenticated,
-    updateStudentAddress
+    updateStudentAddress,
+    login,
+    logout
   };
 }

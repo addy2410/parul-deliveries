@@ -16,84 +16,24 @@ import { useParams } from "react-router-dom";
 const Cart = () => {
   const { shopId } = useParams();
   const { items, removeItem, updateQuantity, clearCart, totalPrice, restaurantName } = useCart();
-  const { studentId, studentName, studentAddress } = useStudentAuth();
+  const { studentId, studentName, studentAddress, isAuthenticated } = useStudentAuth();
   const navigate = useNavigate();
-  const [shopData, setShopData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState(studentAddress || "");
   const [orderCreated, setOrderCreated] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState(null);
   const total = totalPrice;
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  // Check authentication status on mount
-  useEffect(() => {
-    const checkAuth = () => {
-      const session = localStorage.getItem('studentSession');
-      if (session) {
-        try {
-          const parsedSession = JSON.parse(session);
-          if (parsedSession && parsedSession.userId) {
-            setIsAuthenticated(true);
-          } else {
-            console.error("Invalid session structure:", parsedSession);
-          }
-        } catch (error) {
-          console.error("Error parsing student session:", error);
-        }
-      } else {
-        console.log("No student session found in localStorage");
-      }
-    };
-    
-    checkAuth();
-    
-    // Add more detailed logging to help debug the authentication issue
-    console.log("Student ID from useStudentAuth:", studentId);
-    console.log("Is authenticated state:", isAuthenticated);
-  }, [studentId]);
-
-  // Only attempt to fetch shop data if we have a shopId
-  useEffect(() => {
-    if (!shopId) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    
-    const fetchShopData = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("restaurants")
-          .select("*, vendor_users!inner(*)")
-          .eq("id", shopId)
-          .single();
-
-        if (error) {
-          console.error("Error fetching shop data:", error);
-          return;
-        }
-
-        setShopData({
-          ...data,
-          vendor_id: data.vendor_users.id
-        });
-      } catch (error) {
-        console.error("Error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchShopData();
-  }, [shopId]);
 
   useEffect(() => {
     if (studentAddress) {
       setDeliveryAddress(studentAddress);
     }
   }, [studentAddress]);
+
+  // Debug log to check authentication status
+  useEffect(() => {
+    console.log("Cart component - Auth status:", isAuthenticated, "Student ID:", studentId);
+  }, [isAuthenticated, studentId]);
 
   const handleRemoveItem = (id) => {
     removeItem(id);
@@ -110,15 +50,17 @@ const Cart = () => {
   const handleCheckout = async () => {
     console.log("Checkout clicked - Auth status:", isAuthenticated, "Student ID:", studentId);
     
-    // Check authentication directly from localStorage to ensure we have the most up-to-date status
+    // Double check authentication directly from localStorage
     const session = localStorage.getItem('studentSession');
     let currentStudentId = null;
+    let currentStudentName = null;
     
     if (session) {
       try {
         const parsedSession = JSON.parse(session);
         if (parsedSession && parsedSession.userId) {
           currentStudentId = parsedSession.userId;
+          currentStudentName = parsedSession.name || "Student";
           console.log("Student ID from localStorage:", currentStudentId);
         }
       } catch (error) {
@@ -138,47 +80,40 @@ const Cart = () => {
       return;
     }
 
-    // Check if an active restaurant ID is found in the cart context
+    // Get active restaurant ID from cart
     const activeRestaurantId = items[0]?.restaurantId;
     if (!activeRestaurantId) {
       toast.error("Cannot identify restaurant for this order");
       return;
     }
 
+    setLoading(true);
+    
     try {
-      // Get vendor ID for the restaurant if not loaded yet
-      let vendorId = null;
-      let currentStudentName = studentName;
-      
-      if (!shopData) {
-        // Fetch restaurant info to get vendor ID
-        const { data, error } = await supabase
-          .from("restaurants")
-          .select("*, vendor_users!inner(*)")
-          .eq("id", activeRestaurantId)
-          .single();
-          
-        if (error) {
-          console.error("Error fetching restaurant data:", error);
-          toast.error("Failed to prepare order");
-          return;
-        }
+      // Get vendor ID for the restaurant
+      // Instead of using a join query that's failing, get the restaurant directly
+      const { data: shopData, error: shopError } = await supabase
+        .from("shops")
+        .select("*")
+        .eq("id", activeRestaurantId)
+        .single();
         
-        vendorId = data.vendor_users.id;
-      } else {
-        vendorId = shopData.vendor_id;
+      if (shopError) {
+        console.error("Error fetching shop data:", shopError);
+        toast.error("Failed to prepare order");
+        setLoading(false);
+        return;
       }
       
-      // If we don't have student name from the hook, try to get it from session
-      if (!currentStudentName && session) {
-        try {
-          const parsedSession = JSON.parse(session);
-          currentStudentName = parsedSession.name || "Student";
-        } catch (error) {
-          console.error("Error getting student name:", error);
-          currentStudentName = "Student";
-        }
+      if (!shopData || !shopData.vendor_id) {
+        console.error("Shop data not found or vendor_id missing:", shopData);
+        toast.error("Restaurant information incomplete");
+        setLoading(false);
+        return;
       }
+      
+      const vendorId = shopData.vendor_id;
+      console.log("Found vendor ID:", vendorId, "for restaurant:", activeRestaurantId);
       
       // Prepare the order items
       const orderItems = items.map(item => ({
@@ -189,34 +124,37 @@ const Cart = () => {
       }));
 
       // Create the order with pending status
-      const { data, error } = await supabase.from("orders").insert([
-        {
+      const { data: orderData, error: orderError } = await supabase
+        .from("orders")
+        .insert([{
           student_id: currentStudentId,
           vendor_id: vendorId,
-          restaurant_id: activeRestaurantId || shopId,
+          restaurant_id: activeRestaurantId,
           items: orderItems,
           total_amount: total,
           status: "pending",
           delivery_location: deliveryAddress || "Campus",
           student_name: currentStudentName || "Student"
-        }
-      ]).select();
+        }])
+        .select();
 
-      if (error) {
-        console.error("Failed to create order:", error);
+      if (orderError) {
+        console.error("Failed to create order:", orderError);
         toast.error("Failed to create order");
+        setLoading(false);
         return;
       }
 
-      console.log("Order created successfully:", data);
+      console.log("Order created successfully:", orderData);
 
       // Order created successfully, now create notification for the vendor
-      if (data && data.length > 0) {
-        const order = data[0];
+      if (orderData && orderData.length > 0) {
+        const order = orderData[0];
         
         // Create notification
-        const { error: notifError } = await supabase.from("notifications").insert([
-          {
+        const { error: notifError } = await supabase
+          .from("notifications")
+          .insert([{
             recipient_id: vendorId,
             type: "new_order",
             message: `New order from ${currentStudentName || "a student"}`,
@@ -226,8 +164,7 @@ const Cart = () => {
               total_amount: total,
               delivery_location: deliveryAddress || "Campus"
             }
-          }
-        ]);
+          }]);
 
         if (notifError) {
           console.error("Failed to create notification:", notifError);
@@ -239,14 +176,12 @@ const Cart = () => {
         toast.success("Order sent to vendor for confirmation!");
         setOrderCreated(true);
         setCreatedOrderId(order.id);
-        
-        // Clear the cart after successful order creation
-        // We comment this out for now since we want the user to have the option to proceed to payment
-        // clearCart();
       }
     } catch (e) {
       console.error("Error during checkout:", e);
       toast.error("An error occurred during checkout");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -255,11 +190,6 @@ const Cart = () => {
       navigate(`/student/payment/${createdOrderId}`);
     }
   };
-
-  // Don't show loading state when there's no shopId
-  if (loading) {
-    return <div className="container py-8">Loading...</div>;
-  }
 
   return (
     <div className="container py-8">
@@ -417,9 +347,9 @@ const Cart = () => {
                       className="w-full bg-primary"
                       size="lg"
                       onClick={handleCheckout}
-                      disabled={items.length === 0}
+                      disabled={items.length === 0 || loading}
                     >
-                      Checkout
+                      {loading ? "Processing..." : "Checkout"}
                     </Button>
                   ) : (
                     <Button

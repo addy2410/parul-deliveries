@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+
+import React, { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ShoppingBag, User, LogOut, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,56 +20,19 @@ interface StudentHeaderProps {
 const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentName }) => {
   const navigate = useNavigate();
   const { items } = useCart();
-  const { studentName: authStudentName, isAuthenticated } = useStudentAuth();
-  const [userName, setUserName] = useState<string | null>(null);
-  const [loggedIn, setLoggedIn] = useState<boolean>(false);
+  const { studentName: authStudentName, isAuthenticated, logout } = useStudentAuth();
   
-  useEffect(() => {
-    // If a studentName prop is provided, use it directly
-    if (propStudentName) {
-      setUserName(propStudentName);
-      setLoggedIn(true);
-      return;
-    }
-    
-    // Otherwise use the name from useStudentAuth hook
-    if (authStudentName) {
-      setUserName(authStudentName);
-      setLoggedIn(true);
-      return;
-    }
-    
-    // As a fallback, check for a stored session
-    const checkStudentSession = () => {
-      const studentSession = localStorage.getItem('studentSession');
-      if (studentSession) {
-        try {
-          const { name } = JSON.parse(studentSession);
-          setUserName(name);
-          setLoggedIn(true);
-        } catch (error) {
-          console.error("Error parsing student session:", error);
-          // If there's an error, clear the session
-          handleLogout();
-        }
-      } else {
-        // No session found, but we don't redirect
-        setLoggedIn(false);
-      }
-    };
-    
-    checkStudentSession();
-  }, [navigate, propStudentName, authStudentName, isAuthenticated]);
+  // We'll use auth hook directly instead of maintaining separate state
+  const userName = propStudentName || authStudentName;
   
   const handleLogout = () => {
-    localStorage.removeItem('studentSession');
-    setLoggedIn(false);
-    setUserName(null);
+    logout();
+    toast.success("Logged out successfully");
     navigate('/student/restaurants');
   };
 
   const handleCartClick = (e: React.MouseEvent) => {
-    if (!loggedIn) {
+    if (!isAuthenticated) {
       e.preventDefault();
       toast.error("Please log in to view your cart");
       navigate('/student/login');
@@ -94,7 +58,7 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentN
             )}
           </Link>
 
-          {loggedIn ? (
+          {isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="p-2">
