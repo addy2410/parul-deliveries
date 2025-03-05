@@ -2,7 +2,7 @@
 import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Home, ArrowLeft, Search } from "lucide-react";
+import { Home, ArrowLeft, Search, RefreshCcw } from "lucide-react";
 
 const NotFound = () => {
   const location = useLocation();
@@ -16,6 +16,10 @@ const NotFound = () => {
 
   const isRestaurantPath = location.pathname.includes("/student/restaurant/");
   const isVendorPath = location.pathname.includes("/vendor/");
+
+  const handleRefresh = () => {
+    window.location.reload();
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -33,6 +37,11 @@ const NotFound = () => {
               Note: If you just registered a new restaurant, you may need to refresh your browser cache 
               or wait a few minutes for the data to be available.
             </p>
+            <div className="flex justify-center mb-6">
+              <Button onClick={handleRefresh} className="flex items-center">
+                <RefreshCcw size={16} className="mr-2" /> Refresh Page
+              </Button>
+            </div>
           </div>
         ) : (
           <p className="text-gray-500 mb-6">
