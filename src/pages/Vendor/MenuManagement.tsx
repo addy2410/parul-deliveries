@@ -92,18 +92,7 @@ const VendorMenuManagement = () => {
         setShop(shopData);
         
         // Load menu items for this shop
-        const { data: menuData, error: menuError } = await supabase
-          .from('menu_items')
-          .select('*')
-          .eq('shop_id', shopData.id);
-          
-        if (menuError) {
-          console.error("Error loading menu items:", menuError);
-          toast.error("Failed to load menu items");
-        } else {
-          console.log("Loaded menu items:", menuData);
-          setMenuItems(menuData || []);
-        }
+        await loadMenuItems(shopData.id);
       } catch (error) {
         console.error("Auth check error:", error);
         toast.error("Authentication error");
@@ -115,6 +104,28 @@ const VendorMenuManagement = () => {
     
     checkVendorAuth();
   }, [navigate]);
+  
+  const loadMenuItems = async (shopId: string) => {
+    try {
+      console.log("Loading menu items for shop:", shopId);
+      const { data, error } = await supabase
+        .from('menu_items')
+        .select('*')
+        .eq('shop_id', shopId);
+        
+      if (error) {
+        console.error("Error loading menu items:", error);
+        toast.error("Failed to load menu items");
+        return;
+      }
+      
+      console.log("Loaded menu items:", data);
+      setMenuItems(data || []);
+    } catch (error) {
+      console.error("Error loading menu items:", error);
+      toast.error("Failed to load menu items");
+    }
+  };
   
   const handleAddItem = async () => {
     // Validate inputs
@@ -137,20 +148,22 @@ const VendorMenuManagement = () => {
     setIsSubmitting(true);
     
     try {
-      // Simplify the insertion by not using the category field initially
-      // This ensures we don't hit schema cache issues
-      const basicMenuItem = {
+      // Create the full menu item object
+      const menuItem = {
         shop_id: shop.id,
         name: newItemName.trim(),
-        price: price
+        price: price,
+        category: newItemCategory,
+        description: `Delicious ${newItemName.trim()}`,
+        is_available: true
       };
       
-      console.log("Adding basic menu item:", basicMenuItem);
+      console.log("Adding menu item:", menuItem);
       
-      // Insert the basic item first
+      // Insert the item
       const { data: newItem, error } = await supabase
         .from('menu_items')
-        .insert([basicMenuItem])
+        .insert([menuItem])
         .select()
         .maybeSingle();
         
@@ -165,40 +178,8 @@ const VendorMenuManagement = () => {
         return;
       }
       
-      console.log("Successfully added basic menu item:", newItem);
-      
-      // Now update with the additional fields
-      const { error: updateError } = await supabase
-        .from('menu_items')
-        .update({
-          category: newItemCategory,
-          description: `Delicious ${newItemName.trim()}`,
-          is_available: true
-        })
-        .eq('id', newItem.id);
-      
-      if (updateError) {
-        console.error("Error updating item with category:", updateError);
-        // The item is created but without category, continue anyway
-      }
-      
-      // Re-fetch the complete item
-      const { data: updatedItem, error: fetchError } = await supabase
-        .from('menu_items')
-        .select('*')
-        .eq('id', newItem.id)
-        .maybeSingle();
-        
-      if (fetchError) {
-        console.error("Error fetching updated item:", fetchError);
-      } else if (updatedItem) {
-        console.log("Final menu item with all fields:", updatedItem);
-        setMenuItems([...menuItems, updatedItem]);
-      } else {
-        // Use the basic item if we couldn't fetch the updated one
-        setMenuItems([...menuItems, newItem]);
-      }
-      
+      console.log("Successfully added menu item:", newItem);
+      setMenuItems([...menuItems, newItem]);
       toast.success("Food item added successfully");
       
       // Clear form
