@@ -49,11 +49,9 @@ const VendorLogin = () => {
         
         // Create a mock session for the hardcoded vendor
         const mockSession = {
-          user: {
-            id: `vendor-${email.split('@')[0]}`,
-            email: email,
-            user_metadata: { name: matchingVendor.name }
-          }
+          userId: `vendor-${email.split('@')[0]}`,
+          email: email,
+          name: matchingVendor.name
         };
         
         // Store mock session in localStorage
@@ -78,6 +76,16 @@ const VendorLogin = () => {
       if (data.user) {
         toast.success("Login successful");
         
+        // Create a proper vendor session
+        const vendorSession = {
+          userId: data.user.id,
+          email: data.user.email,
+          name: data.user.user_metadata?.name || email.split('@')[0]
+        };
+        
+        // Store the session in localStorage
+        localStorage.setItem('vendorSession', JSON.stringify(vendorSession));
+        
         // Check if vendor has a shop
         const { data: shopData, error: shopError } = await supabase
           .from('shops')
@@ -89,13 +97,9 @@ const VendorLogin = () => {
           console.error("Error checking for shop:", shopError);
         }
         
-        if (shopData) {
-          // Vendor has a shop, redirect to dashboard
-          navigate("/vendor/dashboard");
-        } else {
-          // Vendor doesn't have a shop yet, redirect to shop registration
-          navigate("/vendor/register-shop");
-        }
+        // Navigate to dashboard regardless of whether they have a shop
+        // The dashboard will handle shop registration if needed
+        navigate("/vendor/dashboard");
       }
     } catch (error: any) {
       console.error("Login error:", error);
