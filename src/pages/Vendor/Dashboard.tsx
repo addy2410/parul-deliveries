@@ -1,416 +1,292 @@
 
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { 
-  Utensils, 
-  ShoppingBag, 
-  PackageOpen, 
-  Clock, 
-  CheckCircle2, 
-  XCircle, 
-  LogOut,
-  Store,
-  Trash2
-} from "lucide-react";
-import { toast } from "sonner";
-import { motion } from "framer-motion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import VendorNotifications from "@/components/VendorNotifications";
+import { Plus, Package, Settings, Edit, Store } from "lucide-react";
 import VendorOrdersList from "@/components/VendorOrdersList";
-
-interface Shop {
-  id: string;
-  name: string;
-  location: string;
-  description?: string;
-  is_open?: boolean;
-}
+import ShopRegistration from "@/components/Vendor/ShopRegistration";
+import ShopEditForm from "@/components/Vendor/ShopEditForm";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 
 const VendorDashboard = () => {
-  const [vendorEmail, setVendorEmail] = useState("");
-  const [vendorId, setVendorId] = useState("");
-  const [shop, setShop] = useState<Shop | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [statsData, setStatsData] = useState({
-    pendingOrders: 0,
-    completedToday: 0,
-    cancelledToday: 0,
-    totalSales: 0
-  });
+  const [vendorId, setVendorId] = useState<string | null>(null);
+  const [shops, setShops] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showRegisterShop, setShowRegisterShop] = useState(false);
+  const [activeTab, setActiveTab] = useState("orders");
+  const [selectedShop, setSelectedShop] = useState(null);
+  const [showEditShop, setShowEditShop] = useState(false);
+  const [editShopData, setEditShopData] = useState({ id: "", name: "", location: "" });
+  const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const checkVendorAuth = async () => {
+    const checkAuth = async () => {
       try {
-        // Check Supabase auth
-        const { data, error } = await supabase.auth.getSession();
-        if (error || !data.session) {
-          toast.error("You need to login first");
+        const session = localStorage.getItem("vendorSession");
+        
+        if (!session) {
           navigate("/vendor/login");
           return;
         }
         
-        const userId = data.session.user.id;
-        const email = data.session.user.email;
-        setVendorEmail(email || "Vendor");
-        setVendorId(userId);
-        
-        // Get vendor's shop
-        const { data: shopData, error: shopError } = await supabase
-          .from('shops')
-          .select('*')
-          .eq('vendor_id', userId)
-          .maybeSingle();
-          
-        if (shopError) {
-          if (shopError.code === 'PGRST116' || !shopData) {
-            // No shop found
-            navigate("/vendor/register-shop");
-            return;
-          }
-          console.error("Error fetching shop:", shopError);
-          toast.error("Failed to load shop data");
+        const parsedSession = JSON.parse(session);
+        if (!parsedSession || !parsedSession.userId) {
+          navigate("/vendor/login");
           return;
         }
         
-        if (!shopData) {
-          navigate("/vendor/register-shop");
-          return;
-        }
-        
-        setShop(shopData);
-        
-        // Fetch order statistics
-        fetchOrderStats(userId);
+        setVendorId(parsedSession.userId);
+        fetchVendorShops(parsedSession.userId);
       } catch (error) {
-        console.error("Auth check error:", error);
-        toast.error("Authentication error");
+        console.error("Error checking auth:", error);
         navigate("/vendor/login");
-      } finally {
-        setIsLoading(false);
       }
     };
-
-    checkVendorAuth();
+    
+    checkAuth();
   }, [navigate]);
-  
-  const fetchOrderStats = async (userId: string) => {
+
+  const fetchVendorShops = async (id) => {
+    if (!id) return;
+    
     try {
-      // Get today's date at 00:00:00
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      
-      // Fetch orders statistics
-      const { data: orders, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('vendor_id', userId);
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("shops")
+        .select("*")
+        .eq("vendor_id", id);
         
       if (error) {
-        console.error("Error fetching orders:", error);
-        return;
+        throw error;
       }
       
-      if (!orders || orders.length === 0) {
-        return;
+      setShops(data || []);
+      if (data && data.length > 0) {
+        setSelectedShop(data[0]);
+      } else {
+        setShowRegisterShop(true);
       }
-      
-      // Calculate statistics
-      const pendingOrders = orders.filter(o => 
-        !['delivered', 'cancelled'].includes(o.status)
-      ).length;
-      
-      const todayOrders = orders.filter(o => 
-        new Date(o.created_at) >= todayStart
-      );
-      
-      const completedToday = todayOrders.filter(o => 
-        o.status === 'delivered'
-      ).length;
-      
-      const cancelledToday = todayOrders.filter(o => 
-        o.status === 'cancelled'
-      ).length;
-      
-      const totalSales = orders
-        .filter(o => o.status === 'delivered')
-        .reduce((sum, order) => sum + Number(order.total_amount), 0);
-      
-      setStatsData({
-        pendingOrders,
-        completedToday,
-        cancelledToday,
-        totalSales
+    } catch (error) {
+      console.error("Error fetching shops:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load your shops. Please try again.",
       });
-      
-    } catch (error) {
-      console.error("Error calculating stats:", error);
-    }
-  };
-
-  const handleLogout = async () => {
-    // Sign out from Supabase
-    await supabase.auth.signOut();
-    toast.success("Logged out successfully");
-    navigate("/vendor/login");
-  };
-  
-  const handleShopStatusChange = async (newStatus: boolean) => {
-    if (!shop) return;
-    
-    try {
-      const { error } = await supabase
-        .from('shops')
-        .update({ is_open: newStatus })
-        .eq('id', shop.id);
-        
-      if (error) {
-        console.error("Error updating shop status:", error);
-        toast.error("Failed to update shop status");
-        return;
-      }
-      
-      setShop(prev => prev ? {...prev, is_open: newStatus} : null);
-      toast.success(`Shop is now ${newStatus ? 'open' : 'closed'}`);
-    } catch (error) {
-      console.error("Error updating shop status:", error);
-      toast.error("An error occurred while updating shop status");
-    }
-  };
-
-  const handleDeleteShopAndAccount = async () => {
-    if (!shop) return;
-    
-    try {
-      setIsDeleting(true);
-      
-      // First delete all menu items associated with the shop
-      const { error: menuItemsError } = await supabase
-        .from('menu_items')
-        .delete()
-        .eq('shop_id', shop.id);
-        
-      if (menuItemsError) {
-        console.error("Error deleting menu items:", menuItemsError);
-        toast.error("Failed to delete menu items");
-        return;
-      }
-      
-      // Then delete the shop itself
-      const { error: shopError } = await supabase
-        .from('shops')
-        .delete()
-        .eq('id', shop.id);
-        
-      if (shopError) {
-        console.error("Error deleting shop:", shopError);
-        toast.error("Failed to delete shop");
-        return;
-      }
-      
-      // Sign out the user
-      await supabase.auth.signOut();
-      
-      toast.success("Shop successfully deleted and you've been logged out");
-      navigate("/");
-    } catch (error) {
-      console.error("Error during deletion process:", error);
-      toast.error("An unexpected error occurred during deletion");
     } finally {
-      setIsDeleting(false);
+      setLoading(false);
     }
   };
-  
-  const handleOrderUpdate = () => {
-    fetchOrderStats(vendorId);
+
+  const handleShopRegistered = () => {
+    setShowRegisterShop(false);
+    if (vendorId) {
+      fetchVendorShops(vendorId);
+    }
   };
 
-  if (isLoading) {
+  const handleShopSelect = (shop) => {
+    setSelectedShop(shop);
+  };
+
+  const handleEditShop = (shop) => {
+    setEditShopData({
+      id: shop.id,
+      name: shop.name,
+      location: shop.location
+    });
+    setShowEditShop(true);
+  };
+
+  const handleEditComplete = () => {
+    setShowEditShop(false);
+    if (vendorId) {
+      fetchVendorShops(vendorId);
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <p>Loading...</p>
+      <div className="min-h-screen bg-vendor-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-vendor-700 mx-auto"></div>
+          <p className="mt-4 text-vendor-800">Loading your dashboard...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Vendor Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome back, <span className="font-medium">{vendorEmail}</span>
-          </p>
-        </div>
-        <div className="flex flex-col md:flex-row gap-2 mt-4 md:mt-0">
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOut size={16} className="mr-2" /> Logout
-          </Button>
-          
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive">
-                <Trash2 size={16} className="mr-2" /> Delete Shop & Account
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete your shop, 
-                  all menu items, and your vendor account from our servers.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction 
-                  onClick={handleDeleteShopAndAccount} 
-                  disabled={isDeleting}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  {isDeleting ? "Deleting..." : "Yes, delete everything"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </div>
-
-      {/* Shop Information Card */}
-      <Card className="mb-8 border-vendor-200 bg-vendor-50">
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row gap-4 items-start">
-            <div className="bg-vendor-100 p-4 rounded-lg">
-              <Store size={40} className="text-vendor-600" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold">{shop?.name}</h2>
-              <p className="text-muted-foreground mb-2">{shop?.location}</p>
-              <p>{shop?.description || "No description available"}</p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Button 
-                variant="outline" 
-                className="bg-white" 
-                onClick={() => navigate("/vendor/menu")}
-              >
-                <Utensils size={16} className="mr-2" /> Manage Menu
-              </Button>
-              <Button 
-                variant={shop?.is_open ? "destructive" : "default"}
-                className={shop?.is_open ? "" : "bg-green-600 hover:bg-green-700"}
-                onClick={() => handleShopStatusChange(!shop?.is_open)}
-              >
-                {shop?.is_open ? "Close Shop" : "Open Shop"}
-              </Button>
-            </div>
+    <div className="min-h-screen bg-vendor-50 pb-10">
+      <div className="bg-vendor-700 text-white py-4">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">Vendor Dashboard</h1>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                localStorage.removeItem("vendorSession");
+                navigate("/vendor/login");
+              }}
+            >
+              Logout
+            </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="text-muted-foreground text-sm">Pending Orders</p>
-                <h3 className="text-3xl font-bold">{statsData.pendingOrders}</h3>
-              </div>
-              <div className="bg-orange-100 p-2 rounded-lg">
-                <Clock size={24} className="text-orange-500" />
-              </div>
-            </div>
-            <Button variant="link" className="text-sm text-vendor-600 hover:underline p-0">
-              View pending orders
-            </Button>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="text-muted-foreground text-sm">Completed Today</p>
-                <h3 className="text-3xl font-bold">{statsData.completedToday}</h3>
-              </div>
-              <div className="bg-green-100 p-2 rounded-lg">
-                <CheckCircle2 size={24} className="text-green-500" />
-              </div>
-            </div>
-            <Button variant="link" className="text-sm text-vendor-600 hover:underline p-0">
-              View completed orders
-            </Button>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="text-muted-foreground text-sm">Cancelled Today</p>
-                <h3 className="text-3xl font-bold">{statsData.cancelledToday}</h3>
-              </div>
-              <div className="bg-red-100 p-2 rounded-lg">
-                <XCircle size={24} className="text-red-500" />
-              </div>
-            </div>
-            <Button variant="link" className="text-sm text-vendor-600 hover:underline p-0">
-              View cancelled orders
-            </Button>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="text-muted-foreground text-sm">Today's Sales (₹)</p>
-                <h3 className="text-3xl font-bold">{statsData.totalSales.toFixed(2)}</h3>
-              </div>
-              <div className="bg-blue-100 p-2 rounded-lg">
-                <ShoppingBag size={24} className="text-blue-500" />
-              </div>
-            </div>
-            <Button variant="link" className="text-sm text-vendor-600 hover:underline p-0">
-              View sales report
-            </Button>
-          </CardContent>
-        </Card>
+        </div>
       </div>
 
-      {/* Notifications and Order Management Section */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Notifications */}
-        <div>
-          <VendorNotifications vendorId={vendorId} onOrderStatusChange={handleOrderUpdate} />
-        </div>
-        
-        {/* Order List */}
-        <div>
-          <VendorOrdersList vendorId={vendorId} shopId={shop?.id} onOrderUpdate={handleOrderUpdate} />
-        </div>
+      <div className="container mx-auto px-4 py-8">
+        {showRegisterShop ? (
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Register Your Shop</h2>
+            <ShopRegistration vendorId={vendorId} onComplete={handleShopRegistered} />
+          </div>
+        ) : (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold">Your Shops</h2>
+              {shops.length > 0 && (
+                <Button onClick={() => setShowRegisterShop(true)}>
+                  <Plus className="h-4 w-4 mr-2" /> Add New Shop
+                </Button>
+              )}
+            </div>
+
+            {shops.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div className="lg:col-span-1">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Your Shops</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="divide-y">
+                        {shops.map((shop) => (
+                          <div 
+                            key={shop.id} 
+                            className={`p-4 cursor-pointer flex justify-between items-center ${
+                              selectedShop && selectedShop.id === shop.id 
+                                ? "bg-vendor-100" 
+                                : "hover:bg-gray-50"
+                            }`}
+                            onClick={() => handleShopSelect(shop)}
+                          >
+                            <div>
+                              <div className="font-medium">{shop.name}</div>
+                              <div className="text-sm text-muted-foreground">{shop.location}</div>
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditShop(shop);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="lg:col-span-3">
+                  {selectedShop && (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-center">
+                          <CardTitle>
+                            {selectedShop.name} 
+                            <span className="ml-2 text-sm font-normal text-muted-foreground">
+                              at {selectedShop.location}
+                            </span>
+                          </CardTitle>
+                          <Dialog open={showEditShop} onOpenChange={setShowEditShop}>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="sm" onClick={() => handleEditShop(selectedShop)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit Shop
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogTitle>Edit Shop Details</DialogTitle>
+                              <ShopEditForm 
+                                shopId={editShopData.id} 
+                                initialData={{
+                                  name: editShopData.name,
+                                  location: editShopData.location
+                                }} 
+                                onComplete={handleEditComplete} 
+                              />
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <Tabs value={activeTab} onValueChange={setActiveTab}>
+                          <TabsList className="mb-4">
+                            <TabsTrigger value="orders">
+                              <Package className="h-4 w-4 mr-2" />
+                              Orders
+                            </TabsTrigger>
+                            <TabsTrigger value="menu">
+                              <Store className="h-4 w-4 mr-2" />
+                              Menu Management
+                            </TabsTrigger>
+                            <TabsTrigger value="settings">
+                              <Settings className="h-4 w-4 mr-2" />
+                              Settings
+                            </TabsTrigger>
+                          </TabsList>
+                          
+                          <TabsContent value="orders" className="mt-0">
+                            <VendorOrdersList shopId={selectedShop.id} />
+                          </TabsContent>
+                          
+                          <TabsContent value="menu" className="mt-0">
+                            <div className="text-center py-4">
+                              <Button onClick={() => navigate(`/vendor/menu-management/${selectedShop.id}`)}>
+                                Manage Menu Items
+                              </Button>
+                            </div>
+                          </TabsContent>
+                          
+                          <TabsContent value="settings" className="mt-0">
+                            <Card>
+                              <CardContent className="pt-6">
+                                <h3 className="text-lg font-medium mb-4">Shop Settings</h3>
+                                <Button onClick={() => handleEditShop(selectedShop)}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit Shop Details
+                                </Button>
+                              </CardContent>
+                            </Card>
+                          </TabsContent>
+                        </Tabs>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="mb-4 text-5xl">🏪</div>
+                <h3 className="text-xl font-semibold mb-2">No shops yet</h3>
+                <p className="text-muted-foreground mb-4">Register your first shop to start selling on CampusGrub</p>
+                <Button onClick={() => setShowRegisterShop(true)}>
+                  <Plus className="h-4 w-4 mr-2" /> Register a Shop
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
