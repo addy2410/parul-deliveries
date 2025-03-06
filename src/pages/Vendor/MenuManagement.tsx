@@ -51,15 +51,23 @@ const VendorMenuManagement = () => {
     // Check authentication and get shop ID
     const checkVendorAuth = async () => {
       try {
-        // Check Supabase auth
-        const { data, error } = await supabase.auth.getSession();
-        if (error || !data.session) {
+        // Check for vendor session in localStorage
+        const session = localStorage.getItem("vendorSession");
+        
+        if (!session) {
           toast.error("You need to login first");
           navigate("/vendor/login");
           return;
         }
         
-        const userId = data.session.user.id;
+        const parsedSession = JSON.parse(session);
+        if (!parsedSession || !parsedSession.userId) {
+          toast.error("Invalid session. Please login again");
+          navigate("/vendor/login");
+          return;
+        }
+        
+        const userId = parsedSession.userId;
         console.log("Authenticated vendor ID:", userId);
         
         // Get vendor's shop

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -247,13 +246,12 @@ const VendorDashboard = () => {
                           </TabsList>
                           
                           <TabsContent value="orders" className="mt-0">
-                            {/* Here's the fix for the error - passing vendorId properly */}
                             <VendorOrdersList shopId={selectedShop.id} vendorId={vendorId} />
                           </TabsContent>
                           
                           <TabsContent value="menu" className="mt-0">
                             <div className="text-center py-4">
-                              <Button onClick={() => navigate(`/vendor/menu-management/${selectedShop.id}`)}>
+                              <Button onClick={() => navigate(`/vendor/menu-management`)}>
                                 Manage Menu Items
                               </Button>
                             </div>
