@@ -1,7 +1,7 @@
 
 import React, { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Package, User, LogOut, LogIn } from "lucide-react";
+import { ShoppingCart, User, LogOut, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -50,7 +50,7 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentN
 
         <div className="flex items-center space-x-4">
           <Link to="/student/cart" className="relative" onClick={handleCartClick}>
-            <Package className="h-6 w-6" />
+            <ShoppingCart className="h-6 w-6" />
             {items.length > 0 && (
               <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
                 {items.length}

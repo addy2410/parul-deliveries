@@ -247,7 +247,8 @@ const VendorDashboard = () => {
                           </TabsList>
                           
                           <TabsContent value="orders" className="mt-0">
-                            <VendorOrdersList shopId={selectedShop.id} />
+                            {/* Here's the fix for the error - passing vendorId properly */}
+                            <VendorOrdersList shopId={selectedShop.id} vendorId={vendorId} />
                           </TabsContent>
                           
                           <TabsContent value="menu" className="mt-0">
