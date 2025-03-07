@@ -1,69 +1,51 @@
 
-import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { 
-  Utensils, 
-  ShoppingBag, 
-  PackageOpen, 
-  Clock, 
-  CheckCircle2, 
-  XCircle, 
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import {
+  CircleCheckBig,
+  XCircle,
+  Menu,
+  PanelRight,
+  User,
   LogOut,
+  ShoppingBag,
   Store,
-  Trash2
+  Clock,
+  AlertTriangle,
+  BarChart3,
+  Bell,
+  Image
 } from "lucide-react";
+import VendorOrdersList from "@/components/VendorOrdersList";
+import VendorNotifications from "@/components/VendorNotifications";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import VendorNotifications from "@/components/VendorNotifications";
-import VendorOrdersList from "@/components/VendorOrdersList";
-
-interface Shop {
-  id: string;
-  name: string;
-  location: string;
-  description?: string;
-  is_open?: boolean;
-}
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const VendorDashboard = () => {
-  const [vendorEmail, setVendorEmail] = useState("");
-  const [vendorId, setVendorId] = useState("");
-  const [shop, setShop] = useState<Shop | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [statsData, setStatsData] = useState({
-    pendingOrders: 0,
-    completedToday: 0,
-    cancelledToday: 0,
-    totalSales: 0
-  });
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(true);
+  const [shop, setShop] = useState<any>(null);
+  const [shopImage, setShopImage] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showImageDialog, setShowImageDialog] = useState(false);
 
   useEffect(() => {
-    const checkVendorAuth = async () => {
+    const checkAuth = async () => {
       try {
-        // Check Supabase auth
+        // Check if user is authenticated
         const { data, error } = await supabase.auth.getSession();
         if (error || !data.session) {
           toast.error("You need to login first");
@@ -71,347 +53,362 @@ const VendorDashboard = () => {
           return;
         }
         
-        const userId = data.session.user.id;
-        const email = data.session.user.email;
-        setVendorEmail(email || "Vendor");
-        setVendorId(userId);
+        const vendorId = data.session.user.id;
         
-        // Get vendor's shop
+        // Check if vendor has a shop
         const { data: shopData, error: shopError } = await supabase
-          .from('shops')
-          .select('*')
-          .eq('vendor_id', userId)
+          .from("shops")
+          .select("*")
+          .eq("vendor_id", vendorId)
           .maybeSingle();
           
         if (shopError) {
-          if (shopError.code === 'PGRST116' || !shopData) {
-            // No shop found
-            navigate("/vendor/register-shop");
-            return;
-          }
           console.error("Error fetching shop:", shopError);
-          toast.error("Failed to load shop data");
-          return;
+          toast.error("Error fetching your shop data");
         }
         
         if (!shopData) {
+          // No shop found, redirect to shop registration
           navigate("/vendor/register-shop");
           return;
         }
         
         setShop(shopData);
+        if (shopData.image_url) {
+          setPreviewUrl(shopData.image_url);
+        }
         
-        // Fetch order statistics
-        fetchOrderStats(userId);
+        setIsLoading(false);
       } catch (error) {
         console.error("Auth check error:", error);
         toast.error("Authentication error");
         navigate("/vendor/login");
-      } finally {
-        setIsLoading(false);
       }
     };
-
-    checkVendorAuth();
+    
+    checkAuth();
   }, [navigate]);
-  
-  const fetchOrderStats = async (userId: string) => {
-    try {
-      // Get today's date at 00:00:00
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      
-      // Fetch orders statistics
-      const { data: orders, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('vendor_id', userId);
-        
-      if (error) {
-        console.error("Error fetching orders:", error);
-        return;
-      }
-      
-      if (!orders || orders.length === 0) {
-        return;
-      }
-      
-      // Calculate statistics
-      const pendingOrders = orders.filter(o => 
-        !['delivered', 'cancelled'].includes(o.status)
-      ).length;
-      
-      const todayOrders = orders.filter(o => 
-        new Date(o.created_at) >= todayStart
-      );
-      
-      const completedToday = todayOrders.filter(o => 
-        o.status === 'delivered'
-      ).length;
-      
-      const cancelledToday = todayOrders.filter(o => 
-        o.status === 'cancelled'
-      ).length;
-      
-      const totalSales = orders
-        .filter(o => o.status === 'delivered')
-        .reduce((sum, order) => sum + Number(order.total_amount), 0);
-      
-      setStatsData({
-        pendingOrders,
-        completedToday,
-        cancelledToday,
-        totalSales
-      });
-      
-    } catch (error) {
-      console.error("Error calculating stats:", error);
-    }
-  };
 
   const handleLogout = async () => {
-    // Sign out from Supabase
-    await supabase.auth.signOut();
-    toast.success("Logged out successfully");
-    navigate("/vendor/login");
+    try {
+      await supabase.auth.signOut();
+      toast.success("Logged out successfully");
+      navigate("/vendor/login");
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast.error("Error signing out");
+    }
   };
-  
-  const handleShopStatusChange = async (newStatus: boolean) => {
-    if (!shop) return;
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setShopImage(file);
+      // Create a preview URL
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewUrl(objectUrl);
+    }
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const uploadImage = async (): Promise<string | null> => {
+    if (!shopImage || !shop) return null;
     
     try {
+      setIsSubmitting(true);
+      const fileExt = shopImage.name.split('.').pop();
+      const fileName = `${shop.id}/${Date.now()}.${fileExt}`;
+      
+      const { data, error } = await supabase.storage
+        .from('shop_images')
+        .upload(fileName, shopImage);
+      
+      if (error) {
+        console.error('Error uploading image:', error);
+        toast.error('Failed to upload shop image');
+        return null;
+      }
+
+      // Get public URL for the uploaded image
+      const { data: { publicUrl } } = supabase.storage
+        .from('shop_images')
+        .getPublicUrl(fileName);
+        
+      return publicUrl;
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      toast.error('Failed to upload shop image');
+      return null;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const updateShopImage = async () => {
+    try {
+      const imageUrl = await uploadImage();
+      if (!imageUrl) {
+        toast.error('Failed to upload image');
+        return;
+      }
+      
+      // Update shop with image URL
       const { error } = await supabase
         .from('shops')
-        .update({ is_open: newStatus })
+        .update({ image_url: imageUrl })
         .eq('id', shop.id);
         
       if (error) {
-        console.error("Error updating shop status:", error);
-        toast.error("Failed to update shop status");
+        console.error('Error updating shop with image:', error);
+        toast.error('Failed to update shop image');
         return;
       }
       
-      setShop(prev => prev ? {...prev, is_open: newStatus} : null);
-      toast.success(`Shop is now ${newStatus ? 'open' : 'closed'}`);
+      // Update local state
+      setShop({...shop, image_url: imageUrl});
+      toast.success('Shop image updated successfully');
+      setShowImageDialog(false);
     } catch (error) {
-      console.error("Error updating shop status:", error);
-      toast.error("An error occurred while updating shop status");
+      console.error('Error updating shop image:', error);
+      toast.error('Failed to update shop image');
     }
   };
-
-  const handleDeleteShopAndAccount = async () => {
-    if (!shop) return;
-    
-    try {
-      setIsDeleting(true);
-      
-      // First delete all menu items associated with the shop
-      const { error: menuItemsError } = await supabase
-        .from('menu_items')
-        .delete()
-        .eq('shop_id', shop.id);
-        
-      if (menuItemsError) {
-        console.error("Error deleting menu items:", menuItemsError);
-        toast.error("Failed to delete menu items");
-        return;
-      }
-      
-      // Then delete the shop itself
-      const { error: shopError } = await supabase
-        .from('shops')
-        .delete()
-        .eq('id', shop.id);
-        
-      if (shopError) {
-        console.error("Error deleting shop:", shopError);
-        toast.error("Failed to delete shop");
-        return;
-      }
-      
-      // Sign out the user
-      await supabase.auth.signOut();
-      
-      toast.success("Shop successfully deleted and you've been logged out");
-      navigate("/");
-    } catch (error) {
-      console.error("Error during deletion process:", error);
-      toast.error("An unexpected error occurred during deletion");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-  
-  const handleOrderUpdate = () => {
-    fetchOrderStats(vendorId);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <p>Loading...</p>
-      </div>
-    );
-  }
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Vendor Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome back, <span className="font-medium">{vendorEmail}</span>
-          </p>
-        </div>
-        <div className="flex flex-col md:flex-row gap-2 mt-4 md:mt-0">
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOut size={16} className="mr-2" /> Logout
-          </Button>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b">
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Store className="text-vendor-600" />
+            <h1 className="text-xl font-semibold">Vendor Dashboard</h1>
+          </div>
           
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive">
-                <Trash2 size={16} className="mr-2" /> Delete Shop & Account
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete your shop, 
-                  all menu items, and your vendor account from our servers.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction 
-                  onClick={handleDeleteShopAndAccount} 
-                  disabled={isDeleting}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  {isDeleting ? "Deleting..." : "Yes, delete everything"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center">
+              <User className="mr-2 h-5 w-5 text-vendor-600" />
+              <span className="font-medium">{shop?.name || "Vendor"}</span>
+            </div>
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="text-gray-500">
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
-      </div>
-
-      {/* Shop Information Card */}
-      <Card className="mb-8 border-vendor-200 bg-vendor-50">
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row gap-4 items-start">
-            <div className="bg-vendor-100 p-4 rounded-lg">
-              <Store size={40} className="text-vendor-600" />
+      </header>
+      
+      {isLoading ? (
+        <div className="container mx-auto p-4 flex justify-center items-center h-screen">
+          <p>Loading dashboard...</p>
+        </div>
+      ) : (
+        <div className="container mx-auto p-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
+            {/* Shop Info Card */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex justify-between items-center">
+                  <span>Shop Information</span>
+                  
+                  <Dialog open={showImageDialog} onOpenChange={setShowImageDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="text-vendor-600">
+                        <Image size={16} className="mr-1" /> Update Image
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Update Shop Image</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div 
+                          className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+                          onClick={triggerFileInput}
+                        >
+                          {previewUrl ? (
+                            <div className="flex flex-col items-center">
+                              <img 
+                                src={previewUrl} 
+                                alt="Shop preview" 
+                                className="mb-2 max-h-40 object-contain rounded-md" 
+                              />
+                              <p className="text-sm text-gray-500">Click to change image</p>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center">
+                              <Image className="h-12 w-12 text-gray-400 mb-2" />
+                              <p className="text-gray-500">Click to upload shop image</p>
+                              <p className="text-sm text-gray-400 mt-1">Recommended: 500x300 pixels</p>
+                            </div>
+                          )}
+                          <input
+                            type="file"
+                            id="shop-image"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept="image/*"
+                            onChange={handleImageSelect}
+                          />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="outline" 
+                            onClick={() => setShowImageDialog(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            disabled={!shopImage || isSubmitting}
+                            onClick={updateShopImage}
+                            className="bg-vendor-600 hover:bg-vendor-700"
+                          >
+                            {isSubmitting ? 'Saving...' : 'Save Image'}
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {shop?.image_url && (
+                    <div className="w-full h-40 rounded-md overflow-hidden">
+                      <img 
+                        src={shop.image_url} 
+                        alt={shop.name} 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="font-bold text-xl">{shop?.name}</h3>
+                    <p className="text-muted-foreground">{shop?.cuisine || "Food Vendor"}</p>
+                  </div>
+                  
+                  <div>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Clock className="h-4 w-4 mr-1" />
+                      Delivery Time: {shop?.delivery_time || "30-45 min"}
+                    </div>
+                    <div className="flex items-center text-sm text-muted-foreground mt-1">
+                      <PanelRight className="h-4 w-4 mr-1" />
+                      Location: {shop?.location}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center pt-2">
+                    {shop?.is_open ? (
+                      <div className="flex items-center text-green-600">
+                        <CircleCheckBig className="h-5 w-5 mr-1" />
+                        <span className="font-medium">Open for Orders</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center text-red-600">
+                        <XCircle className="h-5 w-5 mr-1" />
+                        <span className="font-medium">Closed</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="pt-2">
+                    <Button asChild className="w-full bg-vendor-600 hover:bg-vendor-700">
+                      <Link to="/vendor/menu-management">
+                        <Menu className="mr-2 h-4 w-4" /> Manage Menu
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          
+            {/* Orders and Notifications */}
+            <div className="lg:col-span-2">
+              <Tabs defaultValue="orders">
+                <TabsList className="grid grid-cols-2 mb-4">
+                  <TabsTrigger value="orders">
+                    <ShoppingBag className="mr-2 h-4 w-4" />
+                    Orders
+                  </TabsTrigger>
+                  <TabsTrigger value="notifications">
+                    <Bell className="mr-2 h-4 w-4" />
+                    Notifications
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="orders" className="space-y-4">
+                  <VendorOrdersList shopId={shop?.id} />
+                </TabsContent>
+                
+                <TabsContent value="notifications">
+                  <VendorNotifications vendorId={shop?.vendor_id} />
+                </TabsContent>
+              </Tabs>
             </div>
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold">{shop?.name}</h2>
-              <p className="text-muted-foreground mb-2">{shop?.location}</p>
-              <p>{shop?.description || "No description available"}</p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Button 
-                variant="outline" 
-                className="bg-white" 
-                onClick={() => navigate("/vendor/menu")}
-              >
-                <Utensils size={16} className="mr-2" /> Manage Menu
-              </Button>
-              <Button 
-                variant={shop?.is_open ? "destructive" : "default"}
-                className={shop?.is_open ? "" : "bg-green-600 hover:bg-green-700"}
-                onClick={() => handleShopStatusChange(!shop?.is_open)}
-              >
-                {shop?.is_open ? "Close Shop" : "Open Shop"}
-              </Button>
+            
+            {/* Stats Row */}
+            <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Total Orders</p>
+                      <h3 className="text-2xl font-bold mt-1">0</h3>
+                    </div>
+                    <div className="bg-vendor-100 p-2 rounded-full text-vendor-600">
+                      <ShoppingBag className="h-5 w-5" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Active Orders</p>
+                      <h3 className="text-2xl font-bold mt-1">0</h3>
+                    </div>
+                    <div className="bg-blue-100 p-2 rounded-full text-blue-600">
+                      <Clock className="h-5 w-5" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Revenue</p>
+                      <h3 className="text-2xl font-bold mt-1">₹0</h3>
+                    </div>
+                    <div className="bg-green-100 p-2 rounded-full text-green-600">
+                      <BarChart3 className="h-5 w-5" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Menu Items</p>
+                      <h3 className="text-2xl font-bold mt-1">0</h3>
+                    </div>
+                    <div className="bg-orange-100 p-2 rounded-full text-orange-600">
+                      <Menu className="h-5 w-5" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="text-muted-foreground text-sm">Pending Orders</p>
-                <h3 className="text-3xl font-bold">{statsData.pendingOrders}</h3>
-              </div>
-              <div className="bg-orange-100 p-2 rounded-lg">
-                <Clock size={24} className="text-orange-500" />
-              </div>
-            </div>
-            <Button variant="link" className="text-sm text-vendor-600 hover:underline p-0">
-              View pending orders
-            </Button>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="text-muted-foreground text-sm">Completed Today</p>
-                <h3 className="text-3xl font-bold">{statsData.completedToday}</h3>
-              </div>
-              <div className="bg-green-100 p-2 rounded-lg">
-                <CheckCircle2 size={24} className="text-green-500" />
-              </div>
-            </div>
-            <Button variant="link" className="text-sm text-vendor-600 hover:underline p-0">
-              View completed orders
-            </Button>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="text-muted-foreground text-sm">Cancelled Today</p>
-                <h3 className="text-3xl font-bold">{statsData.cancelledToday}</h3>
-              </div>
-              <div className="bg-red-100 p-2 rounded-lg">
-                <XCircle size={24} className="text-red-500" />
-              </div>
-            </div>
-            <Button variant="link" className="text-sm text-vendor-600 hover:underline p-0">
-              View cancelled orders
-            </Button>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="text-muted-foreground text-sm">Today's Sales (₹)</p>
-                <h3 className="text-3xl font-bold">{statsData.totalSales.toFixed(2)}</h3>
-              </div>
-              <div className="bg-blue-100 p-2 rounded-lg">
-                <ShoppingBag size={24} className="text-blue-500" />
-              </div>
-            </div>
-            <Button variant="link" className="text-sm text-vendor-600 hover:underline p-0">
-              View sales report
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Notifications and Order Management Section */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Notifications */}
-        <div>
-          <VendorNotifications vendorId={vendorId} onOrderStatusChange={handleOrderUpdate} />
         </div>
-        
-        {/* Order List */}
-        <div>
-          <VendorOrdersList vendorId={vendorId} shopId={shop?.id} onOrderUpdate={handleOrderUpdate} />
-        </div>
-      </div>
+      )}
     </div>
   );
 };
