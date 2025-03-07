@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ShoppingCart, User, LogOut, LogIn } from "lucide-react";
@@ -51,12 +50,12 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentN
         <div className="flex items-center space-x-4">
           <Link to="/student/cart" className="relative" onClick={handleCartClick}>
             <img 
-              src="/lovable-uploads/67e02d17-4bdc-4de8-bd18-a5c6a21f8a4e.png" 
+              src="/lovable-uploads/aa5d95d7-7ead-42b3-89c2-f57ff25788fd.png" 
               alt="Shopping Cart" 
-              className="h-6 w-6" 
+              className="h-8 w-8" // Increased size from h-6 w-6 to h-8 w-8
             />
             {items.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                 {items.length}
               </span>
             )}

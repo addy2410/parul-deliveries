@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -339,7 +338,10 @@ const VendorDashboard = () => {
                 </TabsList>
                 
                 <TabsContent value="orders" className="space-y-4">
-                  <VendorOrdersList shopId={shop?.id} />
+                  <VendorOrdersList 
+                    vendorId={shop?.vendor_id || ''} 
+                    shopId={shop?.id} 
+                  />
                 </TabsContent>
                 
                 <TabsContent value="notifications">
