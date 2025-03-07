@@ -15,7 +15,7 @@ type MenuItem = {
   name: string;
   price: number;
   category?: string;
-  image?: string;
+  image_url?: string;
   description?: string;
 };
 
@@ -29,6 +29,7 @@ type Restaurant = {
   rating: number;
   is_open: boolean;
   tags: string[];
+  image_url?: string;
 };
 
 const RestaurantDetail = () => {
@@ -36,9 +37,15 @@ const RestaurantDetail = () => {
   const navigate = useNavigate();
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
 
-  // Function to get the cover image based on restaurant name
-  const getRestaurantCoverImage = (name: string) => {
-    switch(name) {
+  // Function to get the cover image based on restaurant name or use uploaded image
+  const getRestaurantCoverImage = (restaurant: Restaurant) => {
+    // If there's an uploaded image_url, use it
+    if (restaurant.image_url) {
+      return restaurant.image_url;
+    }
+    
+    // Otherwise, use the default images based on name
+    switch(restaurant.name) {
       case "GREENZY Food Court":
         return "/lovable-uploads/e3228c0f-3685-4b2d-ac13-b7c97ad2bf95.png";
       case "Main Food Court":
@@ -141,7 +148,7 @@ const RestaurantDetail = () => {
       <div 
         className="h-48 md:h-64 w-full bg-cover bg-center relative" 
         style={{ 
-          backgroundImage: `url(${getRestaurantCoverImage(restaurant.name)})` 
+          backgroundImage: `url(${getRestaurantCoverImage(restaurant)})` 
         }}
       >
         <div className="absolute inset-0 bg-black bg-opacity-40"></div>

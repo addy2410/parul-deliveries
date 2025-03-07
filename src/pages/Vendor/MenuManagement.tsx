@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Trash } from "lucide-react";
+import { ArrowLeft, Plus, Trash, Image as ImageIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +10,13 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface MenuItem {
   id: string;
@@ -19,6 +26,7 @@ interface MenuItem {
   category?: string;
   description?: string;
   is_available?: boolean;
+  image_url?: string;
 }
 
 interface Shop {
@@ -34,6 +42,10 @@ const VendorMenuManagement = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shop, setShop] = useState<Shop | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const navigate = useNavigate();
   
   // Available food categories
@@ -107,6 +119,55 @@ const VendorMenuManagement = () => {
     
     checkVendorAuth();
   }, [navigate]);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      // Create a preview URL
+      const objectUrl = URL.createObjectURL(file);
+      setImagePreview(objectUrl);
+    }
+  };
+
+  const resetImageForm = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const uploadImage = async (file: File, itemId: string): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${shop?.id}/menu/${itemId}_${Date.now()}.${fileExt}`;
+      
+      const { data, error } = await supabase.storage
+        .from('shop_images')
+        .upload(fileName, file);
+      
+      if (error) {
+        console.error('Error uploading image:', error);
+        throw error;
+      }
+
+      // Get public URL for the uploaded image
+      const { data: { publicUrl } } = supabase.storage
+        .from('shop_images')
+        .getPublicUrl(fileName);
+        
+      return publicUrl;
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      toast.error('Failed to upload menu item image');
+      return null;
+    }
+  };
   
   const handleAddItem = async () => {
     // Validate inputs
@@ -159,13 +220,20 @@ const VendorMenuManagement = () => {
       
       console.log("Successfully added basic menu item:", newItem);
       
+      // Upload image if provided
+      let imageUrl = null;
+      if (imageFile) {
+        imageUrl = await uploadImage(imageFile, newItem.id);
+      }
+      
       // Now update with the additional fields
       const { error: updateError } = await supabase
         .from('menu_items')
         .update({
           category: newItemCategory,
           description: `Delicious ${newItemName.trim()}`,
-          is_available: true
+          is_available: true,
+          image_url: imageUrl
         })
         .eq('id', newItem.id);
       
@@ -196,6 +264,7 @@ const VendorMenuManagement = () => {
       // Clear form
       setNewItemName("");
       setNewItemPrice("");
+      resetImageForm();
     } catch (error) {
       console.error("Error adding item:", error);
       toast.error("Failed to add food item - unexpected error");
@@ -223,6 +292,45 @@ const VendorMenuManagement = () => {
     } catch (error) {
       console.error("Error removing item:", error);
       toast.error("Failed to remove food item");
+    }
+  };
+
+  const handleAddImage = async (item: MenuItem) => {
+    if (!imageFile) {
+      toast.error("Please select an image first");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const imageUrl = await uploadImage(imageFile, item.id);
+      if (imageUrl) {
+        // Update item with the image URL
+        const { error: updateError } = await supabase
+          .from('menu_items')
+          .update({ image_url: imageUrl })
+          .eq('id', item.id);
+          
+        if (updateError) {
+          console.error("Error updating item with image:", updateError);
+          toast.error("Failed to save image for food item");
+          return;
+        }
+        
+        // Update local state
+        setMenuItems(menuItems.map(menuItem => 
+          menuItem.id === item.id ? { ...menuItem, image_url: imageUrl } : menuItem
+        ));
+        
+        toast.success("Image added successfully");
+        setEditingItem(null);
+        resetImageForm();
+      }
+    } catch (error) {
+      console.error("Error adding image:", error);
+      toast.error("Failed to add image");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -292,14 +400,41 @@ const VendorMenuManagement = () => {
               </Select>
             </div>
             
-            <div className="flex items-end">
-              <Button 
-                onClick={handleAddItem} 
-                disabled={isSubmitting}
-                className="bg-vendor-600 hover:bg-vendor-700 w-full"
-              >
-                <Plus size={16} className="mr-2" /> Add Food Item
-              </Button>
+            <div className="flex flex-col space-y-2">
+              <Label htmlFor="food-image">Image (Optional)</Label>
+              <div className="flex items-end gap-2">
+                <div 
+                  className="flex-1 flex items-center justify-center h-10 border border-input rounded-md bg-background cursor-pointer hover:bg-accent transition-colors"
+                  onClick={triggerFileInput}
+                >
+                  <ImageIcon size={16} className="mr-2" />
+                  <span className="text-sm">{imageFile ? 'Change Image' : 'Add Image'}</span>
+                  <input 
+                    ref={fileInputRef}
+                    type="file" 
+                    id="food-image" 
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                  />
+                </div>
+                <Button 
+                  onClick={handleAddItem} 
+                  disabled={isSubmitting}
+                  className="bg-vendor-600 hover:bg-vendor-700"
+                >
+                  <Plus size={16} className="mr-2" /> Add Item
+                </Button>
+              </div>
+              {imagePreview && (
+                <div className="mt-2">
+                  <img 
+                    src={imagePreview} 
+                    alt="Preview" 
+                    className="h-20 object-cover rounded-md" 
+                  />
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
@@ -322,22 +457,104 @@ const VendorMenuManagement = () => {
             >
               <Card className="bg-vendor-50">
                 <CardContent className="py-4 px-5 flex justify-between items-center">
-                  <div>
-                    <h3 className="font-medium">{item.name}</h3>
-                    <div className="flex space-x-4">
-                      <p className="text-vendor-700">₹{item.price.toFixed(2)}</p>
-                      {item.category && (
-                        <span className="text-sm text-gray-500">{item.category}</span>
-                      )}
+                  <div className="flex items-center gap-4">
+                    {item.image_url ? (
+                      <img 
+                        src={item.image_url} 
+                        alt={item.name} 
+                        className="w-16 h-16 rounded-md object-cover" 
+                      />
+                    ) : (
+                      <div className="w-16 h-16 bg-gray-200 rounded-md flex items-center justify-center">
+                        <ImageIcon className="text-gray-400" size={24} />
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="font-medium">{item.name}</h3>
+                      <div className="flex space-x-4">
+                        <p className="text-vendor-700">₹{item.price.toFixed(2)}</p>
+                        {item.category && (
+                          <span className="text-sm text-gray-500">{item.category}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => handleDeleteItem(item.id)}
-                    className="text-destructive hover:bg-destructive/10"
-                  >
-                    <Trash size={16} />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Dialog open={editingItem?.id === item.id} onOpenChange={(open) => !open && setEditingItem(null)}>
+                      <DialogTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            setEditingItem(item);
+                            resetImageForm();
+                          }}
+                          className="text-vendor-700"
+                        >
+                          {item.image_url ? 'Change Image' : 'Add Image'}
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>{item.image_url ? 'Change Image' : 'Add Image'} for {item.name}</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div 
+                            className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+                            onClick={triggerFileInput}
+                          >
+                            {imagePreview ? (
+                              <div className="flex flex-col items-center">
+                                <img 
+                                  src={imagePreview} 
+                                  alt="Preview" 
+                                  className="mb-2 max-h-40 object-contain rounded-md" 
+                                />
+                                <p className="text-sm text-gray-500">Click to change image</p>
+                              </div>
+                            ) : item.image_url ? (
+                              <div className="flex flex-col items-center">
+                                <img 
+                                  src={item.image_url} 
+                                  alt={item.name} 
+                                  className="mb-2 max-h-40 object-contain rounded-md" 
+                                />
+                                <p className="text-sm text-gray-500">Click to change image</p>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center">
+                                <ImageIcon className="h-12 w-12 text-gray-400 mb-2" />
+                                <p className="text-gray-500">Click to upload image</p>
+                                <p className="text-sm text-gray-400 mt-1">Recommended: Square image, 500x500 pixels</p>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              variant="outline" 
+                              onClick={() => setEditingItem(null)}
+                            >
+                              Cancel
+                            </Button>
+                            <Button 
+                              disabled={!imageFile || isSubmitting}
+                              onClick={() => handleAddImage(item)}
+                              className="bg-vendor-600 hover:bg-vendor-700"
+                            >
+                              {isSubmitting ? 'Saving...' : 'Save Image'}
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => handleDeleteItem(item.id)}
+                      className="text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash size={16} />
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>

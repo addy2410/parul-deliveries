@@ -25,9 +25,15 @@ const StudentRestaurants = () => {
     });
   };
 
-  // Function to get the cover image based on restaurant name
-  const getRestaurantCoverImage = (name) => {
-    switch(name) {
+  // Function to get the cover image based on restaurant name or use uploaded image
+  const getRestaurantCoverImage = (restaurant) => {
+    // If there's an uploaded image_url, use it
+    if (restaurant.image_url) {
+      return restaurant.image_url;
+    }
+    
+    // Otherwise, use the default images based on name
+    switch(restaurant.name) {
       case "GREENZY Food Court":
         return "/lovable-uploads/e3228c0f-3685-4b2d-ac13-b7c97ad2bf95.png";
       case "Main Food Court":
@@ -63,7 +69,8 @@ const StudentRestaurants = () => {
             name: shop.name,
             description: shop.description || '',
             logo: shop.logo || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352',
-            coverImage: getRestaurantCoverImage(shop.name),
+            coverImage: shop.image_url || getRestaurantCoverImage({name: shop.name}),
+            image_url: shop.image_url,
             location: shop.location,
             rating: shop.rating || 4.5,
             cuisine: shop.cuisine || 'Food',
@@ -218,7 +225,7 @@ const StudentRestaurants = () => {
                   <Link to={`/student/restaurant/${restaurant.id}`}>
                     <div className="relative h-48 overflow-hidden">
                       <img 
-                        src={getRestaurantCoverImage(restaurant.name)} 
+                        src={restaurant.image_url || getRestaurantCoverImage(restaurant)} 
                         alt={restaurant.name} 
                         className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" 
                       />

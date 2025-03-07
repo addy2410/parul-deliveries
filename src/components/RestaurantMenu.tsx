@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,7 +13,7 @@ type MenuItem = {
   name: string;
   price: number;
   category?: string;
-  image?: string;
+  image_url?: string;
   description?: string;
 };
 
@@ -56,7 +57,7 @@ const RestaurantMenu: React.FC<RestaurantMenuProps> = ({
       name: item.name,
       price: item.price,
       description: item.description || "",
-      image: item.image || "",
+      image: item.image_url || "",
       restaurantId: restaurantId
     }, quantity);
     
@@ -112,7 +113,7 @@ const RestaurantMenu: React.FC<RestaurantMenuProps> = ({
   // Get a food image based on food name
   const getFoodImage = (item: MenuItem) => {
     // Use the item's image if available
-    if (item.image) return item.image;
+    if (item.image_url) return item.image_url;
     
     // Some sample food images based on common Indian dishes
     const foodImages: Record<string, string> = {

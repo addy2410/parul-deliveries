@@ -13,6 +13,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          image_url: string | null
           name: string
           price: number
           shop_id: string
@@ -20,6 +21,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          image_url?: string | null
           name: string
           price: number
           shop_id: string
@@ -27,6 +29,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          image_url?: string | null
           name?: string
           price?: number
           shop_id?: string
@@ -120,6 +123,7 @@ export type Database = {
           delivery_time: string | null
           description: string | null
           id: string
+          image_url: string | null
           is_open: boolean | null
           location: string
           name: string
@@ -133,6 +137,7 @@ export type Database = {
           delivery_time?: string | null
           description?: string | null
           id?: string
+          image_url?: string | null
           is_open?: boolean | null
           location: string
           name: string
@@ -146,6 +151,7 @@ export type Database = {
           delivery_time?: string | null
           description?: string | null
           id?: string
+          image_url?: string | null
           is_open?: boolean | null
           location?: string
           name?: string
