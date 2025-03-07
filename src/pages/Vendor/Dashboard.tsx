@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -314,7 +315,7 @@ const VendorDashboard = () => {
                   
                   <div className="pt-2">
                     <Button asChild className="w-full bg-vendor-600 hover:bg-vendor-700">
-                      <Link to="/vendor/menu-management">
+                      <Link to="/vendor/menu">
                         <Menu className="mr-2 h-4 w-4" /> Manage Menu
                       </Link>
                     </Button>
