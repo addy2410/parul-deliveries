@@ -24,5 +24,117 @@ export const isUsingDefaultCredentials = () => {
   return false;
 };
 
+/**
+ * Helper function to safely delete a user by first deleting associated vendor records
+ * This solves the foreign key constraint issue when deleting users
+ * @param userId The ID of the user to delete
+ * @returns Result of the deletion operation
+ */
+export const safelyDeleteUser = async (userId: string) => {
+  try {
+    // First check if user has a vendor record
+    const { data: vendorData, error: vendorError } = await supabase
+      .from('vendors')
+      .select('id')
+      .eq('id', userId);
+    
+    if (vendorError) {
+      console.error("Error checking vendor records:", vendorError);
+      return { success: false, error: vendorError };
+    }
+    
+    // If user has a vendor record, delete it first
+    if (vendorData && vendorData.length > 0) {
+      // Check for any shops owned by this vendor
+      const { data: shopsData, error: shopsError } = await supabase
+        .from('shops')
+        .select('id')
+        .eq('vendor_id', userId);
+        
+      if (shopsError) {
+        console.error("Error checking shops:", shopsError);
+        return { success: false, error: shopsError };
+      }
+      
+      // If there are shops, delete them first
+      if (shopsData && shopsData.length > 0) {
+        // For each shop, delete its menu items first
+        for (const shop of shopsData) {
+          const { error: menuItemsError } = await supabase
+            .from('menu_items')
+            .delete()
+            .eq('shop_id', shop.id);
+            
+          if (menuItemsError) {
+            console.error(`Error deleting menu items for shop ${shop.id}:`, menuItemsError);
+            return { success: false, error: menuItemsError };
+          }
+        }
+        
+        // Now delete the shops
+        const { error: deleteShopsError } = await supabase
+          .from('shops')
+          .delete()
+          .eq('vendor_id', userId);
+          
+        if (deleteShopsError) {
+          console.error("Error deleting shops:", deleteShopsError);
+          return { success: false, error: deleteShopsError };
+        }
+      }
+      
+      // Now delete the vendor record
+      const { error: deleteVendorError } = await supabase
+        .from('vendors')
+        .delete()
+        .eq('id', userId);
+        
+      if (deleteVendorError) {
+        console.error("Error deleting vendor:", deleteVendorError);
+        return { success: false, error: deleteVendorError };
+      }
+    }
+    
+    // Check for student_profiles record
+    const { data: studentData, error: studentError } = await supabase
+      .from('student_profiles')
+      .select('id')
+      .eq('id', userId);
+      
+    if (studentError) {
+      console.error("Error checking student profile:", studentError);
+      return { success: false, error: studentError };
+    }
+    
+    // If user has a student profile, delete it
+    if (studentData && studentData.length > 0) {
+      const { error: deleteStudentError } = await supabase
+        .from('student_profiles')
+        .delete()
+        .eq('id', userId);
+        
+      if (deleteStudentError) {
+        console.error("Error deleting student profile:", deleteStudentError);
+        return { success: false, error: deleteStudentError };
+      }
+    }
+    
+    // Now we can finally delete the user with the admin API
+    const { error: deleteUserError } = await supabase.auth.admin.deleteUser(
+      userId
+    );
+    
+    if (deleteUserError) {
+      console.error("Error deleting user:", deleteUserError);
+      return { success: false, error: deleteUserError };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Unexpected error deleting user:", error);
+    return { success: false, error };
+  }
+};
+
 // Log for debugging purposes
 console.log("Supabase initialized with URL:", supabaseUrl);
