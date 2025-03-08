@@ -106,11 +106,11 @@ const Community = () => {
                     // Update the existing order
                     return prevOrders.map(order => 
                       order.id === data.id ? data : order
-                    ).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                    ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
                   } else {
                     // Add new order at the top 
                     return [data, ...prevOrders]
-                      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
                   }
                 });
                 
@@ -234,7 +234,7 @@ const Community = () => {
                         ordered from <span className="font-medium">{order.shops?.name || 'Unknown Restaurant'}</span>
                       </p>
                       <div className="flex flex-wrap mt-1">
-                        {order.items && order.items.map((item, index) => (
+                        {Array.isArray(order.items) && order.items.map((item, index) => (
                           <span key={index} className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded mr-1 mb-1">
                             {item.quantity}x {item.name}
                           </span>
