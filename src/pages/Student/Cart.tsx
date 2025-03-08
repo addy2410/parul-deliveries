@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
@@ -8,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useStudentAuth } from "@/hooks/useStudentAuth";
-import { Trash2, ShoppingCart, CreditCard, User, LogOut, Home, AlertCircle } from "lucide-react";
+import { Trash2, ShoppingCart, CreditCard, User, LogOut, Home, AlertCircle, Info, Zap } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { useParams } from "react-router-dom";
 import {
@@ -423,6 +424,25 @@ const Cart = () => {
                       <li>If you don't receive a QR Code, delivery isn't available at the moment.</li>
                       <li>This is not a scam even if it looks a little fishy. It was just because I wasn't willing to integrate payment gateways so I resorted to this way of payment. Ask r/paruluniversity people on Reddit, you'll get to know.</li>
                     </ul>
+                  </div>
+                  
+                  {/* New first-year student message - eye-catching and nicely formatted */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mt-4 flex items-start">
+                    <Info className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
+                    <div>
+                      <p className="text-blue-700 mb-2">
+                        I'm just in First year, forgive me if some functionalities do not work. With your support, we can make it better. 🙏
+                      </p>
+                      <div className="mt-4 bg-gray-900 text-white p-3 rounded-md">
+                        <h4 className="font-medium flex items-center mb-2">
+                          <Zap className="h-4 w-4 mr-2 text-yellow-400" /> 
+                          Our Vision
+                        </h4>
+                        <p className="text-sm text-gray-300">
+                          We someday want to deliver foods through drones 🚁 and RC robots 🤖 throughout the campus. The future of campus delivery is here! 🚀
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

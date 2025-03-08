@@ -24,6 +24,7 @@ const Community = () => {
             student_name,
             restaurant_id,
             items,
+            total_amount,
             created_at,
             shops:restaurant_id(name)
           `)
@@ -44,6 +45,11 @@ const Community = () => {
     };
 
     fetchOrders();
+    
+    // Set up a timer to refresh data every minute to handle the 24-hour expiration
+    const intervalId = setInterval(fetchOrders, 60000);
+    
+    return () => clearInterval(intervalId);
   }, []);
 
   return (
@@ -94,6 +100,11 @@ const Community = () => {
                       <p className="text-sm text-gray-700 mb-2">
                         ordered from <span className="font-medium">{order.shops?.name || 'Unknown Restaurant'}</span>
                       </p>
+                      {order.total_amount && (
+                        <p className="text-sm text-gray-700 mb-2">
+                          for <span className="font-medium">₹{order.total_amount.toFixed(2)}</span>
+                        </p>
+                      )}
                       <div className="text-sm text-gray-500">
                         {format(new Date(order.created_at), 'MMMM d, yyyy h:mm a')}
                       </div>
