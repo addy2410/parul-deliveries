@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
-import { User, Home, Clock } from "lucide-react";
+import { User, Home, Clock, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -11,13 +11,15 @@ import { useToast } from "@/hooks/use-toast";
 const Community = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
 
   const fetchOrders = async () => {
     try {
-      setLoading(true);
+      setRefreshing(true);
       
       // Fetch all orders with restaurant names, sort by most recent
+      // No status filter to make sure we get orders when students click "Proceed to Payment"
       const { data, error } = await supabase
         .from("orders")
         .select(`
@@ -52,7 +54,17 @@ const Community = () => {
       });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  // Manual refresh function
+  const handleManualRefresh = async () => {
+    await fetchOrders();
+    toast({
+      title: "Refreshed",
+      description: "Community orders have been updated.",
+    });
   };
 
   useEffect(() => {
@@ -60,6 +72,7 @@ const Community = () => {
     fetchOrders();
     
     // Set up realtime subscription for new orders
+    // This will immediately update the community page when students click "Proceed to Payment"
     const channel = supabase
       .channel('public:orders')
       .on('postgres_changes', 
@@ -75,20 +88,29 @@ const Community = () => {
           console.error('Failed to subscribe to realtime updates');
           toast({
             title: "Notification",
-            description: "Live updates might be delayed. Refreshing manually.",
+            description: "Live updates might be delayed. Using automatic refresh.",
             variant: "default",
           });
         }
       });
     
-    // Set up a timer to refresh data every minute as a fallback
-    const intervalId = setInterval(fetchOrders, 60000);
+    // Set up a timer to refresh data every 30 seconds as a fallback
+    const intervalId = setInterval(fetchOrders, 30000);
     
     return () => {
       clearInterval(intervalId);
       supabase.removeChannel(channel);
     };
-  }, [toast]);
+  }, []);
+
+  const formatOrderTime = (timeString) => {
+    try {
+      return format(new Date(timeString), 'MMMM d, yyyy h:mm a');
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Unknown time";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -111,16 +133,29 @@ const Community = () => {
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">Our Community Orders</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Our Community Orders</h1>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleManualRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </div>
+        
         <p className="text-gray-600 mb-4">
           See what others in our campus community are ordering. Join the foodie movement!
         </p>
         
         <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-8 flex items-center">
           <Clock className="h-5 w-5 text-blue-500 mr-2 flex-shrink-0" />
-          <p className="text-blue-700 text-sm">
-            This page automatically refreshes every minute with new orders. Orders older than 24 hours are automatically removed.
-          </p>
+          <div className="text-blue-700 text-sm">
+            <p className="font-medium">Live updates are enabled!</p>
+            <p>This page auto-refreshes in real-time as new orders come in. All orders are automatically removed after 24 hours.</p>
+          </div>
         </div>
 
         {loading ? (
@@ -151,7 +186,7 @@ const Community = () => {
                         </p>
                       )}
                       <div className="text-sm text-gray-500">
-                        {format(new Date(order.created_at), 'MMMM d, yyyy h:mm a')}
+                        {formatOrderTime(order.created_at)}
                       </div>
                     </div>
                     <div className="bg-gray-100 rounded-lg p-3 max-w-md">
