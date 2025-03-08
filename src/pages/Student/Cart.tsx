@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
@@ -21,14 +20,13 @@ import {
 
 const Cart = () => {
   const { shopId } = useParams();
-  const { items, removeItem, updateQuantity, clearCart, totalPrice, restaurantName } = useCart();
+  const { items, removeItem, updateQuantity, clearCart, totalPrice, deliveryFee, finalTotal, restaurantName } = useCart();
   const { studentId, studentName, studentAddress, isAuthenticated, logout } = useStudentAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState(studentAddress || "");
   const [orderCreated, setOrderCreated] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState(null);
-  const total = totalPrice;
 
   useEffect(() => {
     if (studentAddress) {
@@ -140,9 +138,9 @@ const Cart = () => {
       console.log("Creating order with data:", {
         student_id: currentStudentId,
         vendor_id: vendorId,
-        restaurant_id: activeRestaurantId,  // Changed from shop_id to restaurant_id
+        restaurant_id: activeRestaurantId,
         items: orderItems,
-        total_amount: total,
+        total_amount: finalTotal, // Use finalTotal including delivery fee
         status: "pending",
         delivery_location: deliveryAddress || "Campus",
         student_name: currentStudentName || "Student"
@@ -153,9 +151,9 @@ const Cart = () => {
         .insert([{
           student_id: currentStudentId,
           vendor_id: vendorId,
-          restaurant_id: activeRestaurantId,  // Changed from shop_id to restaurant_id
+          restaurant_id: activeRestaurantId,
           items: orderItems,
-          total_amount: total,
+          total_amount: finalTotal, // Use finalTotal including delivery fee
           status: "pending",
           delivery_location: deliveryAddress || "Campus",
           student_name: currentStudentName || "Student"
@@ -187,7 +185,7 @@ const Cart = () => {
             data: {
               order_id: order.id,
               items: orderItems,
-              total_amount: total,
+              total_amount: finalTotal, // Use finalTotal including delivery fee
               delivery_location: deliveryAddress || "Campus"
             }
           }]);
@@ -401,18 +399,18 @@ const Cart = () => {
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Subtotal</span>
-                        <span>₹{total.toFixed(2)}</span>
+                        <span>₹{totalPrice.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">
                           Delivery Fee
                         </span>
-                        <span>₹0.00</span>
+                        <span>₹{items.length > 0 ? deliveryFee.toFixed(2) : '0.00'}</span>
                       </div>
                       <Separator />
                       <div className="flex justify-between font-medium text-lg">
                         <span>Total</span>
-                        <span>₹{total.toFixed(2)}</span>
+                        <span>₹{finalTotal.toFixed(2)}</span>
                       </div>
                     </div>
 

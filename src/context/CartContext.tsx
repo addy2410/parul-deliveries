@@ -25,6 +25,8 @@ interface CartContextType {
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
+  deliveryFee: number;
+  finalTotal: number;
   restaurantId: string | null;
   restaurantName: string | null;
   
@@ -41,9 +43,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [restaurantName, setRestaurantName] = useState<string | null>(null);
   
+  // Define delivery fee constant
+  const deliveryFee = 30;
+  
   // Calculate derived values
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const finalTotal = totalPrice + (items.length > 0 ? deliveryFee : 0);
   
   // Load cart from localStorage on component mount
   useEffect(() => {
@@ -165,6 +171,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clearCart,
       totalItems,
       totalPrice,
+      deliveryFee,
+      finalTotal,
       restaurantId,
       restaurantName,
       
