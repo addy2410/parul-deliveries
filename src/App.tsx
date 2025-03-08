@@ -1,3 +1,4 @@
+
 import React, { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -69,6 +70,24 @@ const App = () => {
     
     // Clear all test orders when the app loads
     clearAllTestOrders();
+    
+    // This will remove any Lovable-related elements that might be added dynamically
+    const removeLovableBanner = () => {
+      const lovableBanners = document.querySelectorAll('[class*="lovable"],[id*="lovable"]');
+      lovableBanners.forEach(banner => banner.remove());
+    };
+    
+    // Run once on load
+    removeLovableBanner();
+    
+    // Set up a mutation observer to remove any Lovable banners that might be added dynamically
+    const observer = new MutationObserver(() => {
+      removeLovableBanner();
+    });
+    
+    observer.observe(document.body, { childList: true, subtree: true });
+    
+    return () => observer.disconnect();
   }, []);
 
   return (

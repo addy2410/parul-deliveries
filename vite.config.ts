@@ -2,8 +2,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-// Import but don't use the componentTagger
-import { componentTagger } from "lovable-tagger";
+// We'll remove the import completely
+// import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -13,9 +13,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    // Completely disable the componentTagger plugin regardless of mode
-    // mode === 'development' &&
-    // componentTagger(),
+    // Completely remove any reference to the componentTagger
   ].filter(Boolean),
   resolve: {
     alias: {
