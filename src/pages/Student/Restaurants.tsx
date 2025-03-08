@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,7 +19,6 @@ const StudentRestaurants = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
-  // Scroll to top function for Order Now button
   const scrollToTop = () => {
     window.scrollTo({
       top: 0,
@@ -28,7 +26,7 @@ const StudentRestaurants = () => {
     });
   };
 
-  // Function to get the cover image based on restaurant name or use uploaded image
+  // Function to get the restaurant cover image based on restaurant name or use uploaded image
   const getRestaurantCoverImage = (restaurant) => {
     // If there's an uploaded image_url, use it
     if (restaurant.image_url) {
@@ -195,7 +193,7 @@ const StudentRestaurants = () => {
       
       {/* Category Filter - Horizontally scrollable with proper z-index */}
       <div className="bg-white shadow-sm sticky top-16 z-40">
-        <ScrollArea className="w-full" orientation="horizontal">
+        <ScrollArea className="w-full">
           <div className="container mx-auto px-4 py-3">
             <div className="flex space-x-2 min-w-max">
               {categories.map(category => 

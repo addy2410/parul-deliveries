@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -16,8 +15,9 @@ const InstallPWAPrompt = () => {
     // Check if we've already prompted using localStorage
     const hasAlreadyPrompted = localStorage.getItem('pwaPromptShown');
     
-    // Check if device is iOS
-    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    // Check if device is iOS - using a type-safe approach
+    const userAgent = navigator.userAgent;
+    const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
     
     if (!isPWA && !hasAlreadyPrompted && !hasPrompted) {
