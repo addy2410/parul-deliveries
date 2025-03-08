@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import {
   CircleCheckBig,
   XCircle,
@@ -41,6 +42,7 @@ const VendorDashboard = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showImageDialog, setShowImageDialog] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -74,6 +76,7 @@ const VendorDashboard = () => {
         }
         
         setShop(shopData);
+        setIsOpen(shopData.is_open);
         if (shopData.image_url) {
           setPreviewUrl(shopData.image_url);
         }
@@ -97,6 +100,35 @@ const VendorDashboard = () => {
     } catch (error) {
       console.error("Error signing out:", error);
       toast.error("Error signing out");
+    }
+  };
+
+  const handleShopStatusChange = async () => {
+    try {
+      setIsSubmitting(true);
+      const newStatus = !isOpen;
+      
+      // Update shop status in the database
+      const { error } = await supabase
+        .from('shops')
+        .update({ is_open: newStatus })
+        .eq('id', shop.id);
+        
+      if (error) {
+        console.error('Error updating shop status:', error);
+        toast.error('Failed to update shop status');
+        return;
+      }
+      
+      // Update local state
+      setIsOpen(newStatus);
+      setShop({...shop, is_open: newStatus});
+      toast.success(`Shop is now ${newStatus ? 'open' : 'closed'} for orders`);
+    } catch (error) {
+      console.error('Error updating shop status:', error);
+      toast.error('Failed to update shop status');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -299,8 +331,23 @@ const VendorDashboard = () => {
                     </div>
                   </div>
                   
+                  {/* Open/Close Toggle */}
+                  <div className="flex items-center justify-between border-t pt-3">
+                    <span className="font-medium">Shop Status</span>
+                    <div className="flex items-center gap-2">
+                      <span className={isOpen ? "text-green-600" : "text-red-600"}>
+                        {isOpen ? "Open" : "Closed"}
+                      </span>
+                      <Switch 
+                        checked={isOpen} 
+                        onCheckedChange={handleShopStatusChange}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                  
                   <div className="flex items-center pt-2">
-                    {shop?.is_open ? (
+                    {isOpen ? (
                       <div className="flex items-center text-green-600">
                         <CircleCheckBig className="h-5 w-5 mr-1" />
                         <span className="font-medium">Open for Orders</span>
