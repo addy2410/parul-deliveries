@@ -3,13 +3,15 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
-import { User, Home } from "lucide-react";
+import { User, Home, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 const Community = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -32,6 +34,11 @@ const Community = () => {
         
         if (error) {
           console.error("Error fetching orders:", error);
+          toast({
+            title: "Error",
+            description: "Could not load community orders. Please try again.",
+            variant: "destructive",
+          });
           setOrders([]);
         } else {
           console.log("Fetched orders:", data);
@@ -46,7 +53,7 @@ const Community = () => {
 
     fetchOrders();
     
-    // Set up a timer to refresh data every minute to handle the 24-hour expiration
+    // Set up a timer to refresh data every minute to see new orders
     const intervalId = setInterval(fetchOrders, 60000);
     
     return () => clearInterval(intervalId);
@@ -74,9 +81,16 @@ const Community = () => {
 
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-6">Our Community Orders</h1>
-        <p className="text-gray-600 mb-8">
+        <p className="text-gray-600 mb-4">
           See what others in our campus community are ordering. Join the foodie movement!
         </p>
+        
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-8 flex items-center">
+          <Clock className="h-5 w-5 text-blue-500 mr-2 flex-shrink-0" />
+          <p className="text-blue-700 text-sm">
+            This page automatically refreshes every minute with new orders. Orders older than 24 hours are automatically removed.
+          </p>
+        </div>
 
         {loading ? (
           <div className="grid gap-4">
