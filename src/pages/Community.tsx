@@ -1,18 +1,18 @@
 
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
 import { User, Home, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 
 const Community = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [newOrderNotification, setNewOrderNotification] = useState(null);
+  const [newOrderNotifications, setNewOrderNotifications] = useState([]);
 
   // Function to fetch orders
   const fetchOrders = async () => {
@@ -91,7 +91,7 @@ const Community = () => {
               console.log("New order details:", data);
               
               // Add notification for the new order
-              setNewOrderNotification(data);
+              setNewOrderNotifications(prev => [data, ...prev].slice(0, 10));
               
               // Update orders list to include the new order
               setOrders(prevOrders => [data, ...prevOrders]);
@@ -153,17 +153,28 @@ const Community = () => {
         </div>
 
         {/* Real-time notifications display */}
-        {newOrderNotification && (
-          <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mb-6 animate-in fade-in slide-in-from-top duration-500">
-            <h3 className="font-semibold text-primary mb-2">New Order Just Now!</h3>
-            <p>
-              <span className="font-medium">{newOrderNotification.student_name}</span> ordered 
-              {newOrderNotification.items && newOrderNotification.items.length > 0 
-                ? ` ${newOrderNotification.items.map(item => `${item.quantity}x ${item.name}`).join(', ')}` 
-                : ' items'} 
-              for <span className="font-medium">₹{newOrderNotification.total_amount?.toFixed(2)}</span> including delivery fees 
-              from <span className="font-medium">{newOrderNotification.shops?.name || 'Unknown Restaurant'}</span>
-            </p>
+        {newOrderNotifications.length > 0 && (
+          <div className="mb-8 space-y-3">
+            <h3 className="font-semibold text-primary">Live Order Activity</h3>
+            {newOrderNotifications.map((order, index) => (
+              <div 
+                key={`notification-${order.id}`} 
+                className="bg-primary/10 border border-primary/20 rounded-lg p-4 animate-in fade-in slide-in-from-top duration-500"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <p className="text-sm text-gray-700">
+                  <span className="font-medium">{order.student_name}</span> ordered 
+                  {Array.isArray(order.items) && order.items.length > 0 
+                    ? ` ${order.items.map(item => `${item.quantity}x ${item.name}`).join(', ')}` 
+                    : ' items'} 
+                  for <span className="font-medium">₹{order.total_amount?.toFixed(2)}</span> including delivery fees 
+                  from <span className="font-medium">{order.shops?.name || 'Unknown Restaurant'}</span>
+                  <span className="text-xs text-gray-500 ml-2">
+                    {format(new Date(order.created_at), 'h:mm a')}
+                  </span>
+                </p>
+              </div>
+            ))}
           </div>
         )}
 
@@ -195,13 +206,13 @@ const Community = () => {
                         </p>
                       )}
                       <div className="text-sm text-gray-500">
-                        {format(new Date(order.created_at), 'MMMM d, yyyy h:mm a')}
+                        {order.created_at && format(new Date(order.created_at), 'MMMM d, yyyy h:mm a')}
                       </div>
                     </div>
                     <div className="bg-gray-100 rounded-lg p-3 max-w-md">
                       <h4 className="text-sm font-medium mb-2">Order Items:</h4>
                       <ul className="text-sm">
-                        {order.items && Array.isArray(order.items) && order.items.map((item, index) => (
+                        {Array.isArray(order.items) && order.items.map((item, index) => (
                           <li key={index} className="mb-1">
                             {item.quantity}x {item.name}
                           </li>
