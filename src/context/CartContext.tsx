@@ -14,7 +14,9 @@ interface MenuItem {
 
 interface CartItem extends MenuItem {
   quantity: number;
-  restaurantName?: string; 
+  restaurantName?: string;
+  vendorId?: string; // Add vendorId property
+  image_url?: string; // Add image_url property
 }
 
 interface CartContextType {
@@ -29,6 +31,7 @@ interface CartContextType {
   finalTotal: number;
   restaurantId: string | null;
   restaurantName: string | null;
+  vendorId?: string | null; // Add vendorId property
   
   // Aliases for backward compatibility with existing components
   cartItems: CartItem[];
@@ -42,6 +45,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [items, setItems] = useState<CartItem[]>([]);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [restaurantName, setRestaurantName] = useState<string | null>(null);
+  const [vendorId, setVendorId] = useState<string | null>(null);
   
   // Define delivery fee constant
   const deliveryFee = 30;
@@ -56,6 +60,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const savedCart = localStorage.getItem("campus-grub-cart");
     const savedRestaurantId = localStorage.getItem("campus-grub-restaurant");
     const savedRestaurantName = localStorage.getItem("campus-grub-restaurant-name");
+    const savedVendorId = localStorage.getItem("campus-grub-vendor");
     
     if (savedCart) {
       try {
@@ -73,6 +78,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (savedRestaurantName) {
       setRestaurantName(savedRestaurantName);
     }
+    
+    if (savedVendorId) {
+      setVendorId(savedVendorId);
+    }
   }, []);
   
   // Save cart to localStorage whenever it changes
@@ -84,19 +93,30 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (restaurantName) {
       localStorage.setItem("campus-grub-restaurant-name", restaurantName);
     }
-  }, [items, restaurantId, restaurantName]);
+    if (vendorId) {
+      localStorage.setItem("campus-grub-vendor", vendorId);
+    }
+  }, [items, restaurantId, restaurantName, vendorId]);
   
   const addItem = (item: MenuItem, quantity: number = 1) => {
     // Find restaurant name
     const restaurant = restaurants.find(r => r.id === item.restaurantId);
     const currentRestaurantName = restaurant?.name || 'Unknown Restaurant';
+    const currentVendorId = restaurant?.vendorId || null;
     
     // Check if we need to clear the cart (items from different restaurants)
     if (restaurantId && item.restaurantId !== restaurantId && items.length > 0) {
       if (window.confirm("Your cart contains items from another restaurant. Would you like to clear your cart and add this item?")) {
-        setItems([{ ...item, quantity, restaurantName: currentRestaurantName }]);
+        setItems([{ 
+          ...item, 
+          quantity, 
+          restaurantName: currentRestaurantName,
+          image_url: item.image, // Set image_url from image
+          vendorId: currentVendorId // Set vendorId 
+        }]);
         setRestaurantId(item.restaurantId);
         setRestaurantName(currentRestaurantName);
+        setVendorId(currentVendorId);
         toast.success(`Added ${quantity} ${item.name} to your cart`);
       }
       return;
@@ -106,6 +126,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!restaurantId) {
       setRestaurantId(item.restaurantId);
       setRestaurantName(currentRestaurantName);
+      setVendorId(currentVendorId);
     }
     
     // Check if item already exists in cart
@@ -117,8 +138,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       newItems[existingItemIndex].quantity += quantity;
       setItems(newItems);
     } else {
-      // Add new item to cart
-      setItems([...items, { ...item, quantity, restaurantName: currentRestaurantName }]);
+      // Add new item to cart with image_url and vendorId
+      setItems([...items, { 
+        ...item, 
+        quantity, 
+        restaurantName: currentRestaurantName,
+        image_url: item.image, // Set image_url from image
+        vendorId: currentVendorId // Set vendorId
+      }]);
     }
     
     toast.success(`Added ${quantity} ${item.name} to your cart`);
@@ -175,6 +202,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       finalTotal,
       restaurantId,
       restaurantName,
+      vendorId,
       
       // Aliases for backward compatibility
       cartItems: items,

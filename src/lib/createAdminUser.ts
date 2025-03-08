@@ -25,7 +25,7 @@ export const createAdminUser = async () => {
       return { success: true, message: "Admin user already exists" };
     }
     
-    // Create the admin user
+    // Create the admin user with auth
     const { data, error } = await supabase.auth.signUp({
       email: 'admin@campusgrub.com',
       password: 'Admin@CampusGrub123',
@@ -40,6 +40,21 @@ export const createAdminUser = async () => {
     if (error) {
       console.error("Error creating admin user:", error);
       return { success: false, error };
+    }
+    
+    // Insert the admin user into the vendors table
+    const { error: vendorError } = await supabase
+      .from('vendors')
+      .insert({
+        id: data.user?.id,
+        email: 'admin@campusgrub.com',
+        name: 'System Admin',
+        is_admin: true
+      });
+      
+    if (vendorError) {
+      console.error("Error creating admin vendor record:", vendorError);
+      return { success: false, error: vendorError };
     }
     
     console.log("Admin user created successfully:", data);

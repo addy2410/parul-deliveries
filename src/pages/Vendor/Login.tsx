@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { adminCredentials } from "@/lib/createAdminUser";
 
 const VendorLogin = () => {
   const [email, setEmail] = useState("");
@@ -17,6 +18,29 @@ const VendorLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
   const navigate = useNavigate();
+
+  // Check if admin already exists on component mount
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const { data, error } = await supabase
+        .from('vendors')
+        .select('*')
+        .eq('email', adminCredentials.email)
+        .maybeSingle();
+        
+      if (error) {
+        console.error("Error checking for admin:", error);
+      }
+      
+      if (data) {
+        console.log("Admin account exists:", data);
+      } else {
+        console.log("Admin account doesn't exist yet. It will be created on app startup.");
+      }
+    };
+    
+    checkAdmin();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +54,44 @@ const VendorLogin = () => {
     
     try {
       // Output some debug info
-      console.log(`Attempting to log in vendor with email: ${email}`);
+      console.log(`Attempting to log in with email: ${email}`);
+      
+      // Special case for admin login
+      if (email === adminCredentials.email && password === adminCredentials.password) {
+        console.log("Admin login detected");
+        
+        // Try to authenticate with Supabase
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: adminCredentials.email,
+          password: adminCredentials.password,
+        });
+        
+        if (error) {
+          console.error("Admin login error with Supabase:", error);
+          
+          // Even if Supabase auth fails, create a mock session for admin
+          const mockAdminSession = {
+            user: {
+              id: 'admin-user',
+              email: adminCredentials.email,
+              user_metadata: { name: 'System Administrator', is_admin: true }
+            }
+          };
+          
+          localStorage.setItem('vendorSession', JSON.stringify(mockAdminSession));
+          toast.success("Logged in as System Administrator");
+          navigate("/vendor/admin-all-orders");
+          return;
+        }
+        
+        if (data.user) {
+          toast.success("Admin login successful");
+          navigate("/vendor/admin-all-orders");
+        }
+        
+        setIsLoading(false);
+        return;
+      }
       
       // Hard-coded vendor credentials for specific food courts
       const vendorCredentials = [
@@ -61,6 +122,7 @@ const VendorLogin = () => {
         
         // Navigate to dashboard
         navigate("/vendor/dashboard");
+        setIsLoading(false);
         return;
       }
       
@@ -246,6 +308,7 @@ const VendorLogin = () => {
                     
                     <div className="text-sm text-center mt-4 text-muted-foreground">
                       <p className="font-semibold">Demo Credentials:</p>
+                      <p>Admin: admin@campusgrub.com / Admin@CampusGrub123</p>
                       <p>GREENZY: greenzy@campus.com / green123</p>
                       <p>Main Food Court: main@campus.com / main123</p>
                     </div>
