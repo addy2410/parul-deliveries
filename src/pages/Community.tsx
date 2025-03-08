@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
@@ -14,8 +14,8 @@ const Community = () => {
   const [loading, setLoading] = useState(true);
   const [newOrderNotifications, setNewOrderNotifications] = useState([]);
 
-  // Function to fetch orders
-  const fetchOrders = async () => {
+  // Memoized function to fetch orders
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -47,12 +47,12 @@ const Community = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Initial data fetch
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [fetchOrders]);
 
   // Set up real-time subscription for new orders
   useEffect(() => {
@@ -112,11 +112,54 @@ const Community = () => {
     };
   }, []);
 
-  // Handle manual refresh
-  const handleRefresh = () => {
+  // Handle manual refresh - memoized
+  const handleRefresh = useCallback(() => {
     fetchOrders();
     toast.info("Orders refreshed");
-  };
+  }, [fetchOrders]);
+
+  // Memoize the empty state to prevent unnecessary re-renders
+  const emptyState = useMemo(() => (
+    <div className="text-center py-12 bg-white rounded-lg shadow">
+      <p className="text-gray-500 mb-4">No orders found yet. Be the first to order!</p>
+      <Button asChild>
+        <Link to="/student/restaurants">Browse Restaurants</Link>
+      </Button>
+    </div>
+  ), []);
+
+  // Memoize the loading state
+  const loadingState = useMemo(() => (
+    <div className="grid gap-4">
+      {[1, 2, 3].map((i) => (
+        <Card key={i} className="bg-gray-100 animate-pulse h-32">
+          <CardContent className="p-6"></CardContent>
+        </Card>
+      ))}
+    </div>
+  ), []);
+
+  // Format date safely with memoization
+  const formatDate = useCallback((dateString) => {
+    if (!dateString) return '';
+    try {
+      return format(new Date(dateString), 'MMMM d, yyyy h:mm a');
+    } catch (error) {
+      console.error("Date formatting error:", error);
+      return 'Invalid date';
+    }
+  }, []);
+
+  // Format time safely with memoization
+  const formatTime = useCallback((dateString) => {
+    if (!dateString) return '';
+    try {
+      return format(new Date(dateString), 'h:mm a');
+    } catch (error) {
+      console.error("Time formatting error:", error);
+      return '';
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -170,7 +213,7 @@ const Community = () => {
                   for <span className="font-medium">₹{order.total_amount?.toFixed(2)}</span> including delivery fees 
                   from <span className="font-medium">{order.shops?.name || 'Unknown Restaurant'}</span>
                   <span className="text-xs text-gray-500 ml-2">
-                    {format(new Date(order.created_at), 'h:mm a')}
+                    {formatTime(order.created_at)}
                   </span>
                 </p>
               </div>
@@ -179,13 +222,7 @@ const Community = () => {
         )}
 
         {loading ? (
-          <div className="grid gap-4">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="bg-gray-100 animate-pulse h-32">
-                <CardContent className="p-6"></CardContent>
-              </Card>
-            ))}
-          </div>
+          loadingState
         ) : orders.length > 0 ? (
           <div className="grid gap-4">
             {orders.map((order) => (
@@ -206,7 +243,7 @@ const Community = () => {
                         </p>
                       )}
                       <div className="text-sm text-gray-500">
-                        {order.created_at && format(new Date(order.created_at), 'MMMM d, yyyy h:mm a')}
+                        {formatDate(order.created_at)}
                       </div>
                     </div>
                     <div className="bg-gray-100 rounded-lg p-3 max-w-md">
@@ -225,12 +262,7 @@ const Community = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 bg-white rounded-lg shadow">
-            <p className="text-gray-500 mb-4">No orders found yet. Be the first to order!</p>
-            <Button asChild>
-              <Link to="/student/restaurants">Browse Restaurants</Link>
-            </Button>
-          </div>
+          emptyState
         )}
       </div>
       
