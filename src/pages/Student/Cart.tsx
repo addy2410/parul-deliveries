@@ -217,6 +217,13 @@ const Cart = () => {
   const handleProceedToPayment = () => {
     if (createdOrderId) {
       console.log("Navigating to order tracking for ID:", createdOrderId);
+      
+      // Open WhatsApp link in a new tab
+      const phoneNumber = "9198420947943";
+      const message = `Hello, I want to pay for my order`;
+      const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+      
       // Clear the cart after successful order placement and navigation
       clearCart();
       navigate(`/student/order-tracking/${createdOrderId}`);
