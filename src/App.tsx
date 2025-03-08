@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { CartProvider } from "./context/CartContext";
 import { supabase } from "@/lib/supabase";
+import { createAdminUser, adminCredentials } from "@/lib/createAdminUser";
 
 // Pages
 import Index from "./pages/Index";
@@ -71,6 +72,17 @@ const App = () => {
     
     // Clear all test orders when the app loads
     clearAllTestOrders();
+    
+    // Create admin user if it doesn't exist
+    createAdminUser().then(result => {
+      if (result.success) {
+        console.log("Admin user setup complete");
+        // Log credentials to console for reference
+        console.log("Admin credentials:", adminCredentials);
+      } else {
+        console.error("Failed to set up admin user:", result.error);
+      }
+    });
     
     // This will remove any Lovable-related elements that might be added dynamically
     const removeLovableBanner = () => {
