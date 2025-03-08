@@ -1,4 +1,3 @@
-
 export interface MenuItem {
   id: string;
   name: string;
@@ -23,6 +22,7 @@ export interface Restaurant {
   deliveryFee: number;
   deliveryTime: string;
   isOpen: boolean;
+  vendorId?: string; // Added vendorId property to Restaurant interface
 }
 
 export interface OrderItem {
@@ -59,7 +59,8 @@ export const restaurants: Restaurant[] = [
     tags: ['Hyderabadi', 'Biryani', 'Kebabs'],
     deliveryFee: 30.00,
     deliveryTime: '20-30 min',
-    isOpen: true
+    isOpen: true,
+    vendorId: 'vendor-1' // Add a default vendorId for the sample restaurant
   }
 ];
 

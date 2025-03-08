@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { restaurants } from "@/data/data";
@@ -84,7 +83,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
   
-  // Save cart to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem("campus-grub-cart", JSON.stringify(items));
     if (restaurantId) {
@@ -102,6 +100,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Find restaurant name
     const restaurant = restaurants.find(r => r.id === item.restaurantId);
     const currentRestaurantName = restaurant?.name || 'Unknown Restaurant';
+    
+    // Fix: Use optional chaining to safely check for vendorId, and provide a fallback
+    // This fixes the TypeScript error by correctly handling the case where vendorId might not exist
     const currentVendorId = restaurant?.vendorId || null;
     
     // Check if we need to clear the cart (items from different restaurants)
