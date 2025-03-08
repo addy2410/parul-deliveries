@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
 import { User, Home, Clock, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,6 @@ const Community = () => {
       setRefreshing(true);
       
       // Fetch all orders with restaurant names, sort by most recent
-      // No status filter to make sure we get orders when students click "Proceed to Payment"
       const { data, error } = await supabase
         .from("orders")
         .select(`
@@ -72,14 +71,66 @@ const Community = () => {
     fetchOrders();
     
     // Set up realtime subscription for new orders
-    // This will immediately update the community page when students click "Proceed to Payment"
     const channel = supabase
-      .channel('public:orders')
+      .channel('order-notifications')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'orders' },
         (payload) => {
           console.log('Real-time update received:', payload);
-          fetchOrders(); // Refresh all orders when any changes
+          
+          // When a new order is created or updated, fetch the complete order details including the restaurant name
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const fetchNewOrder = async () => {
+              const { data, error } = await supabase
+                .from("orders")
+                .select(`
+                  id,
+                  student_name,
+                  restaurant_id,
+                  items,
+                  total_amount,
+                  created_at,
+                  status,
+                  shops:restaurant_id(name)
+                `)
+                .eq('id', payload.new.id)
+                .single();
+                
+              if (!error && data) {
+                // Add to existing orders (ensuring no duplicates)
+                setOrders(prevOrders => {
+                  // Check if order already exists in the array
+                  const orderExists = prevOrders.some(order => order.id === data.id);
+                  
+                  if (orderExists) {
+                    // Update the existing order
+                    return prevOrders.map(order => 
+                      order.id === data.id ? data : order
+                    ).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                  } else {
+                    // Add new order at the top 
+                    return [data, ...prevOrders]
+                      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                  }
+                });
+                
+                // Show a toast notification for new orders
+                if (payload.eventType === 'INSERT') {
+                  toast({
+                    title: "New Order!",
+                    description: `${data.student_name} just ordered from ${data.shops?.name || 'Unknown Restaurant'}`,
+                  });
+                }
+              }
+            };
+            
+            fetchNewOrder();
+          } else if (payload.eventType === 'DELETE') {
+            // Remove deleted order from the state
+            setOrders(prevOrders => 
+              prevOrders.filter(order => order.id !== payload.old.id)
+            );
+          }
         }
       )
       .subscribe((status) => {
@@ -94,8 +145,8 @@ const Community = () => {
         }
       });
     
-    // Set up a timer to refresh data every 30 seconds as a fallback
-    const intervalId = setInterval(fetchOrders, 30000);
+    // Set up a timer to refresh data every 60 seconds as a fallback
+    const intervalId = setInterval(fetchOrders, 60000);
     
     return () => {
       clearInterval(intervalId);
@@ -159,46 +210,43 @@ const Community = () => {
         </div>
 
         {loading ? (
-          <div className="grid gap-4">
+          <div className="flex flex-col space-y-4">
             {[1, 2, 3].map((i) => (
-              <Card key={i} className="bg-gray-100 animate-pulse h-32">
+              <Card key={i} className="bg-gray-100 animate-pulse h-24">
                 <CardContent className="p-6"></CardContent>
               </Card>
             ))}
           </div>
         ) : orders.length > 0 ? (
-          <div className="grid gap-4">
+          <div className="flex flex-col space-y-4 max-h-[70vh] overflow-y-auto p-2">
             {orders.map((order) => (
-              <Card key={order.id} className="shadow-sm hover:shadow-md transition-shadow duration-200">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center mb-2">
-                        <User className="h-5 w-5 mr-2 text-gray-400" />
-                        <span className="font-medium">{order.student_name}</span>
+              <Card key={order.id} className="shadow-sm hover:shadow-md transition-shadow duration-200 border-l-4 border-l-primary animate-fade-in">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center mb-1">
+                        <User className="h-4 w-4 mr-2 text-gray-500" />
+                        <span className="font-medium text-gray-900">{order.student_name}</span>
+                        <span className="mx-2 text-gray-400">•</span>
+                        <span className="text-xs text-gray-500">{formatOrderTime(order.created_at)}</span>
                       </div>
-                      <p className="text-sm text-gray-700 mb-2">
+                      <p className="text-sm text-gray-700">
                         ordered from <span className="font-medium">{order.shops?.name || 'Unknown Restaurant'}</span>
                       </p>
-                      {order.total_amount && (
-                        <p className="text-sm text-gray-700 mb-2">
-                          for <span className="font-medium">₹{order.total_amount.toFixed(2)}</span>
-                        </p>
-                      )}
-                      <div className="text-sm text-gray-500">
-                        {formatOrderTime(order.created_at)}
+                      <div className="flex flex-wrap mt-1">
+                        {order.items && order.items.map((item, index) => (
+                          <span key={index} className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded mr-1 mb-1">
+                            {item.quantity}x {item.name}
+                          </span>
+                        ))}
                       </div>
                     </div>
-                    <div className="bg-gray-100 rounded-lg p-3 max-w-md">
-                      <h4 className="text-sm font-medium mb-2">Order Items:</h4>
-                      <ul className="text-sm">
-                        {order.items && order.items.map((item, index) => (
-                          <li key={index} className="mb-1">
-                            {item.quantity}x {item.name}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    {order.total_amount && (
+                      <div className="ml-4 text-right">
+                        <div className="font-medium text-green-600">₹{order.total_amount.toFixed(2)}</div>
+                        <div className="text-xs text-gray-500">Total</div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
