@@ -13,56 +13,81 @@ const Community = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        setLoading(true);
-        
-        // Fetch all orders, regardless of status, to ensure we see orders when students click "Proceed to Payment"
-        const { data, error } = await supabase
-          .from("orders")
-          .select(`
-            id,
-            student_name,
-            restaurant_id,
-            items,
-            total_amount,
-            created_at,
-            status,
-            shops:restaurant_id(name)
-          `)
-          .order('created_at', { ascending: false });
-        
-        if (error) {
-          console.error("Error fetching orders:", error);
-          toast({
-            title: "Error",
-            description: "Could not load community orders. Please try again.",
-            variant: "destructive",
-          });
-          setOrders([]);
-        } else {
-          console.log("Fetched orders:", data);
-          setOrders(data || []);
-        }
-      } catch (err) {
-        console.error("Unexpected error fetching orders:", err);
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch all orders with restaurant names, sort by most recent
+      const { data, error } = await supabase
+        .from("orders")
+        .select(`
+          id,
+          student_name,
+          restaurant_id,
+          items,
+          total_amount,
+          created_at,
+          status,
+          shops:restaurant_id(name)
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error("Error fetching orders:", error);
         toast({
           title: "Error",
-          description: "An unexpected error occurred. Please try again.",
+          description: "Could not load community orders. Please try again.",
           variant: "destructive",
         });
-      } finally {
-        setLoading(false);
+      } else {
+        console.log("Fetched orders:", data);
+        setOrders(data || []);
       }
-    };
+    } catch (err) {
+      console.error("Unexpected error fetching orders:", err);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
+    // Initial fetch
     fetchOrders();
     
-    // Set up a timer to refresh data every minute to see new orders
+    // Set up realtime subscription for new orders
+    const channel = supabase
+      .channel('public:orders')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
+          console.log('Real-time update received:', payload);
+          fetchOrders(); // Refresh all orders when any changes
+        }
+      )
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+        if (status !== 'SUBSCRIBED') {
+          console.error('Failed to subscribe to realtime updates');
+          toast({
+            title: "Notification",
+            description: "Live updates might be delayed. Refreshing manually.",
+            variant: "default",
+          });
+        }
+      });
+    
+    // Set up a timer to refresh data every minute as a fallback
     const intervalId = setInterval(fetchOrders, 60000);
     
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+      supabase.removeChannel(channel);
+    };
   }, [toast]);
 
   return (
