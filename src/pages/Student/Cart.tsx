@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
@@ -9,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useStudentAuth } from "@/hooks/useStudentAuth";
-import { Trash2, ShoppingCart, CreditCard, User, LogOut, Home } from "lucide-react";
+import { Trash2, ShoppingCart, CreditCard, User, LogOut, Home, AlertCircle } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { useParams } from "react-router-dom";
 import {
@@ -218,8 +217,8 @@ const Cart = () => {
     if (createdOrderId) {
       console.log("Navigating to order tracking for ID:", createdOrderId);
       
-      // Open WhatsApp link in a new tab
-      const phoneNumber = "9198420947943";
+      // Open WhatsApp link in a new tab - corrected phone number
+      const phoneNumber = "918420947943";
       const message = `Hello, I want to pay for my order`;
       const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
       window.open(whatsappUrl, '_blank');
@@ -289,6 +288,7 @@ const Cart = () => {
         </div>
 
         {items.length === 0 ? (
+          // Empty cart display
           <div className="text-center py-12">
             <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold mb-2">Your cart is empty</h2>
@@ -393,6 +393,32 @@ const Cart = () => {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* New checkout instructions card */}
+              <Card className="shadow-md mt-6">
+                <CardHeader className="bg-gray-50 border-b">
+                  <CardTitle className="flex items-center">
+                    <AlertCircle className="h-5 w-5 mr-2 text-primary" />
+                    <span>Checkout Instructions</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4">
+                  <h3 className="font-medium text-lg mb-3">Steps after checking out:</h3>
+                  <ol className="list-decimal pl-5 space-y-2 mb-4">
+                    <li>You would be redirected to WhatsApp for completing your payment.</li>
+                    <li>After sending the template message, you will get a QR code to pay your total bill amount.</li>
+                    <li>After payment is complete, send the payment screenshot in the chat and your food would be delivered.</li>
+                  </ol>
+                  
+                  <div className="bg-amber-50 border border-amber-200 rounded-md p-3 mt-2">
+                    <h4 className="font-medium text-amber-800 mb-2">DISCLAIMERS</h4>
+                    <ul className="list-disc pl-5 space-y-1 text-amber-700 text-sm">
+                      <li>If you don't receive a QR Code, delivery isn't available at the moment.</li>
+                      <li>This is not a scam even if it looks a little fishy. It was just because I wasn't willing to integrate payment gateways so I resorted to this way of payment. Ask r/paruluniversity people on Reddit, you'll get to know.</li>
+                    </ul>
                   </div>
                 </CardContent>
               </Card>
