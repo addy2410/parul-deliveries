@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { restaurants } from "@/data/data";
@@ -13,9 +14,7 @@ interface MenuItem {
 
 interface CartItem extends MenuItem {
   quantity: number;
-  restaurantName?: string;
-  vendorId?: string; // Add vendorId property
-  image_url?: string; // Add image_url property
+  restaurantName?: string; 
 }
 
 interface CartContextType {
@@ -26,11 +25,8 @@ interface CartContextType {
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
-  deliveryFee: number;
-  finalTotal: number;
   restaurantId: string | null;
   restaurantName: string | null;
-  vendorId?: string | null; // Add vendorId property
   
   // Aliases for backward compatibility with existing components
   cartItems: CartItem[];
@@ -44,22 +40,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [items, setItems] = useState<CartItem[]>([]);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [restaurantName, setRestaurantName] = useState<string | null>(null);
-  const [vendorId, setVendorId] = useState<string | null>(null);
-  
-  // Define delivery fee constant
-  const deliveryFee = 30;
   
   // Calculate derived values
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const finalTotal = totalPrice + (items.length > 0 ? deliveryFee : 0);
   
   // Load cart from localStorage on component mount
   useEffect(() => {
     const savedCart = localStorage.getItem("campus-grub-cart");
     const savedRestaurantId = localStorage.getItem("campus-grub-restaurant");
     const savedRestaurantName = localStorage.getItem("campus-grub-restaurant-name");
-    const savedVendorId = localStorage.getItem("campus-grub-vendor");
     
     if (savedCart) {
       try {
@@ -77,12 +67,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (savedRestaurantName) {
       setRestaurantName(savedRestaurantName);
     }
-    
-    if (savedVendorId) {
-      setVendorId(savedVendorId);
-    }
   }, []);
   
+  // Save cart to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem("campus-grub-cart", JSON.stringify(items));
     if (restaurantId) {
@@ -91,33 +78,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (restaurantName) {
       localStorage.setItem("campus-grub-restaurant-name", restaurantName);
     }
-    if (vendorId) {
-      localStorage.setItem("campus-grub-vendor", vendorId);
-    }
-  }, [items, restaurantId, restaurantName, vendorId]);
+  }, [items, restaurantId, restaurantName]);
   
   const addItem = (item: MenuItem, quantity: number = 1) => {
     // Find restaurant name
     const restaurant = restaurants.find(r => r.id === item.restaurantId);
     const currentRestaurantName = restaurant?.name || 'Unknown Restaurant';
     
-    // Fix: Use optional chaining to safely check for vendorId, and provide a fallback
-    // This fixes the TypeScript error by correctly handling the case where vendorId might not exist
-    const currentVendorId = restaurant?.vendorId || null;
-    
     // Check if we need to clear the cart (items from different restaurants)
     if (restaurantId && item.restaurantId !== restaurantId && items.length > 0) {
       if (window.confirm("Your cart contains items from another restaurant. Would you like to clear your cart and add this item?")) {
-        setItems([{ 
-          ...item, 
-          quantity, 
-          restaurantName: currentRestaurantName,
-          image_url: item.image, // Set image_url from image
-          vendorId: currentVendorId // Set vendorId 
-        }]);
+        setItems([{ ...item, quantity, restaurantName: currentRestaurantName }]);
         setRestaurantId(item.restaurantId);
         setRestaurantName(currentRestaurantName);
-        setVendorId(currentVendorId);
         toast.success(`Added ${quantity} ${item.name} to your cart`);
       }
       return;
@@ -127,7 +100,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!restaurantId) {
       setRestaurantId(item.restaurantId);
       setRestaurantName(currentRestaurantName);
-      setVendorId(currentVendorId);
     }
     
     // Check if item already exists in cart
@@ -139,14 +111,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       newItems[existingItemIndex].quantity += quantity;
       setItems(newItems);
     } else {
-      // Add new item to cart with image_url and vendorId
-      setItems([...items, { 
-        ...item, 
-        quantity, 
-        restaurantName: currentRestaurantName,
-        image_url: item.image, // Set image_url from image
-        vendorId: currentVendorId // Set vendorId
-      }]);
+      // Add new item to cart
+      setItems([...items, { ...item, quantity, restaurantName: currentRestaurantName }]);
     }
     
     toast.success(`Added ${quantity} ${item.name} to your cart`);
@@ -199,11 +165,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clearCart,
       totalItems,
       totalPrice,
-      deliveryFee,
-      finalTotal,
       restaurantId,
       restaurantName,
-      vendorId,
       
       // Aliases for backward compatibility
       cartItems: items,

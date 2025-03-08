@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import {
   CircleCheckBig,
   XCircle,
@@ -42,7 +41,6 @@ const VendorDashboard = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showImageDialog, setShowImageDialog] = useState(false);
-  const [isShopOpen, setIsShopOpen] = useState(true);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -79,9 +77,6 @@ const VendorDashboard = () => {
         if (shopData.image_url) {
           setPreviewUrl(shopData.image_url);
         }
-        
-        // Set the shop's open status
-        setIsShopOpen(shopData.is_open !== false);
         
         setIsLoading(false);
       } catch (error) {
@@ -179,39 +174,6 @@ const VendorDashboard = () => {
     } catch (error) {
       console.error('Error updating shop image:', error);
       toast.error('Failed to update shop image');
-    }
-  };
-
-  // Function to toggle shop open/closed status
-  const toggleShopStatus = async () => {
-    if (!shop) return;
-    
-    try {
-      const newStatus = !isShopOpen;
-      setIsShopOpen(newStatus);
-      
-      // Update shop status in database
-      const { error } = await supabase
-        .from('shops')
-        .update({ is_open: newStatus })
-        .eq('id', shop.id);
-      
-      if (error) {
-        console.error('Error updating shop status:', error);
-        toast.error('Failed to update shop status');
-        // Revert UI state if update fails
-        setIsShopOpen(!newStatus);
-        return;
-      }
-      
-      // Update local state
-      setShop({...shop, is_open: newStatus});
-      toast.success(`Shop is now ${newStatus ? 'open' : 'closed'} for orders`);
-    } catch (error) {
-      console.error('Error toggling shop status:', error);
-      toast.error('Failed to update shop status');
-      // Revert UI state if update fails
-      setIsShopOpen(!isShopOpen);
     }
   };
 
@@ -337,23 +299,8 @@ const VendorDashboard = () => {
                     </div>
                   </div>
                   
-                  {/* Shop Status Toggle */}
-                  <div className="flex items-center justify-between pt-2 pb-1">
-                    <span className="font-medium">Shop Status</span>
-                    <div className="flex items-center gap-2">
-                      <Switch 
-                        checked={isShopOpen} 
-                        onCheckedChange={toggleShopStatus}
-                        className={isShopOpen ? "bg-green-500" : ""}
-                      />
-                      <span className={isShopOpen ? "text-green-600" : "text-red-600"}>
-                        {isShopOpen ? "Open" : "Closed"}
-                      </span>
-                    </div>
-                  </div>
-                  
                   <div className="flex items-center pt-2">
-                    {isShopOpen ? (
+                    {shop?.is_open ? (
                       <div className="flex items-center text-green-600">
                         <CircleCheckBig className="h-5 w-5 mr-1" />
                         <span className="font-medium">Open for Orders</span>

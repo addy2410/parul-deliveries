@@ -6,10 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { CartProvider } from "./context/CartContext";
-import { AuthProvider } from "./context/AuthContext";
-import { AddressBookProvider } from "./context/AddressBookContext";
 import { supabase } from "@/lib/supabase";
-import { createAdminUser, adminCredentials } from "@/lib/createAdminUser";
 
 // Pages
 import Index from "./pages/Index";
@@ -19,7 +16,6 @@ import VendorDashboard from "./pages/Vendor/Dashboard";
 import VendorMenuManagement from "./pages/Vendor/MenuManagement";
 import RegisterShop from "./pages/Vendor/RegisterShop";
 import DeleteEmptyShop from "./pages/Vendor/DeleteEmptyShop";
-import AdminAllOrders from "./pages/Vendor/AdminAllOrders";
 import StudentLogin from "./pages/Student/Login";
 import StudentRestaurants from "./pages/Student/Restaurants";
 import StudentRestaurantDetail from "./pages/Student/RestaurantDetail";
@@ -75,17 +71,6 @@ const App = () => {
     // Clear all test orders when the app loads
     clearAllTestOrders();
     
-    // Create admin user if it doesn't exist
-    createAdminUser().then(result => {
-      if (result.success) {
-        console.log("Admin user setup complete");
-        // Log credentials to console for reference
-        console.log("Admin credentials:", adminCredentials);
-      } else {
-        console.error("Failed to set up admin user:", result.error);
-      }
-    });
-    
     // This will remove any Lovable-related elements that might be added dynamically
     const removeLovableBanner = () => {
       const lovableBanners = document.querySelectorAll('[class*="lovable"],[id*="lovable"]');
@@ -108,45 +93,40 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthProvider>
-          <AddressBookProvider>
-            <CartProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  
-                  {/* Vendor Routes */}
-                  <Route path="/vendor/login" element={<VendorLogin />} />
-                  <Route path="/vendor/dashboard" element={<VendorDashboard />} />
-                  <Route path="/vendor/menu" element={<VendorMenuManagement />} />
-                  <Route path="/vendor/register-shop" element={<RegisterShop />} />
-                  <Route path="/vendor/delete-empty-shop" element={<DeleteEmptyShop />} />
-                  <Route path="/vendor/admin-all-orders" element={<AdminAllOrders />} />
-                  
-                  {/* Student Routes - Allow direct access to restaurants */}
-                  <Route path="/student" element={<Navigate to="/student/restaurants" replace />} />
-                  <Route path="/student/login" element={<StudentLogin />} />
-                  <Route path="/student/restaurants" element={<StudentRestaurants />} />
-                  <Route path="/student/restaurant/:id" element={<StudentRestaurantDetail />} />
-                  <Route path="/student/cart" element={<StudentCart />} />
-                  <Route path="/student/order-success" element={<StudentOrderSuccess />} />
-                  <Route path="/student/orders/:type" element={<StudentOrders />} />
-                  <Route path="/student/order-tracking/:id" element={<OrderTracking />} />
-                  <Route path="/student/view-order/:id" element={<ViewOrder />} />
-                  <Route path="/student/address-book" element={<AddressBook />} />
-                  
-                  {/* About Page */}
-                  <Route path="/about" element={<About />} />
-                  
-                  {/* Catch-all */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </BrowserRouter>
-            </CartProvider>
-          </AddressBookProvider>
-        </AuthProvider>
+        <CartProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              
+              {/* Vendor Routes */}
+              <Route path="/vendor/login" element={<VendorLogin />} />
+              <Route path="/vendor/dashboard" element={<VendorDashboard />} />
+              <Route path="/vendor/menu" element={<VendorMenuManagement />} />
+              <Route path="/vendor/register-shop" element={<RegisterShop />} />
+              <Route path="/vendor/delete-empty-shop" element={<DeleteEmptyShop />} />
+              
+              {/* Student Routes - Allow direct access to restaurants */}
+              <Route path="/student" element={<Navigate to="/student/restaurants" replace />} />
+              <Route path="/student/login" element={<StudentLogin />} />
+              <Route path="/student/restaurants" element={<StudentRestaurants />} />
+              <Route path="/student/restaurant/:id" element={<StudentRestaurantDetail />} />
+              <Route path="/student/cart" element={<StudentCart />} />
+              <Route path="/student/order-success" element={<StudentOrderSuccess />} />
+              <Route path="/student/orders/:type" element={<StudentOrders />} />
+              <Route path="/student/order-tracking/:id" element={<OrderTracking />} />
+              <Route path="/student/view-order/:id" element={<ViewOrder />} />
+              <Route path="/student/address-book" element={<AddressBook />} />
+              
+              {/* About Page */}
+              <Route path="/about" element={<About />} />
+              
+              {/* Catch-all */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </CartProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

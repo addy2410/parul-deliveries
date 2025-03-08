@@ -1,234 +1,468 @@
 
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { useCart } from "@/context/CartContext";
-import { useStudentAuth } from "@/hooks/useStudentAuth";
-import { useAddressBook } from "@/context/AddressBookContext";
 import { toast } from "sonner";
-import { CircleDollarSign, MapPin, XCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useStudentAuth } from "@/hooks/useStudentAuth";
+import { Trash2, ShoppingCart, CreditCard, User, LogOut, Home } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { useParams } from "react-router-dom";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-const StudentCart = () => {
+const Cart = () => {
+  const { shopId } = useParams();
+  const { items, removeItem, updateQuantity, clearCart, totalPrice, restaurantName } = useCart();
+  const { studentId, studentName, studentAddress, isAuthenticated, logout } = useStudentAuth();
   const navigate = useNavigate();
-  const { items, clearCart, removeItem, updateQuantity, restaurantId, finalTotal, deliveryFee, totalPrice } = useCart();
-  const { studentId, studentName, isAuthenticated } = useStudentAuth();
-  const { addresses } = useAddressBook();
-  const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [deliveryAddress, setDeliveryAddress] = useState(studentAddress || "");
+  const [orderCreated, setOrderCreated] = useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState(null);
+  const total = totalPrice;
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      toast.error("You must be logged in to view your cart.");
-      navigate("/student/login");
+    if (studentAddress) {
+      setDeliveryAddress(studentAddress);
     }
-  }, [isAuthenticated, navigate]);
+  }, [studentAddress]);
 
+  // Debug log to check authentication status
   useEffect(() => {
-    if (addresses.length > 0) {
-      setSelectedAddress(addresses[0].address);
-    }
-  }, [addresses]);
+    console.log("Cart component - Auth status:", isAuthenticated, "Student ID:", studentId);
+  }, [isAuthenticated, studentId]);
 
-  const handleQuantityChange = (itemId: string, newQuantity: number) => {
-    if (newQuantity < 1) {
-      removeItem(itemId);
-    } else {
-      updateQuantity(itemId, newQuantity);
-    }
+  const handleRemoveItem = (id) => {
+    removeItem(id);
   };
 
-  const handleRemoveItem = (itemId: string) => {
-    removeItem(itemId);
+  const handleQuantityChange = (id, newQuantity) => {
+    updateQuantity(id, parseInt(newQuantity));
   };
 
   const handleClearCart = () => {
     clearCart();
   };
 
-  // Calculate the subtotal (without delivery fee)
-  const calculateSubtotal = () => {
-    return totalPrice || 0;
+  const handleLogout = () => {
+    logout();
+    toast.success("Logged out successfully");
+    navigate('/student/restaurants');
   };
 
-  // Calculate the total with delivery fee
-  const calculateTotal = () => {
-    return finalTotal || 0;
-  };
+  const handleCheckout = async () => {
+    console.log("Checkout clicked - Auth status:", isAuthenticated, "Student ID:", studentId);
+    
+    // Double check authentication directly from localStorage
+    const session = localStorage.getItem('studentSession');
+    let currentStudentId = null;
+    let currentStudentName = null;
+    
+    if (session) {
+      try {
+        const parsedSession = JSON.parse(session);
+        if (parsedSession && parsedSession.userId) {
+          currentStudentId = parsedSession.userId;
+          currentStudentName = parsedSession.name || "Student";
+          console.log("Student ID from localStorage:", currentStudentId);
+        }
+      } catch (error) {
+        console.error("Error parsing session data:", error);
+      }
+    }
+    
+    if (!currentStudentId) {
+      toast.error("You need to be logged in to checkout");
+      navigate("/student/login");
+      return;
+    }
 
-  const handleAddressSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedAddress(event.target.value);
-  };
+    // Validate if we have the required data for checkout
+    if (!items.length) {
+      toast.error("Your cart is empty");
+      return;
+    }
 
-  const handleProceedToPayment = async () => {
+    // Get active restaurant ID from cart
+    const activeRestaurantId = items[0]?.restaurantId;
+    if (!activeRestaurantId) {
+      toast.error("Cannot identify restaurant for this order");
+      return;
+    }
+
+    setLoading(true);
+    
     try {
-      if (!isAuthenticated || !studentId) {
-        toast.error("You must be logged in to place an order.");
-        navigate("/student/login");
+      // Get vendor ID for the restaurant using direct query
+      console.log("Fetching shop data for restaurant ID:", activeRestaurantId);
+      
+      const { data: shopData, error: shopError } = await supabase
+        .from("shops")
+        .select("*")
+        .eq("id", activeRestaurantId)
+        .single();
+        
+      if (shopError) {
+        console.error("Error fetching shop data:", shopError);
+        toast.error("Failed to prepare order");
+        setLoading(false);
         return;
       }
-
-      if (!restaurantId) {
-        toast.error("Cart is invalid. Please add items from a restaurant.");
+      
+      if (!shopData || !shopData.vendor_id) {
+        console.error("Shop data not found or vendor_id missing:", shopData);
+        toast.error("Restaurant information incomplete");
+        setLoading(false);
         return;
       }
+      
+      const vendorId = shopData.vendor_id;
+      console.log("Found vendor ID:", vendorId, "for restaurant:", activeRestaurantId);
+      
+      // Prepare the order items
+      const orderItems = items.map(item => ({
+        menuItemId: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity
+      }));
 
-      // Create order with delivery fee included in total
-      const order = {
-        student_id: studentId,
-        student_name: studentName || "Anonymous Student",
-        restaurant_id: restaurantId,
-        vendor_id: items[0]?.vendorId, // Use the vendorId from the first item
-        items: items,
-        total_amount: calculateTotal(), // Use the total with delivery fee
+      // Create the order with pending status - CORRECTED FIELD NAMES TO MATCH DATABASE
+      console.log("Creating order with data:", {
+        student_id: currentStudentId,
+        vendor_id: vendorId,
+        restaurant_id: activeRestaurantId,  // Changed from shop_id to restaurant_id
+        items: orderItems,
+        total_amount: total,
         status: "pending",
-        delivery_location: selectedAddress || "Campus Location"
-      };
-
-      const { data, error } = await supabase
-        .from('orders')
-        .insert([order])
+        delivery_location: deliveryAddress || "Campus",
+        student_name: currentStudentName || "Student"
+      });
+      
+      const { data: orderData, error: orderError } = await supabase
+        .from("orders")
+        .insert([{
+          student_id: currentStudentId,
+          vendor_id: vendorId,
+          restaurant_id: activeRestaurantId,  // Changed from shop_id to restaurant_id
+          items: orderItems,
+          total_amount: total,
+          status: "pending",
+          delivery_location: deliveryAddress || "Campus",
+          student_name: currentStudentName || "Student"
+        }])
         .select();
 
-      if (error) {
-        console.error("Error creating order:", error);
-        toast.error("Failed to create order. Please try again.");
+      if (orderError) {
+        console.error("Failed to create order:", orderError);
+        toast.error("Failed to create order");
+        setLoading(false);
         return;
       }
 
-      clearCart();
-      toast.success("Order placed successfully!");
-      navigate(`/student/order-success?orderId=${data[0].id}`);
-    } catch (error) {
-      console.error("Error during checkout:", error);
-      toast.error("An unexpected error occurred. Please try again.");
+      console.log("Order created successfully:", orderData);
+
+      // Order created successfully, now create notification for the vendor
+      if (orderData && orderData.length > 0) {
+        const order = orderData[0];
+        setCreatedOrderId(order.id);
+        
+        // Create notification
+        console.log("Creating notification for vendor:", vendorId);
+        const { error: notifError } = await supabase
+          .from("notifications")
+          .insert([{
+            recipient_id: vendorId,
+            type: "new_order",
+            message: `New order from ${currentStudentName || "a student"}`,
+            data: {
+              order_id: order.id,
+              items: orderItems,
+              total_amount: total,
+              delivery_location: deliveryAddress || "Campus"
+            }
+          }]);
+
+        if (notifError) {
+          console.error("Failed to create notification:", notifError);
+        } else {
+          console.log("Notification created successfully for vendor:", vendorId);
+        }
+
+        // Show success toast and enable Proceed to Payment button
+        toast.success("Order sent to vendor for confirmation!");
+        setOrderCreated(true);
+        
+        // Ensure we have the order ID stored correctly
+        console.log("Setting created order ID:", order.id);
+        setCreatedOrderId(order.id);
+      }
+    } catch (e) {
+      console.error("Error during checkout:", e);
+      toast.error("An error occurred during checkout");
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!isAuthenticated) {
-    return null;
-  }
+  const handleProceedToPayment = () => {
+    if (createdOrderId) {
+      console.log("Navigating to order tracking for ID:", createdOrderId);
+      // Clear the cart after successful order placement and navigation
+      clearCart();
+      navigate(`/student/order-tracking/${createdOrderId}`);
+    } else {
+      console.error("Cannot proceed to payment: order ID is missing");
+      toast.error("Order ID is missing. Please try again.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-4">Your Cart</h1>
-        
-        {items.length === 0 ? (
-          <Card className="shadow-sm">
-            <CardContent className="p-6 flex flex-col items-center justify-center">
-              <XCircle className="h-10 w-10 text-gray-400 mb-4" />
-              <p className="text-gray-500">Your cart is empty.</p>
-              <Button onClick={() => navigate("/student/restaurants")} className="mt-4">
-                Back to Restaurants
+      {/* Enhanced Header with Logo and User Navigation */}
+      <header className="bg-white shadow py-4">
+        <div className="container mx-auto px-4 flex justify-between items-center">
+          <Link to="/student/restaurants" className="flex items-center">
+            <span className="text-xl font-bold fontLogo text-primary">
+              CampusGrub
+            </span>
+          </Link>
+
+          <div className="flex items-center space-x-4">
+            {isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="p-2">
+                    <User className="h-5 w-5" />
+                    {studentName && <span className="ml-2 hidden md:inline">{studentName}</span>}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link to="/student/orders/active" className="cursor-pointer w-full">
+                      My Orders
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/student/address-book" className="cursor-pointer w-full">
+                      Address Book
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                    <LogOut className="h-4 w-4 mr-2" /> Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => navigate('/student/login')}>
+                <User className="h-4 w-4 mr-2" />
+                Login
               </Button>
-            </CardContent>
-          </Card>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <div className="container py-8">
+        <div className="flex items-center mb-6">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/student/restaurants')} className="mr-2">
+            <Home className="h-4 w-4 mr-2" />
+            Back to Restaurants
+          </Button>
+          <h1 className="text-2xl font-bold">Your Cart</h1>
+        </div>
+
+        {items.length === 0 ? (
+          <div className="text-center py-12">
+            <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Your cart is empty</h2>
+            <p className="text-muted-foreground mb-6">
+              Add items from a restaurant to get started
+            </p>
+            <Button onClick={() => navigate("/student/restaurants")}>
+              Browse Restaurants
+            </Button>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2">
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle>Items in Your Cart</CardTitle>
+              <Card className="shadow-md">
+                <CardHeader className="bg-gray-50 border-b">
+                  <CardTitle className="flex justify-between items-center">
+                    <span>Cart Items</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleClearCart}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Clear Cart
+                    </Button>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4">
-                  <ul className="space-y-4">
+                  <div className="space-y-4">
                     {items.map((item) => (
-                      <li key={item.id} className="flex items-center justify-between py-2 border-b">
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between py-3 border-b"
+                      >
                         <div className="flex items-center">
-                          <img src={item.image_url} alt={item.name} className="w-16 h-16 object-cover rounded mr-4" />
+                          <div
+                            className="w-16 h-16 rounded-md bg-cover bg-center mr-4"
+                            style={{
+                              backgroundImage: `url(${item.image})`,
+                            }}
+                          ></div>
                           <div>
-                            <h3 className="font-semibold">{item.name}</h3>
-                            <p className="text-sm text-muted-foreground">₹{item.price.toFixed(2)}</p>
+                            <h3 className="font-medium">{item.name}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              ₹{item.price.toFixed(2)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {item.restaurantName}
+                            </p>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                          >
-                            -
-                          </Button>
-                          <span>{item.quantity}</span>
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                          >
-                            +
-                          </Button>
-                          <Button 
-                            variant="destructive" 
-                            size="icon" 
-                            onClick={() => handleRemoveItem(item.id)}
-                          >
-                            <XCircle className="h-4 w-4" />
-                          </Button>
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 rounded-r-none"
+                              onClick={() =>
+                                handleQuantityChange(item.id, item.quantity - 1)
+                              }
+                              disabled={item.quantity <= 1}
+                            >
+                              -
+                            </Button>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) =>
+                                handleQuantityChange(
+                                  item.id,
+                                  parseInt(e.target.value) || 1
+                                )
+                              }
+                              className="h-8 w-12 rounded-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 rounded-l-none"
+                              onClick={() =>
+                                handleQuantityChange(item.id, item.quantity + 1)
+                              }
+                            >
+                              +
+                            </Button>
+                          </div>
+                          <div className="text-right min-w-[80px]">
+                            <div className="font-medium">
+                              ₹{(item.price * item.quantity).toFixed(2)}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-destructive"
+                              onClick={() => handleRemoveItem(item.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                      </li>
+                      </div>
                     ))}
-                  </ul>
-                  <Button onClick={handleClearCart} variant="ghost" className="mt-4">
-                    Clear Cart
-                  </Button>
+                  </div>
                 </CardContent>
               </Card>
             </div>
-            
-            {/* Cart Summary Section */}
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <h3 className="text-lg font-semibold mb-3">Order Summary</h3>
-              <div className="space-y-2 mb-4">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span>₹{calculateSubtotal().toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Delivery Fee</span>
-                  <span>₹{deliveryFee.toFixed(2)}</span>
-                </div>
-                <Separator className="my-2" />
-                <div className="flex justify-between font-bold">
-                  <span>Total</span>
-                  <span>₹{calculateTotal().toFixed(2)}</span>
-                </div>
-              </div>
-              
-              {/* Delivery Address Section */}
-              <div className="mb-4">
-                <Label htmlFor="address">Delivery Address</Label>
-                <select 
-                  id="address" 
-                  className="w-full mt-1 p-2 border rounded"
-                  value={selectedAddress || ""}
-                  onChange={handleAddressSelect}
-                >
-                  {addresses.length > 0 ? (
-                    addresses.map((addressObj, index) => (
-                      <option key={index} value={addressObj.address}>
-                        {addressObj.address}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">No address added. Please add in address book.</option>
-                  )}
-                </select>
-                <Button variant="link" onClick={() => navigate("/student/address-book")} className="mt-2 p-0">
-                  Manage Addresses
-                </Button>
-              </div>
-              
-              <Button 
-                onClick={handleProceedToPayment} 
-                disabled={!items.length} 
-                className="w-full bg-primary"
-              >
-                Proceed to Payment
-              </Button>
+
+            <div>
+              <Card className="shadow-md">
+                <CardHeader className="bg-gray-50 border-b">
+                  <CardTitle>Order Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span>₹{total.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">
+                          Delivery Fee
+                        </span>
+                        <span>₹0.00</span>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between font-medium text-lg">
+                        <span>Total</span>
+                        <span>₹{total.toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        Delivery Address
+                      </label>
+                      <Textarea
+                        placeholder="Enter your delivery address"
+                        value={deliveryAddress}
+                        onChange={(e) => setDeliveryAddress(e.target.value)}
+                        className="resize-none"
+                      />
+                    </div>
+
+                    {!orderCreated ? (
+                      <Button
+                        className="w-full bg-[#ea384c] hover:bg-[#d02e40] text-white font-medium py-3"
+                        size="lg"
+                        onClick={handleCheckout}
+                        disabled={items.length === 0 || loading}
+                      >
+                        {loading ? "Processing..." : "Checkout"}
+                      </Button>
+                    ) : (
+                      <Button
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3"
+                        size="lg"
+                        onClick={handleProceedToPayment}
+                      >
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Proceed to Payment
+                      </Button>
+                    )}
+
+                    {!isAuthenticated && (
+                      <p className="text-sm text-muted-foreground text-center">
+                        Please{" "}
+                        <a
+                          href="/student/login"
+                          className="text-[#ea384c] underline"
+                        >
+                          log in
+                        </a>{" "}
+                        to complete your order
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         )}
@@ -237,4 +471,4 @@ const StudentCart = () => {
   );
 };
 
-export default StudentCart;
+export default Cart;
