@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useCart } from "@/context/CartContext";
-import { useAuth } from "@/context/AuthContext";
+import { useStudentAuth } from "@/hooks/useStudentAuth";
 import { useAddressBook } from "@/context/AddressBookContext";
 import { toast } from "sonner";
 import { CircleDollarSign, MapPin, XCircle } from "lucide-react";
@@ -16,16 +16,16 @@ import { supabase } from "@/lib/supabase";
 const StudentCart = () => {
   const navigate = useNavigate();
   const { items, clearCart, removeItem, updateQuantity, restaurantId, finalTotal, deliveryFee, totalPrice } = useCart();
-  const { user, studentName } = useAuth();
+  const { studentId, studentName, isAuthenticated } = useStudentAuth();
   const { addresses } = useAddressBook();
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) {
+    if (!isAuthenticated) {
       toast.error("You must be logged in to view your cart.");
       navigate("/student/login");
     }
-  }, [user, navigate]);
+  }, [isAuthenticated, navigate]);
 
   useEffect(() => {
     if (addresses.length > 0) {
@@ -65,7 +65,7 @@ const StudentCart = () => {
 
   const handleProceedToPayment = async () => {
     try {
-      if (!user) {
+      if (!isAuthenticated || !studentId) {
         toast.error("You must be logged in to place an order.");
         navigate("/student/login");
         return;
@@ -78,7 +78,7 @@ const StudentCart = () => {
 
       // Create order with delivery fee included in total
       const order = {
-        student_id: user.id,
+        student_id: studentId,
         student_name: studentName || "Anonymous Student",
         restaurant_id: restaurantId,
         vendor_id: items[0]?.vendorId, // Use the vendorId from the first item
@@ -108,7 +108,7 @@ const StudentCart = () => {
     }
   };
 
-  if (!user) {
+  if (!isAuthenticated) {
     return null;
   }
 

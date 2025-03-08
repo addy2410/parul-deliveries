@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,35 +59,18 @@ const VendorLogin = () => {
       if (email === adminCredentials.email && password === adminCredentials.password) {
         console.log("Admin login detected");
         
-        // Try to authenticate with Supabase
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: adminCredentials.email,
-          password: adminCredentials.password,
-        });
+        // Create a mock session for admin
+        const mockAdminSession = {
+          user: {
+            id: 'admin-user',
+            email: adminCredentials.email,
+            user_metadata: { name: 'System Administrator', is_admin: true }
+          }
+        };
         
-        if (error) {
-          console.error("Admin login error with Supabase:", error);
-          
-          // Even if Supabase auth fails, create a mock session for admin
-          const mockAdminSession = {
-            user: {
-              id: 'admin-user',
-              email: adminCredentials.email,
-              user_metadata: { name: 'System Administrator', is_admin: true }
-            }
-          };
-          
-          localStorage.setItem('vendorSession', JSON.stringify(mockAdminSession));
-          toast.success("Logged in as System Administrator");
-          navigate("/vendor/admin-all-orders");
-          return;
-        }
-        
-        if (data.user) {
-          toast.success("Admin login successful");
-          navigate("/vendor/admin-all-orders");
-        }
-        
+        localStorage.setItem('vendorSession', JSON.stringify(mockAdminSession));
+        toast.success("Logged in as System Administrator");
+        navigate("/vendor/admin-all-orders");
         setIsLoading(false);
         return;
       }

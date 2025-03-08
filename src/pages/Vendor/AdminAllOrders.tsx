@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,28 +44,29 @@ const AdminAllOrders = () => {
   const [activeTab, setActiveTab] = useState("all");
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
+    // Check for vendorSession in localStorage
+    const checkVendorSession = () => {
+      const vendorSession = localStorage.getItem('vendorSession');
       
-      if (data.session) {
-        // Check if user is admin
-        const { data: userData, error } = await supabase
-          .from('vendors')
-          .select('email')
-          .eq('id', data.session.user.id)
-          .single();
+      if (vendorSession) {
+        try {
+          const session = JSON.parse(vendorSession);
+          const isAdmin = session.user?.user_metadata?.is_admin;
           
-        if (!error && userData && userData.email === 'admin@campusgrub.com') {
-          setIsAuthenticated(true);
-        } else {
-          toast.error("Not authorized to view this page");
+          if (isAdmin) {
+            setIsAuthenticated(true);
+          } else {
+            toast.error("Not authorized to view this page");
+          }
+        } catch (error) {
+          console.error("Error parsing vendor session:", error);
         }
       }
       
       setLoading(false);
     };
     
-    checkSession();
+    checkVendorSession();
   }, []);
 
   useEffect(() => {
@@ -161,7 +161,7 @@ const AdminAllOrders = () => {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    localStorage.removeItem('vendorSession');
     toast.success("Logged out successfully");
     setIsAuthenticated(false);
   };
