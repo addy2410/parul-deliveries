@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ShoppingCart, User, LogOut, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,8 @@ interface StudentHeaderProps {
   studentName?: string;
 }
 
-const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentName }) => {
+// Using React.memo for performance
+const StudentHeader: React.FC<StudentHeaderProps> = memo(({ studentName: propStudentName }) => {
   const navigate = useNavigate();
   const { items } = useCart();
   const { studentName: authStudentName, isAuthenticated, logout } = useStudentAuth();
@@ -39,6 +40,12 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentN
     }
   };
 
+  // Preload cart icon image
+  useEffect(() => {
+    const preloadImage = new Image();
+    preloadImage.src = "/lovable-uploads/10b67b49-52f1-4d6d-a7b3-1deeb87e3606.png";
+  }, []);
+
   return (
     <header className="bg-white shadow py-4">
       <div className="container mx-auto px-4 flex justify-between items-center">
@@ -54,6 +61,9 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentN
               src="/lovable-uploads/10b67b49-52f1-4d6d-a7b3-1deeb87e3606.png" 
               alt="Shopping Cart" 
               className="h-8 w-8" 
+              loading="eager"
+              width="32"
+              height="32"
             />
             {items.length > 0 && (
               <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
@@ -96,6 +106,9 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName: propStudentN
       </div>
     </header>
   );
-};
+});
+
+// Display name for debugging
+StudentHeader.displayName = 'StudentHeader';
 
 export default StudentHeader;

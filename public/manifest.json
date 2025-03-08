@@ -1,0 +1,17 @@
+
+{
+  "name": "Campus Grub Connect",
+  "short_name": "CampusGrub",
+  "description": "Order food from campus eateries",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ea384c",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}

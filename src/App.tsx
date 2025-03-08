@@ -1,31 +1,30 @@
-import React, { useEffect } from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+import React, { useEffect, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartProvider } from "./context/CartContext";
 import { supabase } from "@/lib/supabase";
 
-// Pages
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import VendorLogin from "./pages/Vendor/Login";
-import VendorDashboard from "./pages/Vendor/Dashboard";
-import VendorMenuManagement from "./pages/Vendor/MenuManagement";
-import RegisterShop from "./pages/Vendor/RegisterShop";
-import DeleteEmptyShop from "./pages/Vendor/DeleteEmptyShop";
-import StudentLogin from "./pages/Student/Login";
-import StudentRestaurants from "./pages/Student/Restaurants";
-import StudentRestaurantDetail from "./pages/Student/RestaurantDetail";
-import StudentCart from "./pages/Student/Cart";
-import StudentOrderSuccess from "./pages/Student/OrderSuccess";
-import StudentOrders from "./pages/Student/Orders";
-import OrderTracking from "./pages/Student/OrderTracking";
-import ViewOrder from "./pages/Student/ViewOrder";
-import AddressBook from "./pages/Student/AddressBook";
-import About from "./pages/About";
-import Community from "./pages/Community";
+// Lazy-loaded pages
+const Index = lazy(() => import("./pages/Index"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const VendorLogin = lazy(() => import("./pages/Vendor/Login"));
+const VendorDashboard = lazy(() => import("./pages/Vendor/Dashboard"));
+const VendorMenuManagement = lazy(() => import("./pages/Vendor/MenuManagement"));
+const RegisterShop = lazy(() => import("./pages/Vendor/RegisterShop"));
+const DeleteEmptyShop = lazy(() => import("./pages/Vendor/DeleteEmptyShop"));
+const StudentLogin = lazy(() => import("./pages/Student/Login"));
+const StudentRestaurants = lazy(() => import("./pages/Student/Restaurants"));
+const StudentRestaurantDetail = lazy(() => import("./pages/Student/RestaurantDetail"));
+const StudentCart = lazy(() => import("./pages/Student/Cart"));
+const StudentOrderSuccess = lazy(() => import("./pages/Student/OrderSuccess"));
+const StudentOrders = lazy(() => import("./pages/Student/Orders"));
+const OrderTracking = lazy(() => import("./pages/Student/OrderTracking"));
+const ViewOrder = lazy(() => import("./pages/Student/ViewOrder"));
+const AddressBook = lazy(() => import("./pages/Student/AddressBook"));
+const About = lazy(() => import("./pages/About"));
+const Community = lazy(() => import("./pages/Community"));
 
 // Add a custom style to the head for the logo font
 const addLogoFontStyle = () => {
@@ -39,6 +38,13 @@ const addLogoFontStyle = () => {
   `;
   document.head.appendChild(style);
 };
+
+// Loading component for suspense fallback
+const PageLoading = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+  </div>
+);
 
 // Function to clear all test orders
 const clearAllTestOrders = async () => {
@@ -61,12 +67,31 @@ const clearAllTestOrders = async () => {
   }
 };
 
-const queryClient = new QueryClient();
+// Creating a QueryClient with optimized settings
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes
+      retry: 1,
+      suspense: false,
+    },
+  },
+});
 
 const App = () => {
   // Add the logo font style when the app loads
   useEffect(() => {
-    addLogoFontStyle();
+    // Load logo font asynchronously
+    const loadFonts = async () => {
+      // First check if font is already loaded
+      if (!document.querySelector('style[data-font="poppins"]')) {
+        addLogoFontStyle();
+      }
+    };
+    
+    loadFonts();
     
     // Clear all test orders when the app loads
     clearAllTestOrders();
@@ -94,38 +119,38 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <CartProvider>
-          <Toaster />
-          <Sonner />
           <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              
-              {/* Vendor Routes */}
-              <Route path="/vendor/login" element={<VendorLogin />} />
-              <Route path="/vendor/dashboard" element={<VendorDashboard />} />
-              <Route path="/vendor/menu" element={<VendorMenuManagement />} />
-              <Route path="/vendor/register-shop" element={<RegisterShop />} />
-              <Route path="/vendor/delete-empty-shop" element={<DeleteEmptyShop />} />
-              
-              {/* Student Routes - Allow direct access to restaurants */}
-              <Route path="/student" element={<Navigate to="/student/restaurants" replace />} />
-              <Route path="/student/login" element={<StudentLogin />} />
-              <Route path="/student/restaurants" element={<StudentRestaurants />} />
-              <Route path="/student/restaurant/:id" element={<StudentRestaurantDetail />} />
-              <Route path="/student/cart" element={<StudentCart />} />
-              <Route path="/student/order-success" element={<StudentOrderSuccess />} />
-              <Route path="/student/orders/:type" element={<StudentOrders />} />
-              <Route path="/student/order-tracking/:id" element={<OrderTracking />} />
-              <Route path="/student/view-order/:id" element={<ViewOrder />} />
-              <Route path="/student/address-book" element={<AddressBook />} />
-              
-              {/* About and Community Pages */}
-              <Route path="/about" element={<About />} />
-              <Route path="/community" element={<Community />} />
-              
-              {/* Catch-all */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <Suspense fallback={<PageLoading />}>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                
+                {/* Vendor Routes */}
+                <Route path="/vendor/login" element={<VendorLogin />} />
+                <Route path="/vendor/dashboard" element={<VendorDashboard />} />
+                <Route path="/vendor/menu" element={<VendorMenuManagement />} />
+                <Route path="/vendor/register-shop" element={<RegisterShop />} />
+                <Route path="/vendor/delete-empty-shop" element={<DeleteEmptyShop />} />
+                
+                {/* Student Routes - Allow direct access to restaurants */}
+                <Route path="/student" element={<Navigate to="/student/restaurants" replace />} />
+                <Route path="/student/login" element={<StudentLogin />} />
+                <Route path="/student/restaurants" element={<StudentRestaurants />} />
+                <Route path="/student/restaurant/:id" element={<StudentRestaurantDetail />} />
+                <Route path="/student/cart" element={<StudentCart />} />
+                <Route path="/student/order-success" element={<StudentOrderSuccess />} />
+                <Route path="/student/orders/:type" element={<StudentOrders />} />
+                <Route path="/student/order-tracking/:id" element={<OrderTracking />} />
+                <Route path="/student/view-order/:id" element={<ViewOrder />} />
+                <Route path="/student/address-book" element={<AddressBook />} />
+                
+                {/* About and Community Pages */}
+                <Route path="/about" element={<About />} />
+                <Route path="/community" element={<Community />} />
+                
+                {/* Catch-all */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </BrowserRouter>
         </CartProvider>
       </TooltipProvider>

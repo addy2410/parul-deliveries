@@ -1,5 +1,24 @@
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
-import './index.css'
 
-createRoot(document.getElementById("root")!).render(<App />);
+import { createRoot } from 'react-dom/client'
+import React from 'react';
+import './index.css'
+import { Suspense } from 'react';
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+
+// Lazy load the main App component
+const App = React.lazy(() => import('./App.tsx'));
+
+createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse h-20 w-32 bg-gray-100 rounded-md"></div>
+      </div>
+    }>
+      <App />
+      <Toaster />
+      <Sonner />
+    </Suspense>
+  </React.StrictMode>
+);
