@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { CartProvider } from "./context/CartContext";
+import { AuthProvider } from "./context/AuthContext";
+import { AddressBookProvider } from "./context/AddressBookContext";
 import { supabase } from "@/lib/supabase";
 import { createAdminUser, adminCredentials } from "@/lib/createAdminUser";
 
@@ -106,41 +108,45 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <CartProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              
-              {/* Vendor Routes */}
-              <Route path="/vendor/login" element={<VendorLogin />} />
-              <Route path="/vendor/dashboard" element={<VendorDashboard />} />
-              <Route path="/vendor/menu" element={<VendorMenuManagement />} />
-              <Route path="/vendor/register-shop" element={<RegisterShop />} />
-              <Route path="/vendor/delete-empty-shop" element={<DeleteEmptyShop />} />
-              <Route path="/vendor/admin-all-orders" element={<AdminAllOrders />} />
-              
-              {/* Student Routes - Allow direct access to restaurants */}
-              <Route path="/student" element={<Navigate to="/student/restaurants" replace />} />
-              <Route path="/student/login" element={<StudentLogin />} />
-              <Route path="/student/restaurants" element={<StudentRestaurants />} />
-              <Route path="/student/restaurant/:id" element={<StudentRestaurantDetail />} />
-              <Route path="/student/cart" element={<StudentCart />} />
-              <Route path="/student/order-success" element={<StudentOrderSuccess />} />
-              <Route path="/student/orders/:type" element={<StudentOrders />} />
-              <Route path="/student/order-tracking/:id" element={<OrderTracking />} />
-              <Route path="/student/view-order/:id" element={<ViewOrder />} />
-              <Route path="/student/address-book" element={<AddressBook />} />
-              
-              {/* About Page */}
-              <Route path="/about" element={<About />} />
-              
-              {/* Catch-all */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </CartProvider>
+        <AuthProvider>
+          <AddressBookProvider>
+            <CartProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  
+                  {/* Vendor Routes */}
+                  <Route path="/vendor/login" element={<VendorLogin />} />
+                  <Route path="/vendor/dashboard" element={<VendorDashboard />} />
+                  <Route path="/vendor/menu" element={<VendorMenuManagement />} />
+                  <Route path="/vendor/register-shop" element={<RegisterShop />} />
+                  <Route path="/vendor/delete-empty-shop" element={<DeleteEmptyShop />} />
+                  <Route path="/vendor/admin-all-orders" element={<AdminAllOrders />} />
+                  
+                  {/* Student Routes - Allow direct access to restaurants */}
+                  <Route path="/student" element={<Navigate to="/student/restaurants" replace />} />
+                  <Route path="/student/login" element={<StudentLogin />} />
+                  <Route path="/student/restaurants" element={<StudentRestaurants />} />
+                  <Route path="/student/restaurant/:id" element={<StudentRestaurantDetail />} />
+                  <Route path="/student/cart" element={<StudentCart />} />
+                  <Route path="/student/order-success" element={<StudentOrderSuccess />} />
+                  <Route path="/student/orders/:type" element={<StudentOrders />} />
+                  <Route path="/student/order-tracking/:id" element={<OrderTracking />} />
+                  <Route path="/student/view-order/:id" element={<ViewOrder />} />
+                  <Route path="/student/address-book" element={<AddressBook />} />
+                  
+                  {/* About Page */}
+                  <Route path="/about" element={<About />} />
+                  
+                  {/* Catch-all */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </CartProvider>
+          </AddressBookProvider>
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

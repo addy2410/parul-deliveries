@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import { supabase } from "@/lib/supabase";
 
 const StudentCart = () => {
   const navigate = useNavigate();
-  const { cart, clearCart, removeItem, updateQuantity } = useCart();
+  const { items, clearCart, removeItem, updateQuantity, restaurantId, finalTotal, deliveryFee, totalPrice } = useCart();
   const { user, studentName } = useAuth();
   const { addresses } = useAddressBook();
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
@@ -48,21 +49,14 @@ const StudentCart = () => {
     clearCart();
   };
 
-  // Calculate the subtotal with delivery fee
+  // Calculate the subtotal (without delivery fee)
   const calculateSubtotal = () => {
-    let subtotal = 0;
-    cart.items.forEach((item) => {
-      subtotal += item.price * item.quantity;
-    });
-    return subtotal;
+    return totalPrice || 0;
   };
-
-  // Calculate the delivery fee
-  const deliveryFee = 30; // Fixed delivery fee of 30 rupees
 
   // Calculate the total with delivery fee
   const calculateTotal = () => {
-    return calculateSubtotal() + deliveryFee;
+    return finalTotal || 0;
   };
 
   const handleAddressSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -77,7 +71,7 @@ const StudentCart = () => {
         return;
       }
 
-      if (!cart.restaurantId || !cart.vendorId) {
+      if (!restaurantId) {
         toast.error("Cart is invalid. Please add items from a restaurant.");
         return;
       }
@@ -86,9 +80,9 @@ const StudentCart = () => {
       const order = {
         student_id: user.id,
         student_name: studentName || "Anonymous Student",
-        restaurant_id: cart.restaurantId,
-        vendor_id: cart.vendorId,
-        items: cart.items,
+        restaurant_id: restaurantId,
+        vendor_id: items[0]?.vendorId, // Use the vendorId from the first item
+        items: items,
         total_amount: calculateTotal(), // Use the total with delivery fee
         status: "pending",
         delivery_location: selectedAddress || "Campus Location"
@@ -123,7 +117,7 @@ const StudentCart = () => {
       <div className="container mx-auto p-4">
         <h1 className="text-2xl font-bold mb-4">Your Cart</h1>
         
-        {cart.items.length === 0 ? (
+        {items.length === 0 ? (
           <Card className="shadow-sm">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <XCircle className="h-10 w-10 text-gray-400 mb-4" />
@@ -142,7 +136,7 @@ const StudentCart = () => {
                 </CardHeader>
                 <CardContent className="p-4">
                   <ul className="space-y-4">
-                    {cart.items.map((item) => (
+                    {items.map((item) => (
                       <li key={item.id} className="flex items-center justify-between py-2 border-b">
                         <div className="flex items-center">
                           <img src={item.image_url} alt={item.name} className="w-16 h-16 object-cover rounded mr-4" />
@@ -230,7 +224,7 @@ const StudentCart = () => {
               
               <Button 
                 onClick={handleProceedToPayment} 
-                disabled={!cart.items.length} 
+                disabled={!items.length} 
                 className="w-full bg-primary"
               >
                 Proceed to Payment
