@@ -8,6 +8,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 
 // Lazy load the main App component
 const App = React.lazy(() => import('./App.tsx'));
+const InstallPWAPrompt = React.lazy(() => import('./components/InstallPWAPrompt'));
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -17,6 +18,7 @@ createRoot(document.getElementById("root")!).render(
       </div>
     }>
       <App />
+      <InstallPWAPrompt />
       <Toaster />
       <Sonner />
     </Suspense>

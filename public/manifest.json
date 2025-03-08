@@ -14,13 +14,13 @@
       "type": "image/x-icon"
     },
     {
-      "src": "/lovable-uploads/1a77b2d6-5459-48fa-b819-e131f229d72a.png",
+      "src": "/lovable-uploads/5c6eb016-a0ad-449a-bcdf-0d53631b9e62.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/lovable-uploads/1a77b2d6-5459-48fa-b819-e131f229d72a.png",
+      "src": "/lovable-uploads/5c6eb016-a0ad-449a-bcdf-0d53631b9e62.png",
       "sizes": "512x512",
       "type": "image/png"
     }
@@ -31,14 +31,14 @@
       "short_name": "Restaurants",
       "description": "View all restaurants",
       "url": "/student/restaurants",
-      "icons": [{ "src": "/lovable-uploads/1a77b2d6-5459-48fa-b819-e131f229d72a.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/lovable-uploads/5c6eb016-a0ad-449a-bcdf-0d53631b9e62.png", "sizes": "192x192" }]
     },
     {
       "name": "Vendor Dashboard",
       "short_name": "Dashboard",
       "description": "Manage your restaurant",
       "url": "/vendor/dashboard",
-      "icons": [{ "src": "/lovable-uploads/1a77b2d6-5459-48fa-b819-e131f229d72a.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/lovable-uploads/5c6eb016-a0ad-449a-bcdf-0d53631b9e62.png", "sizes": "192x192" }]
     }
   ],
   "related_applications": [],

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapPin, Star, Clock, Search, ArrowUpRight, Users } from "lucide-react";
+import { MapPin, Star, Clock, Search, ArrowUpRight, Users, ChevronLeft, ChevronRight } from "lucide-react";
 import StudentHeader from "@/components/StudentHeader";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,8 @@ const StudentRestaurants = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   // Scroll to top function for Order Now button
   const scrollToTop = () => {
@@ -107,6 +109,20 @@ const StudentRestaurants = () => {
     return matchesSearch && matchesCategory;
   });
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredRestaurants.length / ITEMS_PER_PAGE);
+  const currentRestaurants = filteredRestaurants.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  // Change page handler
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    // Scroll to top when changing pages
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Extract unique categories from all restaurants
   const categories = ["All", ...Array.from(new Set(restaurantList.flatMap(r => r.tags)))].filter(Boolean);
 
@@ -177,10 +193,10 @@ const StudentRestaurants = () => {
         </motion.div>
       </div>
       
-      {/* Category Filter - Fixed position and proper z-index */}
+      {/* Category Filter - Horizontally scrollable with proper z-index */}
       <div className="bg-white shadow-sm sticky top-16 z-40">
-        <ScrollArea>
-          <div className="container mx-auto px-4 py-3 overflow-x-auto">
+        <ScrollArea className="w-full" orientation="horizontal">
+          <div className="container mx-auto px-4 py-3">
             <div className="flex space-x-2 min-w-max">
               {categories.map(category => 
                 <Button 
@@ -212,9 +228,9 @@ const StudentRestaurants = () => {
               </Card>
             ))}
           </div>
-        ) : filteredRestaurants.length > 0 ? (
+        ) : currentRestaurants.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredRestaurants.map((restaurant, index) => (
+            {currentRestaurants.map((restaurant, index) => (
               <motion.div 
                 key={restaurant.id} 
                 initial={{ opacity: 0, y: 20 }} 
@@ -272,6 +288,43 @@ const StudentRestaurants = () => {
         ) : (
           <div className="text-center py-12">
             <p className="text-gray-500">No restaurants found matching your search.</p>
+          </div>
+        )}
+        
+        {/* Pagination */}
+        {filteredRestaurants.length > ITEMS_PER_PAGE && (
+          <div className="flex justify-center mt-8 mb-6">
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <Button
+                  key={page}
+                  variant={currentPage === page ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handlePageChange(page)}
+                  className={currentPage === page ? "bg-[#ea384c] hover:bg-[#d02e40]" : ""}
+                >
+                  {page}
+                </Button>
+              ))}
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         )}
         
