@@ -18,7 +18,7 @@ const Community = () => {
       try {
         setLoading(true);
         
-        // Fetch orders that are at least in pending status (meaning they've clicked "Proceed to Payment")
+        // Fetch all orders, regardless of status, to ensure we see orders when students click "Proceed to Payment"
         const { data, error } = await supabase
           .from("orders")
           .select(`
@@ -28,6 +28,7 @@ const Community = () => {
             items,
             total_amount,
             created_at,
+            status,
             shops:restaurant_id(name)
           `)
           .order('created_at', { ascending: false });
@@ -46,6 +47,11 @@ const Community = () => {
         }
       } catch (err) {
         console.error("Unexpected error fetching orders:", err);
+        toast({
+          title: "Error",
+          description: "An unexpected error occurred. Please try again.",
+          variant: "destructive",
+        });
       } finally {
         setLoading(false);
       }
@@ -57,7 +63,7 @@ const Community = () => {
     const intervalId = setInterval(fetchOrders, 60000);
     
     return () => clearInterval(intervalId);
-  }, []);
+  }, [toast]);
 
   return (
     <div className="min-h-screen bg-gray-50">
