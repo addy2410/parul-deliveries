@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -43,6 +42,12 @@ const VendorDashboard = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showImageDialog, setShowImageDialog] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
+  const [stats, setStats] = useState({
+    totalOrders: 0,
+    activeOrders: 0,
+    revenue: 0,
+    menuItems: 0
+  });
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -82,6 +87,11 @@ const VendorDashboard = () => {
         }
         
         setIsLoading(false);
+        
+        // Additionally fetch order stats
+        if (shopData) {
+          fetchOrderStats(shopData.vendor_id, shopData.id);
+        }
       } catch (error) {
         console.error("Auth check error:", error);
         toast.error("Authentication error");
@@ -91,6 +101,67 @@ const VendorDashboard = () => {
     
     checkAuth();
   }, [navigate]);
+
+  const fetchOrderStats = async (vendorId: string, shopId: string) => {
+    try {
+      // Get total completed orders
+      const { data: completedOrders, error: completedError } = await supabase
+        .from('orders')
+        .select('id, total_amount')
+        .eq('vendor_id', vendorId)
+        .eq('restaurant_id', shopId)
+        .eq('status', 'delivered');
+        
+      if (completedError) {
+        console.error('Error fetching completed orders:', completedError);
+        return;
+      }
+      
+      // Get active orders
+      const { data: activeOrders, error: activeError } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('vendor_id', vendorId)
+        .eq('restaurant_id', shopId)
+        .not('status', 'in', '("delivered", "cancelled")');
+        
+      if (activeError) {
+        console.error('Error fetching active orders:', activeError);
+        return;
+      }
+      
+      // Get menu items count
+      const { count: menuItemsCount, error: menuError } = await supabase
+        .from('menu_items')
+        .select('id', { count: 'exact', head: true })
+        .eq('shop_id', shopId);
+        
+      if (menuError) {
+        console.error('Error fetching menu items count:', menuError);
+        return;
+      }
+      
+      // Calculate total revenue from completed orders
+      const totalRevenue = completedOrders?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
+      
+      setStats({
+        totalOrders: completedOrders?.length || 0,
+        activeOrders: activeOrders?.length || 0,
+        revenue: totalRevenue,
+        menuItems: menuItemsCount || 0
+      });
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+    }
+  };
+
+  const handleOrderDelivered = () => {
+    setStats(prev => ({
+      ...prev,
+      totalOrders: prev.totalOrders + 1,
+      activeOrders: Math.max(0, prev.activeOrders - 1)
+    }));
+  };
 
   const handleLogout = async () => {
     try {
@@ -388,7 +459,9 @@ const VendorDashboard = () => {
                 <TabsContent value="orders" className="space-y-4">
                   <VendorOrdersList 
                     vendorId={shop?.vendor_id || ''} 
-                    shopId={shop?.id} 
+                    shopId={shop?.id}
+                    onOrderUpdate={() => fetchOrderStats(shop?.vendor_id, shop?.id)}
+                    onOrderDelivered={handleOrderDelivered}
                   />
                 </TabsContent>
                 
@@ -405,7 +478,7 @@ const VendorDashboard = () => {
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Total Orders</p>
-                      <h3 className="text-2xl font-bold mt-1">0</h3>
+                      <h3 className="text-2xl font-bold mt-1">{stats.totalOrders}</h3>
                     </div>
                     <div className="bg-vendor-100 p-2 rounded-full text-vendor-600">
                       <ShoppingBag className="h-5 w-5" />
@@ -419,7 +492,7 @@ const VendorDashboard = () => {
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Active Orders</p>
-                      <h3 className="text-2xl font-bold mt-1">0</h3>
+                      <h3 className="text-2xl font-bold mt-1">{stats.activeOrders}</h3>
                     </div>
                     <div className="bg-blue-100 p-2 rounded-full text-blue-600">
                       <Clock className="h-5 w-5" />
@@ -433,7 +506,7 @@ const VendorDashboard = () => {
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Revenue</p>
-                      <h3 className="text-2xl font-bold mt-1">₹0</h3>
+                      <h3 className="text-2xl font-bold mt-1">₹{stats.revenue.toFixed(2)}</h3>
                     </div>
                     <div className="bg-green-100 p-2 rounded-full text-green-600">
                       <BarChart3 className="h-5 w-5" />
@@ -447,7 +520,7 @@ const VendorDashboard = () => {
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Menu Items</p>
-                      <h3 className="text-2xl font-bold mt-1">0</h3>
+                      <h3 className="text-2xl font-bold mt-1">{stats.menuItems}</h3>
                     </div>
                     <div className="bg-orange-100 p-2 rounded-full text-orange-600">
                       <Menu className="h-5 w-5" />

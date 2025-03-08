@@ -1,23 +1,27 @@
 
-// Cache names
+// Service Worker for Campus Grub Connect PWA
 const CACHE_NAME = 'campus-grub-cache-v1';
-const RUNTIME_CACHE = 'runtime-cache';
+const OFFLINE_URL = '/';
 
 // Assets to cache on install
-const PRECACHE_ASSETS = [
+const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/favicon.ico',
   '/manifest.json',
-  '/og-image.png'
+  '/favicon.ico',
+  '/og-image.png',
+  '/src/index.css',
+  '/src/main.tsx',
+  '/src/App.tsx'
 ];
 
-// Install event - precache assets
+// Install event - cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        return cache.addAll(PRECACHE_ASSETS);
+        console.log('Opened cache');
+        return cache.addAll(STATIC_ASSETS);
       })
       .then(() => self.skipWaiting())
   );
@@ -25,58 +29,151 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  const currentCaches = [CACHE_NAME, RUNTIME_CACHE];
   event.waitUntil(
     caches.keys().then((cacheNames) => {
-      return cacheNames.filter((cacheName) => !currentCaches.includes(cacheName));
-    }).then((cachesToDelete) => {
-      return Promise.all(cachesToDelete.map((cacheToDelete) => {
-        return caches.delete(cacheToDelete);
-      }));
+      return Promise.all(
+        cacheNames.filter((cacheName) => {
+          return cacheName !== CACHE_NAME;
+        }).map((cacheName) => {
+          return caches.delete(cacheName);
+        })
+      );
     }).then(() => self.clients.claim())
   );
 });
 
-// Fetch event - network first, then cache
+// Helper function to determine if a request is an API call
+const isApiRequest = (url) => {
+  return url.includes('/api/') || 
+         url.includes('supabase.co') || 
+         url.includes('/rest/v1/') || 
+         url.includes('/auth/v1/');
+};
+
+// Helper function to determine if a request is for a static asset
+const isStaticAsset = (url) => {
+  const extensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.svg', '.ico', '.woff', '.woff2', '.ttf'];
+  return extensions.some(ext => url.endsWith(ext));
+};
+
+// Fetch event - network-first strategy for API, cache-first for static assets
 self.addEventListener('fetch', (event) => {
   // Skip cross-origin requests
-  if (!event.request.url.startsWith(self.location.origin)) {
+  if (!event.request.url.startsWith(self.location.origin) && !event.request.url.includes('supabase.co')) {
     return;
   }
-
-  // API calls - network only
-  if (event.request.url.includes('/api/') || 
-      event.request.url.includes('supabase')) {
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Return cached response immediately
-        return cachedResponse;
-      }
-
-      // If not in cache, fetch from network
-      return fetch(event.request).then((response) => {
-        // Don't cache non-successful responses
-        if (!response || response.status !== 200 || response.type !== 'basic') {
+  
+  // Handle API requests with network-first strategy
+  if (isApiRequest(event.request.url)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
           return response;
-        }
-
-        // Clone the response to cache and return
+        })
+        .catch(() => {
+          // For API requests that fail, return a basic offline response
+          return new Response(JSON.stringify({ error: 'You are offline' }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        })
+    );
+    return;
+  }
+  
+  // Handle static assets with cache-first strategy
+  if (isStaticAsset(event.request.url)) {
+    event.respondWith(
+      caches.match(event.request)
+        .then((response) => {
+          if (response) {
+            return response;
+          }
+          
+          return fetch(event.request)
+            .then((netResponse) => {
+              // Cache the fetched response
+              const responseToCache = netResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(event.request, responseToCache);
+              });
+              return netResponse;
+            })
+            .catch(() => {
+              // If offline and not in cache, handle fallback
+              return caches.match(OFFLINE_URL);
+            });
+        })
+    );
+    return;
+  }
+  
+  // For all other requests (HTML pages), use network-first strategy
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        // Cache the latest version
         const responseToCache = response.clone();
-        caches.open(RUNTIME_CACHE).then((cache) => {
+        caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, responseToCache);
         });
-
         return response;
-      }).catch(() => {
-        // If fetch fails, try to return an offline fallback
-        if (event.request.mode === 'navigate') {
-          return caches.match('/');
-        }
-      });
-    })
+      })
+      .catch(() => {
+        // If offline, try to serve from cache
+        return caches.match(event.request)
+          .then((cachedResponse) => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            // If not in cache, serve offline page
+            return caches.match(OFFLINE_URL);
+          });
+      })
+  );
+});
+
+// Handle background sync for offline operations
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-orders') {
+    event.waitUntil(syncOrders());
+  }
+});
+
+// Function to handle syncing orders when back online
+const syncOrders = async () => {
+  // Implementation would depend on how you store pending orders
+  console.log('Syncing pending orders...');
+  // You would retrieve pending orders from IndexedDB here
+  // and send them to your server
+};
+
+// Handle push notifications
+self.addEventListener('push', (event) => {
+  if (event.data) {
+    const data = event.data.json();
+    const options = {
+      body: data.body || 'New update from Campus Grub',
+      icon: '/lovable-uploads/1a77b2d6-5459-48fa-b819-e131f229d72a.png',
+      badge: '/favicon.ico',
+      vibrate: [100, 50, 100],
+      data: {
+        dateOfArrival: Date.now(),
+        url: data.url || '/'
+      }
+    };
+    
+    event.waitUntil(
+      self.registration.showNotification(data.title || 'Campus Grub Connect', options)
+    );
+  }
+});
+
+// Handle notification clicks
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  
+  event.waitUntil(
+    clients.openWindow(event.notification.data.url)
   );
 });

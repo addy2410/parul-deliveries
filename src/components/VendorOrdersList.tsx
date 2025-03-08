@@ -42,12 +42,14 @@ interface VendorOrdersListProps {
   vendorId: string;
   shopId?: string;
   onOrderUpdate?: () => void;
+  onOrderDelivered?: () => void;
 }
 
 const VendorOrdersList: React.FC<VendorOrdersListProps> = ({ 
   vendorId, 
   shopId,
-  onOrderUpdate 
+  onOrderUpdate,
+  onOrderDelivered
 }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -165,8 +167,16 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
       
       toast.success(`Order status updated to: ${newStatus}`);
       
+      // Notify parent component about updates
       if (onOrderUpdate) onOrderUpdate();
       
+      // Special handling for delivered orders
+      if (newStatus === 'delivered') {
+        if (onOrderDelivered) onOrderDelivered();
+        
+        // Remove from active orders list
+        setOrders(prev => prev.filter(order => order.id !== orderId));
+      }
     } catch (error) {
       console.error("Error updating order status:", error);
       toast.error("An error occurred while updating order status");
