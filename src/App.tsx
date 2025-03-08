@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -26,6 +25,7 @@ import OrderTracking from "./pages/Student/OrderTracking";
 import ViewOrder from "./pages/Student/ViewOrder";
 import AddressBook from "./pages/Student/AddressBook";
 import About from "./pages/About";
+import Community from "./pages/Community";
 
 // Add a custom style to the head for the logo font
 const addLogoFontStyle = () => {
@@ -119,8 +119,9 @@ const App = () => {
               <Route path="/student/view-order/:id" element={<ViewOrder />} />
               <Route path="/student/address-book" element={<AddressBook />} />
               
-              {/* About Page */}
+              {/* About and Community Pages */}
               <Route path="/about" element={<About />} />
+              <Route path="/community" element={<Community />} />
               
               {/* Catch-all */}
               <Route path="*" element={<NotFound />} />

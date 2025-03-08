@@ -27,7 +27,10 @@ const Cart = () => {
   const [deliveryAddress, setDeliveryAddress] = useState(studentAddress || "");
   const [orderCreated, setOrderCreated] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState(null);
-  const total = totalPrice;
+  
+  // Add delivery fee constant and calculate total with delivery fee
+  const deliveryFee = 30;
+  const total = totalPrice + deliveryFee;
 
   useEffect(() => {
     if (studentAddress) {
@@ -136,12 +139,13 @@ const Cart = () => {
       }));
 
       // Create the order with pending status - CORRECTED FIELD NAMES TO MATCH DATABASE
+      // Updated to include delivery fee in the total_amount
       console.log("Creating order with data:", {
         student_id: currentStudentId,
         vendor_id: vendorId,
-        restaurant_id: activeRestaurantId,  // Changed from shop_id to restaurant_id
+        restaurant_id: activeRestaurantId,
         items: orderItems,
-        total_amount: total,
+        total_amount: total, // Now includes delivery fee
         status: "pending",
         delivery_location: deliveryAddress || "Campus",
         student_name: currentStudentName || "Student"
@@ -152,9 +156,9 @@ const Cart = () => {
         .insert([{
           student_id: currentStudentId,
           vendor_id: vendorId,
-          restaurant_id: activeRestaurantId,  // Changed from shop_id to restaurant_id
+          restaurant_id: activeRestaurantId,
           items: orderItems,
-          total_amount: total,
+          total_amount: total, // Now includes delivery fee
           status: "pending",
           delivery_location: deliveryAddress || "Campus",
           student_name: currentStudentName || "Student"
@@ -186,7 +190,7 @@ const Cart = () => {
             data: {
               order_id: order.id,
               items: orderItems,
-              total_amount: total,
+              total_amount: total, // Now includes delivery fee
               delivery_location: deliveryAddress || "Campus"
             }
           }]);
@@ -434,13 +438,13 @@ const Cart = () => {
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Subtotal</span>
-                        <span>₹{total.toFixed(2)}</span>
+                        <span>₹{totalPrice.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">
                           Delivery Fee
                         </span>
-                        <span>₹0.00</span>
+                        <span>₹{deliveryFee.toFixed(2)}</span>
                       </div>
                       <Separator />
                       <div className="flex justify-between font-medium text-lg">

@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapPin, Star, Clock, Search, ArrowUpRight } from "lucide-react";
+import { MapPin, Star, Clock, Search, ArrowUpRight, Users } from "lucide-react";
 import StudentHeader from "@/components/StudentHeader";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -324,6 +325,18 @@ const StudentRestaurants = () => {
               </motion.div>
             </div>
           </div>
+        </div>
+        
+        {/* Community Button - Added below the Learn More button */}
+        <div className="text-center mb-8">
+          <Button 
+            variant="outline" 
+            className="border-dashed border-gray-300 flex items-center mx-auto"
+            onClick={() => navigate('/community')}
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Our Community
+          </Button>
         </div>
       </div>
     </div>
