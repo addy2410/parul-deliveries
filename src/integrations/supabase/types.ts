@@ -243,10 +243,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      delete_old_orders: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
       is_shop_owner: {
         Args: {
           menu_item_id: string
