@@ -14,12 +14,15 @@ const Community = () => {
   const [loading, setLoading] = useState(true);
   const [newOrderNotifications, setNewOrderNotifications] = useState([]);
 
-  // Memoized function to fetch orders
+  // Function to fetch orders - now also filters by time
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Fetch orders that are at least in pending status (meaning they've clicked "Proceed to Payment")
+      // Fetch orders that are less than 24 hours old
+      const twentyFourHoursAgo = new Date();
+      twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+      
       const { data, error } = await supabase
         .from("orders")
         .select(`
@@ -31,6 +34,7 @@ const Community = () => {
           created_at,
           shops:restaurant_id(name)
         `)
+        .gt('created_at', twentyFourHoursAgo.toISOString())
         .order('created_at', { ascending: false });
       
       if (error) {
@@ -52,11 +56,20 @@ const Community = () => {
   // Initial data fetch
   useEffect(() => {
     fetchOrders();
+    
+    // Set up a polling interval to refresh orders (backup for real-time)
+    const interval = setInterval(() => {
+      fetchOrders();
+    }, 60000); // Every minute
+    
+    return () => clearInterval(interval);
   }, [fetchOrders]);
 
   // Set up real-time subscription for new orders
   useEffect(() => {
-    // Subscribe to real-time changes on the orders table
+    console.log("Setting up real-time subscription for orders");
+    
+    // Configure the channel for real-time updates
     const channel = supabase
       .channel('public:orders')
       .on(
@@ -104,42 +117,24 @@ const Community = () => {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("Supabase real-time subscription status:", status);
+      });
     
     // Cleanup function to remove the channel subscription
     return () => {
+      console.log("Cleaning up real-time subscription");
       supabase.removeChannel(channel);
     };
   }, []);
 
-  // Handle manual refresh - memoized
+  // Handle manual refresh
   const handleRefresh = useCallback(() => {
     fetchOrders();
     toast.info("Orders refreshed");
   }, [fetchOrders]);
 
-  // Memoize the empty state to prevent unnecessary re-renders
-  const emptyState = useMemo(() => (
-    <div className="text-center py-12 bg-white rounded-lg shadow">
-      <p className="text-gray-500 mb-4">No orders found yet. Be the first to order!</p>
-      <Button asChild>
-        <Link to="/student/restaurants">Browse Restaurants</Link>
-      </Button>
-    </div>
-  ), []);
-
-  // Memoize the loading state
-  const loadingState = useMemo(() => (
-    <div className="grid gap-4">
-      {[1, 2, 3].map((i) => (
-        <Card key={i} className="bg-gray-100 animate-pulse h-32">
-          <CardContent className="p-6"></CardContent>
-        </Card>
-      ))}
-    </div>
-  ), []);
-
-  // Format date safely with memoization
+  // Format date safely
   const formatDate = useCallback((dateString) => {
     if (!dateString) return '';
     try {
@@ -150,7 +145,7 @@ const Community = () => {
     }
   }, []);
 
-  // Format time safely with memoization
+  // Format time safely
   const formatTime = useCallback((dateString) => {
     if (!dateString) return '';
     try {
@@ -160,6 +155,26 @@ const Community = () => {
       return '';
     }
   }, []);
+
+  // Loading and empty states
+  const loadingState = useMemo(() => (
+    <div className="grid gap-4">
+      {[1, 2, 3].map((i) => (
+        <Card key={i} className="bg-gray-100 animate-pulse h-32">
+          <CardContent className="p-6"></CardContent>
+        </Card>
+      ))}
+    </div>
+  ), []);
+
+  const emptyState = useMemo(() => (
+    <div className="text-center py-12 bg-white rounded-lg shadow">
+      <p className="text-gray-500 mb-4">No orders found yet. Be the first to order!</p>
+      <Button asChild>
+        <Link to="/student/restaurants">Browse Restaurants</Link>
+      </Button>
+    </div>
+  ), []);
 
   return (
     <div className="min-h-screen bg-gray-50">
