@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,9 +27,9 @@ const Restaurants = () => {
   const { studentId, studentName, isAuthenticated, logout } = useStudentAuth();
 
   // Fetch restaurants using react-query
-  const { isLoading: isRestaurantsLoading, refetch: refetchRestaurants } = useQuery(
-    ["restaurants", selectedCategory, search],
-    async () => {
+  const { isLoading: isRestaurantsLoading, refetch: refetchRestaurants } = useQuery({
+    queryKey: ["restaurants", selectedCategory, search],
+    queryFn: async () => {
       let query = supabase.from("shops").select("*");
 
       if (selectedCategory !== "All") {
@@ -48,21 +49,19 @@ const Restaurants = () => {
 
       return data;
     },
-    {
-      onSuccess: (data) => {
-        setRestaurants(data || []);
-      },
-      onError: (error) => {
-        console.error("Query error fetching restaurants:", error);
-      },
-      refetchOnMount: false,
-    }
-  );
+    onSuccess: (data) => {
+      setRestaurants(data || []);
+    },
+    onError: (error) => {
+      console.error("Query error fetching restaurants:", error);
+    },
+    refetchOnMount: false,
+  });
 
   // Fetch categories
-  const { isLoading: isCategoriesLoading } = useQuery(
-    ["categories"],
-    async () => {
+  const { isLoading: isCategoriesLoading } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
       const { data, error } = await supabase.from("shop_categories").select("*");
 
       if (error) {
@@ -72,18 +71,16 @@ const Restaurants = () => {
 
       return data;
     },
-    {
-      onSuccess: (data) => {
-        // Extract category names from the data
-        const categoryNames = data ? data.map((item) => item.name) : [];
-        setCategories(["All", ...categoryNames]);
-      },
-      onError: (error) => {
-        console.error("Query error fetching categories:", error);
-      },
-      refetchOnMount: false,
-    }
-  );
+    onSuccess: (data) => {
+      // Extract category names from the data
+      const categoryNames = data ? data.map((item) => item.name) : [];
+      setCategories(["All", ...categoryNames]);
+    },
+    onError: (error) => {
+      console.error("Query error fetching categories:", error);
+    },
+    refetchOnMount: false,
+  });
 
   const handleLogout = () => {
     logout();
