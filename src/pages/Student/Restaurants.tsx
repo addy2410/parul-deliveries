@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -46,16 +45,17 @@ const Restaurants = () => {
         console.error("Error fetching restaurants:", error);
         throw error;
       }
+      
+      if (data) {
+        setRestaurants(data);
+      } else {
+        setRestaurants([]);
+      }
 
       return data;
     },
-    onSuccess: (data) => {
-      setRestaurants(data || []);
-    },
-    onError: (error) => {
-      console.error("Query error fetching restaurants:", error);
-    },
-    refetchOnMount: false,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnMount: false
   });
 
   // Fetch categories
@@ -68,18 +68,17 @@ const Restaurants = () => {
         console.error("Error fetching categories:", error);
         throw error;
       }
+      
+      if (data) {
+        // Extract category names from the data
+        const categoryNames = data.map((item) => item.name);
+        setCategories(["All", ...categoryNames]);
+      }
 
       return data;
     },
-    onSuccess: (data) => {
-      // Extract category names from the data
-      const categoryNames = data ? data.map((item) => item.name) : [];
-      setCategories(["All", ...categoryNames]);
-    },
-    onError: (error) => {
-      console.error("Query error fetching categories:", error);
-    },
-    refetchOnMount: false,
+    staleTime: 1000 * 60 * 15, // 15 minutes
+    refetchOnMount: false
   });
 
   const handleLogout = () => {
