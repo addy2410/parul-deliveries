@@ -193,7 +193,7 @@ const StudentRestaurants = () => {
       
       {/* Category Filter - Horizontally scrollable with proper z-index */}
       <div className="bg-white shadow-sm sticky top-16 z-40">
-        <ScrollArea className="w-full">
+        <ScrollArea className="w-full whitespace-nowrap pb-2">
           <div className="container mx-auto px-4 py-3">
             <div className="flex space-x-2 min-w-max">
               {categories.map(category => 

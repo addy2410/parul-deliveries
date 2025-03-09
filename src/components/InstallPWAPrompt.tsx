@@ -16,9 +16,9 @@ const InstallPWAPrompt = () => {
     // Check if we've already prompted using localStorage
     const hasAlreadyPrompted = localStorage.getItem('pwaPromptShown');
     
-    // Check if device is iOS - using a type-safe approach
+    // Check if device is iOS
     const userAgent = navigator.userAgent;
-    const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+    const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !((window as any).MSStream);
     setIsIOS(isIOSDevice);
     
     if (!isPWA && !hasAlreadyPrompted && !hasPrompted) {
@@ -26,14 +26,13 @@ const InstallPWAPrompt = () => {
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
       if (isMobile) {
-        // Set a timeout to show the prompt after 5 seconds
+        // Set a timeout to show the prompt after 3 seconds (for testing)
         const timer = setTimeout(() => {
           setIsOpen(true);
           setHasPrompted(true);
-          // Set localStorage to prevent showing again for a week (7 days = 604800000 ms)
-          // Using 1 day for testing: 86400000 ms
+          // Set localStorage to prevent showing again for a day (for testing)
           localStorage.setItem('pwaPromptShown', Date.now().toString());
-        }, 3000); // Reduced to 3 seconds for testing
+        }, 3000);
         
         return () => clearTimeout(timer);
       }
@@ -42,6 +41,7 @@ const InstallPWAPrompt = () => {
 
   // Force clear localStorage item on component mount for testing
   useEffect(() => {
+    // This is for testing only - in production, you would remove this
     localStorage.removeItem('pwaPromptShown');
     console.log("PWA prompt localStorage cleared for testing");
   }, []);
