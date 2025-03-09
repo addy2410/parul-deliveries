@@ -6,8 +6,7 @@ const config: CapacitorConfig = {
   appName: 'CampusGrub',
   webDir: 'dist',
   server: {
-    // This is the production URL - the app will use this when built
-    url: 'https://46155acd-6845-4a7c-a990-1818e188551e.lovableproject.com?forceHideBadge=true',
+    url: 'https://your-project-url.lovableproject.com?forceHideBadge=true',
     cleartext: true
   },
   plugins: {
@@ -21,21 +20,6 @@ const config: CapacitorConfig = {
       splashFullScreen: true,
       splashImmersive: true,
     },
-  },
-  android: {
-    buildOptions: {
-      keystorePath: null,
-      keystorePassword: null,
-      keystoreAlias: null,
-      keystoreAliasPassword: null,
-      signingType: "apksigner"
-    }
-  },
-  ios: {
-    contentInset: "always",
-    allowsLinkPreview: true,
-    scrollEnabled: true,
-    useOnlineAssets: true
   },
 };
 

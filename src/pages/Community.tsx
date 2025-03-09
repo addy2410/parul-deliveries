@@ -14,15 +14,12 @@ const Community = () => {
   const [loading, setLoading] = useState(true);
   const [newOrderNotifications, setNewOrderNotifications] = useState([]);
 
-  // Function to fetch orders - now also filters by time
+  // Memoized function to fetch orders
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Fetch orders that are less than 24 hours old
-      const twentyFourHoursAgo = new Date();
-      twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
-      
+      // Fetch orders that are at least in pending status (meaning they've clicked "Proceed to Payment")
       const { data, error } = await supabase
         .from("orders")
         .select(`
@@ -34,7 +31,6 @@ const Community = () => {
           created_at,
           shops:restaurant_id(name)
         `)
-        .gt('created_at', twentyFourHoursAgo.toISOString())
         .order('created_at', { ascending: false });
       
       if (error) {
@@ -56,20 +52,11 @@ const Community = () => {
   // Initial data fetch
   useEffect(() => {
     fetchOrders();
-    
-    // Set up a polling interval to refresh orders (backup for real-time)
-    const interval = setInterval(() => {
-      fetchOrders();
-    }, 60000); // Every minute
-    
-    return () => clearInterval(interval);
   }, [fetchOrders]);
 
   // Set up real-time subscription for new orders
   useEffect(() => {
-    console.log("Setting up real-time subscription for orders");
-    
-    // Configure the channel for real-time updates
+    // Subscribe to real-time changes on the orders table
     const channel = supabase
       .channel('public:orders')
       .on(
@@ -117,46 +104,31 @@ const Community = () => {
           }
         }
       )
-      .subscribe((status) => {
-        console.log("Supabase real-time subscription status:", status);
-      });
+      .subscribe();
     
     // Cleanup function to remove the channel subscription
     return () => {
-      console.log("Cleaning up real-time subscription");
       supabase.removeChannel(channel);
     };
   }, []);
 
-  // Handle manual refresh
+  // Handle manual refresh - memoized
   const handleRefresh = useCallback(() => {
     fetchOrders();
     toast.info("Orders refreshed");
   }, [fetchOrders]);
 
-  // Format date safely
-  const formatDate = useCallback((dateString) => {
-    if (!dateString) return '';
-    try {
-      return format(new Date(dateString), 'MMMM d, yyyy h:mm a');
-    } catch (error) {
-      console.error("Date formatting error:", error);
-      return 'Invalid date';
-    }
-  }, []);
+  // Memoize the empty state to prevent unnecessary re-renders
+  const emptyState = useMemo(() => (
+    <div className="text-center py-12 bg-white rounded-lg shadow">
+      <p className="text-gray-500 mb-4">No orders found yet. Be the first to order!</p>
+      <Button asChild>
+        <Link to="/student/restaurants">Browse Restaurants</Link>
+      </Button>
+    </div>
+  ), []);
 
-  // Format time safely
-  const formatTime = useCallback((dateString) => {
-    if (!dateString) return '';
-    try {
-      return format(new Date(dateString), 'h:mm a');
-    } catch (error) {
-      console.error("Time formatting error:", error);
-      return '';
-    }
-  }, []);
-
-  // Loading and empty states
+  // Memoize the loading state
   const loadingState = useMemo(() => (
     <div className="grid gap-4">
       {[1, 2, 3].map((i) => (
@@ -167,14 +139,27 @@ const Community = () => {
     </div>
   ), []);
 
-  const emptyState = useMemo(() => (
-    <div className="text-center py-12 bg-white rounded-lg shadow">
-      <p className="text-gray-500 mb-4">No orders found yet. Be the first to order!</p>
-      <Button asChild>
-        <Link to="/student/restaurants">Browse Restaurants</Link>
-      </Button>
-    </div>
-  ), []);
+  // Format date safely with memoization
+  const formatDate = useCallback((dateString) => {
+    if (!dateString) return '';
+    try {
+      return format(new Date(dateString), 'MMMM d, yyyy h:mm a');
+    } catch (error) {
+      console.error("Date formatting error:", error);
+      return 'Invalid date';
+    }
+  }, []);
+
+  // Format time safely with memoization
+  const formatTime = useCallback((dateString) => {
+    if (!dateString) return '';
+    try {
+      return format(new Date(dateString), 'h:mm a');
+    } catch (error) {
+      console.error("Time formatting error:", error);
+      return '';
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
