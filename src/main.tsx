@@ -10,6 +10,19 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 const App = React.lazy(() => import('./App.tsx'));
 const InstallPWAPrompt = React.lazy(() => import('./components/InstallPWAPrompt'));
 
+// Register service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(registration => {
+        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+      })
+      .catch(error => {
+        console.error('ServiceWorker registration failed: ', error);
+      });
+  });
+}
+
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <Suspense fallback={

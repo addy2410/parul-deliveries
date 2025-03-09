@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -29,14 +30,21 @@ const InstallPWAPrompt = () => {
         const timer = setTimeout(() => {
           setIsOpen(true);
           setHasPrompted(true);
-          // Set localStorage to prevent showing again for a week
+          // Set localStorage to prevent showing again for a week (7 days = 604800000 ms)
+          // Using 1 day for testing: 86400000 ms
           localStorage.setItem('pwaPromptShown', Date.now().toString());
-        }, 5000);
+        }, 3000); // Reduced to 3 seconds for testing
         
         return () => clearTimeout(timer);
       }
     }
   }, [hasPrompted]);
+
+  // Force clear localStorage item on component mount for testing
+  useEffect(() => {
+    localStorage.removeItem('pwaPromptShown');
+    console.log("PWA prompt localStorage cleared for testing");
+  }, []);
 
   const handleClose = () => {
     setIsOpen(false);

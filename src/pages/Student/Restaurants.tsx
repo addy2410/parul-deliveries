@@ -6,7 +6,7 @@ import { MapPin, Star, Clock, Search, ArrowUpRight, Users, ChevronLeft, ChevronR
 import StudentHeader from "@/components/StudentHeader";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -208,6 +208,7 @@ const StudentRestaurants = () => {
               )}
             </div>
           </div>
+          <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </div>
       
