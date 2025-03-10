@@ -230,11 +230,16 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         else if (payload.eventType === 'DELETE') {
           // Fix for the error: ensure payload.old exists, is an object, and has an id property
           if (payload.old && typeof payload.old === 'object' && 'id' in payload.old) {
-            console.log("[VendorOrdersList] Order deleted:", payload.old.id);
-            setOrders(prev => prev.filter(order => order.id !== payload.old.id));
+            const deletedOrderId = payload.old.id as string;
+            console.log("[VendorOrdersList] Order deleted:", deletedOrderId);
             
-            // Notify parent to update stats
-            if (onOrderUpdate) onOrderUpdate();
+            // Ensure we have a string ID before using it in the filter function
+            if (typeof deletedOrderId === 'string') {
+              setOrders(prev => prev.filter(order => order.id !== deletedOrderId));
+              
+              // Notify parent to update stats
+              if (onOrderUpdate) onOrderUpdate();
+            }
           }
         }
       })
