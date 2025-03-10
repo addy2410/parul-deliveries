@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,14 +30,8 @@ interface Order {
 // Define more specific types for the payload objects
 interface RealtimePayload {
   eventType: 'INSERT' | 'UPDATE' | 'DELETE';
-  new?: {
-    id?: string;
-    [key: string]: any;
-  }; 
-  old?: {
-    id?: string;
-    [key: string]: any;
-  };
+  new?: Record<string, any> & { id?: string };
+  old?: Record<string, any> & { id?: string };
 }
 
 interface VendorOrdersListProps {
@@ -142,8 +135,8 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         
         if (payload.eventType === 'INSERT') {
           // Only add new orders with active statuses
-          if (payload.new && typeof payload.new === 'object' && 'id' in payload.new) {
-            const newOrder = payload.new as Order;
+          if (payload.new && typeof payload.new === 'object' && 'id' in payload.new && payload.new.id) {
+            const newOrder = payload.new as unknown as Order;
             if (['pending', 'preparing', 'ready', 'delivering'].includes(newOrder.status)) {
               console.log("[VendorOrdersList] Adding new order:", newOrder.id);
               
@@ -169,8 +162,8 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         } 
         else if (payload.eventType === 'UPDATE') {
           // Check if the updated order data is valid
-          if (payload.new && typeof payload.new === 'object' && 'id' in payload.new) {
-            const updated = payload.new as Order;
+          if (payload.new && typeof payload.new === 'object' && 'id' in payload.new && payload.new.id) {
+            const updated = payload.new as unknown as Order;
             console.log("[VendorOrdersList] Order updated:", updated.id, "New status:", updated.status);
             
             // If the order status changed to delivered or cancelled
@@ -234,23 +227,18 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           }
         } 
         else if (payload.eventType === 'DELETE') {
-          // Check if payload.old exists and has an id property
-          if (payload.old && typeof payload.old === 'object') {
-            // Use a local variable with explicit type annotation
-            const payloadOld = payload.old as { id?: string };
-            const deletedOrderId = payloadOld.id;
+          // Safely handle DELETE event with proper type checking
+          if (payload.old && typeof payload.old === 'object' && 'id' in payload.old && payload.old.id) {
+            const deletedOrderId = payload.old.id;
             
-            // Only proceed if deletedOrderId is defined and is a string
-            if (deletedOrderId && typeof deletedOrderId === 'string') {
-              console.log("[VendorOrdersList] Order deleted:", deletedOrderId);
-              
-              setOrders(prev => prev.filter(order => order.id !== deletedOrderId));
-              
-              // Notify parent to update stats
-              if (onOrderUpdate) onOrderUpdate();
-            } else {
-              console.error("[VendorOrdersList] Invalid deletedOrderId:", deletedOrderId);
-            }
+            console.log("[VendorOrdersList] Order deleted:", deletedOrderId);
+            
+            setOrders(prev => prev.filter(order => order.id !== deletedOrderId));
+            
+            // Notify parent to update stats
+            if (onOrderUpdate) onOrderUpdate();
+          } else {
+            console.error("[VendorOrdersList] Invalid DELETE payload:", payload.old);
           }
         }
       })
