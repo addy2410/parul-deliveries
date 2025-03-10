@@ -34,8 +34,10 @@ interface RealtimePayload {
   old?: Record<string, unknown>;
 }
 
-interface PayloadRecord extends Record<string, unknown> {
-  id?: string;
+// Define a more specific type for payload records that can have an id
+interface PayloadRecord {
+  id?: string | number | null;
+  [key: string]: unknown;
 }
 
 interface VendorOrdersListProps {
@@ -233,10 +235,12 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         else if (payload.eventType === 'DELETE') {
           // Handle DELETE event with explicit type checking
           if (payload.old && typeof payload.old === 'object') {
+            // Cast payload.old to our PayloadRecord type which can have an id property
             const oldRecord = payload.old as PayloadRecord;
             
             // Check if id exists and is a valid value
             if (oldRecord.id !== undefined && oldRecord.id !== null) {
+              // Convert id to string regardless of its original type
               const deletedOrderId = String(oldRecord.id);
               
               console.log("[VendorOrdersList] Order deleted:", deletedOrderId);
