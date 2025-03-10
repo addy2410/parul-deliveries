@@ -66,6 +66,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         
       if (error) {
         console.error("[VendorOrdersList] Error fetching orders:", error);
+        setLoading(false); // Make sure to set loading to false on error
         return;
       }
       
@@ -90,10 +91,10 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
       });
       
       setOrders(parsedOrders);
+      setLoading(false); // Set loading to false after data is processed
     } catch (error) {
       console.error("[VendorOrdersList] Error fetching orders:", error);
-    } finally {
-      setLoading(false);
+      setLoading(false); // Make sure to set loading to false on error
     }
   };
 
@@ -119,92 +120,113 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
       }, (payload) => {
         console.log("[VendorOrdersList] Real-time update received:", payload);
         
+        // Ensure payload has the expected structure before proceeding
+        if (!payload || typeof payload !== 'object') {
+          console.error("[VendorOrdersList] Invalid payload received:", payload);
+          return;
+        }
+        
         if (payload.eventType === 'INSERT') {
           // Only add new orders with active statuses
-          const newOrder = payload.new as Order;
-          if (['pending', 'preparing', 'ready', 'delivering'].includes(newOrder.status)) {
-            console.log("[VendorOrdersList] Adding new order:", newOrder.id);
-            
-            // Parse items if they're a string
-            let parsedItems = [];
-            try {
-              parsedItems = typeof newOrder.items === 'string' 
-                ? JSON.parse(newOrder.items) 
-                : (Array.isArray(newOrder.items) ? newOrder.items : []);
-            } catch (e) {
-              console.error("[VendorOrdersList] Error parsing items for new order:", newOrder.id, e);
-              parsedItems = [];
+          if (payload.new && typeof payload.new === 'object') {
+            const newOrder = payload.new as Order;
+            if (['pending', 'preparing', 'ready', 'delivering'].includes(newOrder.status)) {
+              console.log("[VendorOrdersList] Adding new order:", newOrder.id);
+              
+              // Parse items if they're a string
+              let parsedItems = [];
+              try {
+                if ('items' in newOrder) {
+                  parsedItems = typeof newOrder.items === 'string' 
+                    ? JSON.parse(newOrder.items) 
+                    : (Array.isArray(newOrder.items) ? newOrder.items : []);
+                }
+              } catch (e) {
+                console.error("[VendorOrdersList] Error parsing items for new order:", newOrder.id, e);
+                parsedItems = [];
+              }
+              
+              setOrders(prev => [{...newOrder, items: parsedItems}, ...prev]);
+              
+              // Notify parent to update stats
+              if (onOrderUpdate) onOrderUpdate();
             }
-            
-            setOrders(prev => [{...newOrder, items: parsedItems}, ...prev]);
-            
-            // Notify parent to update stats
-            if (onOrderUpdate) onOrderUpdate();
           }
         } 
         else if (payload.eventType === 'UPDATE') {
-          const updated = payload.new as Order;
-          console.log("[VendorOrdersList] Order updated:", updated.id, "New status:", updated.status);
-          
-          // If the order status changed to delivered or cancelled
-          if (updated.status === 'delivered' || updated.status === 'cancelled') {
-            console.log("[VendorOrdersList] Removing delivered/cancelled order:", updated.id);
+          // Check if the updated order data is valid
+          if (payload.new && typeof payload.new === 'object') {
+            const updated = payload.new as Order;
+            console.log("[VendorOrdersList] Order updated:", updated.id, "New status:", updated.status);
             
-            setOrders(prev => prev.filter(order => order.id !== updated.id));
-            
-            // Notify parent about delivered orders
-            if (updated.status === 'delivered' && onOrderDelivered) {
-              console.log("[VendorOrdersList] Triggering onOrderDelivered callback");
-              onOrderDelivered();
-            }
-            
-            // Notify parent to update stats
-            if (onOrderUpdate) onOrderUpdate();
-          } 
-          else if (['pending', 'preparing', 'ready', 'delivering'].includes(updated.status)) {
-            // Update the order in the list
-            console.log("[VendorOrdersList] Updating order in list:", updated.id);
-            
-            // Parse items if they're a string
-            let parsedItems = [];
-            try {
-              parsedItems = typeof updated.items === 'string' 
-                ? JSON.parse(updated.items) 
-                : (Array.isArray(updated.items) ? updated.items : []);
-            } catch (e) {
-              console.error("[VendorOrdersList] Error parsing items for updated order:", updated.id, e);
-              // Fallback to keeping the existing items
-              const existingOrder = orders.find(o => o.id === updated.id);
-              parsedItems = existingOrder ? existingOrder.items : [];
-            }
-            
-            setOrders(prev => {
-              // Check if order exists in the list
-              const orderExists = prev.some(order => order.id === updated.id);
+            // If the order status changed to delivered or cancelled
+            if (updated.status === 'delivered' || updated.status === 'cancelled') {
+              console.log("[VendorOrdersList] Removing delivered/cancelled order:", updated.id);
               
-              if (orderExists) {
-                // Update existing order
-                return prev.map(order => 
-                  order.id === updated.id 
-                    ? {...updated, items: parsedItems} 
-                    : order
-                );
-              } else {
-                // Add order if it doesn't exist (should be rare)
-                return [{...updated, items: parsedItems}, ...prev];
+              setOrders(prev => prev.filter(order => order.id !== updated.id));
+              
+              // Notify parent about delivered orders
+              if (updated.status === 'delivered' && onOrderDelivered) {
+                console.log("[VendorOrdersList] Triggering onOrderDelivered callback");
+                onOrderDelivered();
               }
-            });
+              
+              // Notify parent to update stats
+              if (onOrderUpdate) onOrderUpdate();
+            } 
+            else if (['pending', 'preparing', 'ready', 'delivering'].includes(updated.status)) {
+              // Update the order in the list
+              console.log("[VendorOrdersList] Updating order in list:", updated.id);
+              
+              // Parse items if they're a string
+              let parsedItems = [];
+              try {
+                if ('items' in updated) {
+                  parsedItems = typeof updated.items === 'string' 
+                    ? JSON.parse(updated.items) 
+                    : (Array.isArray(updated.items) ? updated.items : []);
+                } else {
+                  // Fallback to keeping the existing items
+                  const existingOrder = orders.find(o => o.id === updated.id);
+                  parsedItems = existingOrder ? existingOrder.items : [];
+                }
+              } catch (e) {
+                console.error("[VendorOrdersList] Error parsing items for updated order:", updated.id, e);
+                // Fallback to keeping the existing items
+                const existingOrder = orders.find(o => o.id === updated.id);
+                parsedItems = existingOrder ? existingOrder.items : [];
+              }
+              
+              setOrders(prev => {
+                // Check if order exists in the list
+                const orderExists = prev.some(order => order.id === updated.id);
+                
+                if (orderExists) {
+                  // Update existing order
+                  return prev.map(order => 
+                    order.id === updated.id 
+                      ? {...updated, items: parsedItems} 
+                      : order
+                  );
+                } else {
+                  // Add order if it doesn't exist (should be rare)
+                  return [{...updated, items: parsedItems}, ...prev];
+                }
+              });
+              
+              // Notify parent to update stats
+              if (onOrderUpdate) onOrderUpdate();
+            }
+          }
+        } 
+        else if (payload.eventType === 'DELETE') {
+          if (payload.old && typeof payload.old === 'object' && 'id' in payload.old) {
+            console.log("[VendorOrdersList] Order deleted:", payload.old.id);
+            setOrders(prev => prev.filter(order => order.id !== payload.old.id));
             
             // Notify parent to update stats
             if (onOrderUpdate) onOrderUpdate();
           }
-        } 
-        else if (payload.eventType === 'DELETE') {
-          console.log("[VendorOrdersList] Order deleted:", payload.old.id);
-          setOrders(prev => prev.filter(order => order.id !== payload.old.id));
-          
-          // Notify parent to update stats
-          if (onOrderUpdate) onOrderUpdate();
         }
       })
       .subscribe((status) => {
@@ -215,7 +237,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
       console.log("[VendorOrdersList] Cleaning up subscription");
       supabase.removeChannel(channel);
     };
-  }, [vendorId, shopId, onOrderUpdate, onOrderDelivered, orders]);
+  }, [vendorId, shopId, onOrderUpdate, onOrderDelivered]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {

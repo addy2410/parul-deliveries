@@ -1,8 +1,8 @@
 
 {
-  "name": "Campus Grub Connect",
-  "short_name": "CampusGrub",
-  "description": "Order food from campus eateries",
+  "name": "Parul University Food Delivery",
+  "short_name": "Parul Food",
+  "description": "Order food from Parul University campus eateries in Vadodara",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -29,14 +29,14 @@
     {
       "name": "Student Restaurants",
       "short_name": "Restaurants",
-      "description": "View all restaurants",
+      "description": "View all campus restaurants at Parul University Vadodara",
       "url": "/student/restaurants",
       "icons": [{ "src": "/lovable-uploads/5c6eb016-a0ad-449a-bcdf-0d53631b9e62.png", "sizes": "192x192" }]
     },
     {
       "name": "Vendor Dashboard",
       "short_name": "Dashboard",
-      "description": "Manage your restaurant",
+      "description": "Manage your restaurant on Parul University campus",
       "url": "/vendor/dashboard",
       "icons": [{ "src": "/lovable-uploads/5c6eb016-a0ad-449a-bcdf-0d53631b9e62.png", "sizes": "192x192" }]
     }
@@ -44,5 +44,16 @@
   "related_applications": [],
   "prefer_related_applications": false,
   "orientation": "any",
-  "categories": ["food", "shopping"]
+  "categories": ["food", "shopping", "education"],
+  "lang": "en-IN",
+  "dir": "ltr",
+  "screenshots": [
+    {
+      "src": "/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "platform": "wide",
+      "label": "Parul University Food Delivery home screen"
+    }
+  ]
 }

@@ -214,11 +214,17 @@ const Orders = () => {
             (payload) => {
               console.log("[StudentOrders] Real-time order update received:", payload);
 
+              // Ensure we have a valid payload
+              if (!payload || typeof payload !== 'object') {
+                console.error("[StudentOrders] Invalid payload received:", payload);
+                return;
+              }
+
               // Parse items if they're a string
               let parsedItems: OrderItem[] = [];
               
               try {
-                // Fix TypeScript errors by properly checking if payload.new exists and has items property
+                // Safely check if payload.new exists and has items property
                 if (payload.new && typeof payload.new === 'object' && 'items' in payload.new) {
                   const itemsData = payload.new.items;
                   parsedItems = typeof itemsData === 'string' 
@@ -301,8 +307,8 @@ const Orders = () => {
               } 
               else if (payload.eventType === 'DELETE') {
                 // Safely access payload.old if needed
-                const oldId = payload.old?.id;
-                if (oldId) {
+                if (payload.old && typeof payload.old === 'object' && 'id' in payload.old) {
+                  const oldId = payload.old.id;
                   console.log("[StudentOrders] Order deleted:", oldId);
                   
                   // Remove from both lists to be safe
