@@ -9,17 +9,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ArrowLeft, ShoppingBag, Package, Check, ChefHat, Truck, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ShoppingBag, Package, ChefHat, Truck, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 import StudentHeader from "@/components/StudentHeader";
 import { Separator } from "@/components/ui/separator";
@@ -119,127 +109,188 @@ const Orders = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        setLoading(true);
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      console.log("[StudentOrders] Fetching orders");
 
-        // Check if user is authenticated
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      // Check if user is authenticated
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-        if (!sessionData?.session) {
-          toast.error("Please login to view your orders");
-          navigate("/student/login");
-          return;
-        }
-
-        const studentId = sessionData.session.user.id;
-
-        // Fetch active orders
-        const { data: active, error: activeError } = await supabase
-          .from("orders")
-          .select("*")
-          .eq("student_id", studentId)
-          .not("status", "in", '("delivered", "cancelled")')
-          .order("created_at", { ascending: false });
-
-        if (activeError) {
-          console.error("Error fetching active orders:", activeError);
-        }
-
-        // Fetch past orders
-        const { data: past, error: pastError } = await supabase
-          .from("orders")
-          .select("*")
-          .eq("student_id", studentId)
-          .in("status", ["delivered", "cancelled"])
-          .order("created_at", { ascending: false });
-
-        if (pastError) {
-          console.error("Error fetching past orders:", pastError);
-        }
-
-        // Parse JSONB items field
-        const parseOrders = (orders) => {
-          return orders
-            ? orders.map((order) => ({
-                ...order,
-                items: Array.isArray(order.items) ? order.items : [],
-              }))
-            : [];
-        };
-
-        setActiveOrders(parseOrders(active));
-        setPastOrders(parseOrders(past));
-      } catch (error) {
-        console.error("Error fetching orders:", error);
-        toast.error("Failed to load orders");
-      } finally {
-        setLoading(false);
+      if (!sessionData?.session) {
+        console.log("[StudentOrders] No active session found");
+        toast.error("Please login to view your orders");
+        navigate("/student/login");
+        return;
       }
-    };
 
+      const studentId = sessionData.session.user.id;
+      console.log("[StudentOrders] Fetching orders for student:", studentId);
+
+      // Fetch active orders
+      const { data: active, error: activeError } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("student_id", studentId)
+        .in("status", ["pending", "preparing", "ready", "delivering"])
+        .order("created_at", { ascending: false });
+
+      if (activeError) {
+        console.error("[StudentOrders] Error fetching active orders:", activeError);
+      } else {
+        console.log("[StudentOrders] Fetched active orders:", active?.length || 0);
+      }
+
+      // Fetch past orders
+      const { data: past, error: pastError } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("student_id", studentId)
+        .in("status", ["delivered", "cancelled"])
+        .order("created_at", { ascending: false });
+
+      if (pastError) {
+        console.error("[StudentOrders] Error fetching past orders:", pastError);
+      } else {
+        console.log("[StudentOrders] Fetched past orders:", past?.length || 0);
+      }
+
+      // Parse JSONB items field
+      const parseOrders = (orders) => {
+        return orders
+          ? orders.map((order) => ({
+              ...order,
+              items: Array.isArray(order.items) ? order.items : [],
+            }))
+          : [];
+      };
+
+      setActiveOrders(parseOrders(active));
+      setPastOrders(parseOrders(past));
+    } catch (error) {
+      console.error("[StudentOrders] Error fetching orders:", error);
+      toast.error("Failed to load orders");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchOrders();
 
     // Subscribe to real-time updates
-    const fetchSession = async () => {
+    const setupRealtimeSubscription = async () => {
       const { data: sessionData } = await supabase.auth.getSession();
       if (sessionData?.session?.user?.id) {
         const userId = sessionData.session.user.id;
+        const channelId = `student-orders-${userId}-${Date.now()}`;
+        console.log(`[StudentOrders] Setting up real-time channel: ${channelId}`);
         
         const channel = supabase
-          .channel("student-orders")
+          .channel(channelId)
           .on(
-            "postgres_changes",
+            'postgres_changes',
             {
-              event: "*",
-              schema: "public",
-              table: "orders",
+              event: '*',
+              schema: 'public',
+              table: 'orders',
               filter: `student_id=eq.${userId}`,
             },
             (payload) => {
-              console.log("Student received real-time order update:", payload);
+              console.log("[StudentOrders] Real-time order update received:", payload);
 
-              if (payload.eventType === "INSERT") {
-                setActiveOrders((prev) => [payload.new as Order, ...prev]);
-              } else if (payload.eventType === "UPDATE") {
-                const updated = payload.new as Order;
-                if (
-                  updated.status === "delivered" ||
-                  updated.status === "cancelled"
-                ) {
-                  setActiveOrders((prev) =>
-                    prev.filter((order) => order.id !== updated.id)
-                  );
-                  setPastOrders((prev) => [updated, ...prev]);
+              if (payload.eventType === 'INSERT') {
+                const newOrder = payload.new as Order;
+                
+                // Add to appropriate list based on status
+                if (['pending', 'preparing', 'ready', 'delivering'].includes(newOrder.status)) {
+                  console.log("[StudentOrders] Adding new order to active list:", newOrder.id);
+                  
+                  // Parse items if they're a string
+                  const parsedItems = typeof newOrder.items === 'string' 
+                    ? JSON.parse(newOrder.items) 
+                    : (Array.isArray(newOrder.items) ? newOrder.items : []);
+                  
+                  setActiveOrders(prev => [{...newOrder, items: parsedItems}, ...prev]);
                 } else {
-                  setActiveOrders((prev) =>
-                    prev.map((order) =>
-                      order.id === updated.id
-                        ? { ...updated, items: order.items }
-                        : order
-                    )
-                  );
+                  console.log("[StudentOrders] Adding new order to past list:", newOrder.id);
+                  
+                  // Parse items if they're a string
+                  const parsedItems = typeof newOrder.items === 'string' 
+                    ? JSON.parse(newOrder.items) 
+                    : (Array.isArray(newOrder.items) ? newOrder.items : []);
+                  
+                  setPastOrders(prev => [{...newOrder, items: parsedItems}, ...prev]);
                 }
-              } else if (payload.eventType === "DELETE") {
-                setActiveOrders((prev) =>
-                  prev.filter((order) => order.id !== payload.old.id)
-                );
-                setPastOrders((prev) =>
-                  prev.filter((order) => order.id !== payload.old.id)
-                );
+              } 
+              else if (payload.eventType === 'UPDATE') {
+                const updated = payload.new as Order;
+                console.log("[StudentOrders] Order updated:", updated.id, "New status:", updated.status);
+                
+                // Parse items if they're a string
+                const parsedItems = typeof updated.items === 'string' 
+                  ? JSON.parse(updated.items) 
+                  : (Array.isArray(updated.items) ? updated.items : []);
+                
+                const updatedWithParsedItems = {...updated, items: parsedItems};
+                
+                if (['delivered', 'cancelled'].includes(updated.status)) {
+                  // Move from active to past orders
+                  setActiveOrders(prev => prev.filter(order => order.id !== updated.id));
+                  
+                  // Check if already in past orders
+                  setPastOrders(prev => {
+                    const exists = prev.some(order => order.id === updated.id);
+                    return exists 
+                      ? prev.map(order => order.id === updated.id ? updatedWithParsedItems : order)
+                      : [updatedWithParsedItems, ...prev];
+                  });
+                  
+                  // Show a toast notification for status change
+                  if (updated.status === 'delivered') {
+                    toast.success('Your order has been delivered!');
+                  } else if (updated.status === 'cancelled') {
+                    toast.error('Your order has been cancelled');
+                  }
+                } 
+                else {
+                  // Update in active orders
+                  setActiveOrders(prev => {
+                    // Check if order exists in active list
+                    const exists = prev.some(order => order.id === updated.id);
+                    if (exists) {
+                      return prev.map(order => order.id === updated.id ? updatedWithParsedItems : order);
+                    } else {
+                      // If not in active orders (rare case), add it
+                      return [updatedWithParsedItems, ...prev];
+                    }
+                  });
+                  
+                  // Show a toast for status update
+                  toast.info(`Order status updated: ${updated.status}`);
+                }
+              } 
+              else if (payload.eventType === 'DELETE') {
+                console.log("[StudentOrders] Order deleted:", payload.old.id);
+                
+                // Remove from both lists to be safe
+                setActiveOrders(prev => prev.filter(order => order.id !== payload.old.id));
+                setPastOrders(prev => prev.filter(order => order.id !== payload.old.id));
               }
             }
           )
-          .subscribe();
+          .subscribe((status) => {
+            console.log("[StudentOrders] Subscription status:", status);
+          });
 
         return () => {
+          console.log("[StudentOrders] Cleaning up subscription");
           supabase.removeChannel(channel);
         };
       }
     };
     
-    fetchSession();
+    setupRealtimeSubscription();
   }, [navigate]);
 
   const renderOrderCard = (order) => (

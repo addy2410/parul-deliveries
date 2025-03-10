@@ -1,21 +1,11 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { ChefHat, Package, Truck, CheckCircle, ShoppingBag, Trash2 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ChefHat, Package, Truck, CheckCircle, ShoppingBag } from "lucide-react";
 
 interface OrderItem {
   menuItemId: string;
@@ -28,7 +18,7 @@ interface Order {
   id: string;
   student_id: string;
   vendor_id: string;
-  restaurant_id: string;  // Updated to match the database field
+  restaurant_id: string;  
   items: OrderItem[];
   total_amount: number;
   status: string;
@@ -53,163 +43,20 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
 }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
-  const [isDeletingOrder, setIsDeletingOrder] = useState(false);
 
-  useEffect(() => {
+  // Function to fetch active orders
+  const fetchActiveOrders = async () => {
     if (!vendorId) return;
     
-    const fetchOrders = async () => {
-      try {
-        setLoading(true);
-        console.log("Fetching active orders for vendor:", vendorId, "shop:", shopId);
-        
-        let query = supabase
-          .from('orders')
-          .select('*')
-          .eq('vendor_id', vendorId)
-          .in('status', ['pending', 'preparing', 'ready', 'delivering']) // Explicitly include only active statuses
-          .order('created_at', { ascending: false });
-          
-        if (shopId) {
-          query = query.eq('restaurant_id', shopId);
-        }
-        
-        const { data, error } = await query;
-          
-        if (error) {
-          console.error("Error fetching orders:", error);
-          return;
-        }
-        
-        console.log("Fetched orders:", data?.length || 0);
-        
-        // Parse JSONB items field
-        const parsedOrders = data.map(order => ({
-          ...order,
-          items: Array.isArray(order.items) ? order.items : []
-        }));
-        
-        setOrders(parsedOrders);
-      } catch (error) {
-        console.error("Error fetching orders:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchOrders();
-    
-    // Subscribe to real-time updates with a unique channel name
-    const channelName = `vendor-orders-changes-${vendorId}-${Math.random().toString(36).substring(2, 15)}`;
-    console.log(`Setting up vendor orders channel: ${channelName}`);
-    
-    const channel = supabase
-      .channel(channelName)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'orders',
-        filter: `vendor_id=eq.${vendorId}`
-      }, (payload) => {
-        console.log("Vendor received real-time order update:", payload);
-        
-        if (payload.eventType === 'INSERT') {
-          // Only add new order if it's an active order
-          const newOrder = payload.new as Order;
-          if (['pending', 'preparing', 'ready', 'delivering'].includes(newOrder.status)) {
-            console.log("Adding new order to list:", newOrder.id);
-            setOrders(prev => [newOrder, ...prev]);
-          }
-        } else if (payload.eventType === 'UPDATE') {
-          const updated = payload.new as Order;
-          console.log("Order updated:", updated.id, "New status:", updated.status);
-          
-          // If order is delivered or cancelled, remove it from active list
-          if (updated.status === 'delivered' || updated.status === 'cancelled') {
-            console.log("Removing order from list (delivered/cancelled):", updated.id);
-            setOrders(prev => prev.filter(order => order.id !== updated.id));
-          } else {
-            // Otherwise update it
-            console.log("Updating order in list:", updated.id);
-            setOrders(prev => prev.map(order => 
-              order.id === updated.id ? {...updated, items: Array.isArray(updated.items) ? updated.items : order.items} : order
-            ));
-          }
-        } else if (payload.eventType === 'DELETE') {
-          console.log("Removing deleted order from list:", payload.old.id);
-          setOrders(prev => prev.filter(order => order.id !== payload.old.id));
-        }
-      })
-      .subscribe((status) => {
-        console.log("Vendor orders subscription status:", status);
-        if (status === 'SUBSCRIBED') {
-          console.log("Successfully subscribed to vendor orders real-time updates");
-        } else {
-          console.error("Failed to subscribe to vendor orders real-time updates. Status:", status);
-        }
-      });
-    
-    return () => {
-      console.log("Cleaning up vendor orders subscription");
-      supabase.removeChannel(channel);
-    };
-  }, [vendorId, shopId]);
-
-  const updateOrderStatus = async (orderId: string, newStatus: string) => {
-    try {
-      console.log(`Updating order ${orderId} status to: ${newStatus}`);
-      
-      // First update the local state for immediate feedback
-      setOrders(prev => prev.map(order => 
-        order.id === orderId ? {...order, status: newStatus} : order
-      ));
-      
-      // Then update in the database
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: newStatus })
-        .eq('id', orderId);
-      
-      if (error) {
-        console.error("Error updating order status:", error);
-        toast.error("Failed to update order status");
-        
-        // Revert local state change if update failed
-        fetchOrders();
-        return;
-      }
-      
-      toast.success(`Order status updated to: ${newStatus}`);
-      
-      // Notify parent component about updates
-      if (onOrderUpdate) onOrderUpdate();
-      
-      // Special handling for delivered orders
-      if (newStatus === 'delivered') {
-        console.log("Order marked as delivered, updating stats and removing from list");
-        if (onOrderDelivered) onOrderDelivered();
-        
-        // Remove from active orders list
-        setOrders(prev => prev.filter(order => order.id !== orderId));
-      }
-    } catch (error) {
-      console.error("Error updating order status:", error);
-      toast.error("An error occurred while updating order status");
-    }
-  };
-  
-  // Added function to refetch orders
-  const fetchOrders = async () => {
     try {
       setLoading(true);
-      console.log("Re-fetching orders after error");
+      console.log("[VendorOrdersList] Fetching active orders for vendor:", vendorId, "shop:", shopId);
       
       let query = supabase
         .from('orders')
         .select('*')
         .eq('vendor_id', vendorId)
-        .in('status', ['pending', 'preparing', 'ready', 'delivering']) // Explicitly include only active statuses
+        .in('status', ['pending', 'preparing', 'ready', 'delivering'])
         .order('created_at', { ascending: false });
         
       if (shopId) {
@@ -219,10 +66,13 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
       const { data, error } = await query;
         
       if (error) {
-        console.error("Error fetching orders:", error);
+        console.error("[VendorOrdersList] Error fetching orders:", error);
         return;
       }
       
+      console.log("[VendorOrdersList] Fetched active orders:", data?.length || 0);
+      
+      // Parse JSONB items field
       const parsedOrders = data.map(order => ({
         ...order,
         items: Array.isArray(order.items) ? order.items : []
@@ -230,40 +80,152 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
       
       setOrders(parsedOrders);
     } catch (error) {
-      console.error("Error fetching orders:", error);
+      console.error("[VendorOrdersList] Error fetching orders:", error);
     } finally {
       setLoading(false);
     }
   };
-  
-  const deleteOrder = async (orderId: string) => {
+
+  useEffect(() => {
+    if (!vendorId) return;
+    
+    // Initially fetch active orders
+    fetchActiveOrders();
+    
+    // Subscribe to real-time updates with a unique channel name
+    const channelId = `vendor-orders-${vendorId}-${shopId || 'all'}-${Date.now()}`;
+    console.log(`[VendorOrdersList] Setting up real-time channel: ${channelId}`);
+    
+    const channel = supabase
+      .channel(channelId)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'orders',
+        filter: shopId 
+          ? `vendor_id=eq.${vendorId}&restaurant_id=eq.${shopId}`
+          : `vendor_id=eq.${vendorId}`
+      }, (payload) => {
+        console.log("[VendorOrdersList] Real-time update received:", payload);
+        
+        if (payload.eventType === 'INSERT') {
+          // Only add new orders with active statuses
+          const newOrder = payload.new as Order;
+          if (['pending', 'preparing', 'ready', 'delivering'].includes(newOrder.status)) {
+            console.log("[VendorOrdersList] Adding new order:", newOrder.id);
+            
+            // Parse items if they're a string
+            const parsedItems = typeof newOrder.items === 'string' 
+              ? JSON.parse(newOrder.items) 
+              : (Array.isArray(newOrder.items) ? newOrder.items : []);
+            
+            setOrders(prev => [{...newOrder, items: parsedItems}, ...prev]);
+            
+            // Notify parent to update stats
+            if (onOrderUpdate) onOrderUpdate();
+          }
+        } 
+        else if (payload.eventType === 'UPDATE') {
+          const updated = payload.new as Order;
+          console.log("[VendorOrdersList] Order updated:", updated.id, "New status:", updated.status);
+          
+          // If the order status changed to delivered or cancelled
+          if (updated.status === 'delivered' || updated.status === 'cancelled') {
+            console.log("[VendorOrdersList] Removing delivered/cancelled order:", updated.id);
+            
+            setOrders(prev => prev.filter(order => order.id !== updated.id));
+            
+            // Notify parent about delivered orders
+            if (updated.status === 'delivered' && onOrderDelivered) {
+              console.log("[VendorOrdersList] Triggering onOrderDelivered callback");
+              onOrderDelivered();
+            }
+            
+            // Notify parent to update stats
+            if (onOrderUpdate) onOrderUpdate();
+          } 
+          else if (['pending', 'preparing', 'ready', 'delivering'].includes(updated.status)) {
+            // Update the order in the list
+            console.log("[VendorOrdersList] Updating order in list:", updated.id);
+            
+            setOrders(prev => {
+              // Check if order exists in the list
+              const orderExists = prev.some(order => order.id === updated.id);
+              
+              if (orderExists) {
+                // Update existing order
+                return prev.map(order => 
+                  order.id === updated.id 
+                    ? {...updated, items: Array.isArray(updated.items) ? updated.items : order.items} 
+                    : order
+                );
+              } else {
+                // Add order if it doesn't exist (should be rare)
+                const parsedItems = typeof updated.items === 'string' 
+                  ? JSON.parse(updated.items) 
+                  : (Array.isArray(updated.items) ? updated.items : []);
+                
+                return [{...updated, items: parsedItems}, ...prev];
+              }
+            });
+            
+            // Notify parent to update stats
+            if (onOrderUpdate) onOrderUpdate();
+          }
+        } 
+        else if (payload.eventType === 'DELETE') {
+          console.log("[VendorOrdersList] Order deleted:", payload.old.id);
+          setOrders(prev => prev.filter(order => order.id !== payload.old.id));
+          
+          // Notify parent to update stats
+          if (onOrderUpdate) onOrderUpdate();
+        }
+      })
+      .subscribe((status) => {
+        console.log("[VendorOrdersList] Subscription status:", status);
+      });
+    
+    return () => {
+      console.log("[VendorOrdersList] Cleaning up subscription");
+      supabase.removeChannel(channel);
+    };
+  }, [vendorId, shopId, onOrderUpdate, onOrderDelivered]);
+
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
-      setIsDeletingOrder(true);
+      console.log(`[VendorOrdersList] Updating order ${orderId} status to: ${newStatus}`);
       
+      // Calculate estimated delivery time for preparing status
+      let updateData: any = { status: newStatus };
+      
+      // If transitioning to preparing status, add delivery time estimate
+      if (newStatus === 'preparing') {
+        const estimatedTime = Math.floor(Math.random() * 20) + 15; // 15-35 minutes
+        updateData.estimated_delivery_time = `${estimatedTime} minutes`;
+      }
+      
+      // Update in the database
       const { error } = await supabase
         .from('orders')
-        .delete()
+        .update(updateData)
         .eq('id', orderId);
       
       if (error) {
-        console.error("Error deleting order:", error);
-        toast.error("Failed to delete order");
+        console.error("[VendorOrdersList] Error updating order status:", error);
+        toast.error("Failed to update order status");
         return;
       }
       
-      toast.success("Test order deleted successfully");
+      toast.success(`Order status updated to: ${newStatus}`);
       
-      // Update local state
-      setOrders(prev => prev.filter(order => order.id !== orderId));
-      
-      if (onOrderUpdate) onOrderUpdate();
-      
+      // Special handling for delivered orders
+      if (newStatus === 'delivered') {
+        console.log("[VendorOrdersList] Order marked as delivered, will be removed from active list");
+        // The real-time subscription will handle removing the order from the list
+      }
     } catch (error) {
-      console.error("Error deleting order:", error);
-      toast.error("An error occurred while deleting order");
-    } finally {
-      setIsDeletingOrder(false);
-      setSelectedOrder(null);
+      console.error("[VendorOrdersList] Error updating order status:", error);
+      toast.error("An error occurred while updating order status");
     }
   };
   
@@ -365,39 +327,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
                     </div>
                   </div>
                   
-                  <div className="flex justify-between">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button 
-                          variant="destructive" 
-                          size="sm"
-                          className="bg-red-600 hover:bg-red-700"
-                          onClick={() => setSelectedOrder(order.id)}
-                        >
-                          <Trash2 size={16} className="mr-1" />
-                          Delete Test Order
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Test Order</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete this test order? This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction 
-                            className="bg-red-600 hover:bg-red-700"
-                            onClick={() => selectedOrder && deleteOrder(selectedOrder)}
-                            disabled={isDeletingOrder}
-                          >
-                            {isDeletingOrder ? "Deleting..." : "Delete Order"}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                    
+                  <div className="flex justify-end">
                     {order.status !== 'cancelled' && (
                       <Button
                         className="bg-vendor-600 hover:bg-vendor-700"

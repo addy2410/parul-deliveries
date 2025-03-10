@@ -16,7 +16,6 @@ import {
   ShoppingBag,
   Store,
   Clock,
-  AlertTriangle,
   BarChart3,
   Bell,
   Image
@@ -71,7 +70,7 @@ const VendorDashboard = () => {
           .maybeSingle();
           
         if (shopError) {
-          console.error("Error fetching shop:", shopError);
+          console.error("[VendorDashboard] Error fetching shop:", shopError);
           toast.error("Error fetching your shop data");
         }
         
@@ -94,7 +93,7 @@ const VendorDashboard = () => {
           fetchOrderStats(shopData.vendor_id, shopData.id);
         }
       } catch (error) {
-        console.error("Auth check error:", error);
+        console.error("[VendorDashboard] Auth check error:", error);
         toast.error("Authentication error");
         navigate("/vendor/login");
       }
@@ -105,24 +104,9 @@ const VendorDashboard = () => {
 
   const fetchOrderStats = async (vendorId: string, shopId: string) => {
     try {
-      console.log("Fetching order stats for vendor:", vendorId, "shop:", shopId);
+      console.log("[VendorDashboard] Fetching order stats for vendor:", vendorId, "shop:", shopId);
       
-      // Get total completed orders
-      const { data: completedOrders, error: completedError } = await supabase
-        .from('orders')
-        .select('id, total_amount')
-        .eq('vendor_id', vendorId)
-        .eq('restaurant_id', shopId)
-        .eq('status', 'delivered');
-        
-      if (completedError) {
-        console.error('Error fetching completed orders:', completedError);
-        return;
-      }
-      
-      console.log("Completed orders count:", completedOrders?.length || 0);
-      
-      // Get active orders
+      // Get active orders - orders that are not delivered or cancelled
       const { data: activeOrders, error: activeError } = await supabase
         .from('orders')
         .select('id')
@@ -131,11 +115,26 @@ const VendorDashboard = () => {
         .in('status', ['pending', 'preparing', 'ready', 'delivering']);
         
       if (activeError) {
-        console.error('Error fetching active orders:', activeError);
+        console.error('[VendorDashboard] Error fetching active orders:', activeError);
         return;
       }
       
-      console.log("Active orders count:", activeOrders?.length || 0);
+      console.log("[VendorDashboard] Active orders count:", activeOrders?.length || 0);
+      
+      // Get completed orders (delivered only, not cancelled)
+      const { data: completedOrders, error: completedError } = await supabase
+        .from('orders')
+        .select('id, total_amount')
+        .eq('vendor_id', vendorId)
+        .eq('restaurant_id', shopId)
+        .eq('status', 'delivered');
+        
+      if (completedError) {
+        console.error('[VendorDashboard] Error fetching completed orders:', completedError);
+        return;
+      }
+      
+      console.log("[VendorDashboard] Completed orders count:", completedOrders?.length || 0);
       
       // Get menu items count
       const { count: menuItemsCount, error: menuError } = await supabase
@@ -144,13 +143,13 @@ const VendorDashboard = () => {
         .eq('shop_id', shopId);
         
       if (menuError) {
-        console.error('Error fetching menu items count:', menuError);
+        console.error('[VendorDashboard] Error fetching menu items count:', menuError);
         return;
       }
       
       // Calculate total revenue from completed orders
       const totalRevenue = completedOrders?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
-      console.log("Total revenue calculated:", totalRevenue);
+      console.log("[VendorDashboard] Total revenue calculated:", totalRevenue);
       
       setStats({
         totalOrders: completedOrders?.length || 0,
@@ -159,17 +158,32 @@ const VendorDashboard = () => {
         menuItems: menuItemsCount || 0
       });
     } catch (error) {
-      console.error("Error fetching stats:", error);
+      console.error("[VendorDashboard] Error fetching stats:", error);
     }
   };
 
   const handleOrderDelivered = () => {
-    console.log("Order delivered callback triggered");
+    console.log("[VendorDashboard] Order delivered callback triggered");
+    
+    // Update the stats
     setStats(prev => ({
       ...prev,
       totalOrders: prev.totalOrders + 1,
       activeOrders: Math.max(0, prev.activeOrders - 1)
+      // Note: Revenue will be updated when fetchOrderStats is called
     }));
+    
+    // Re-fetch the stats to get the updated revenue
+    if (shop) {
+      fetchOrderStats(shop.vendor_id, shop.id);
+    }
+  };
+
+  const handleOrdersUpdate = () => {
+    console.log("[VendorDashboard] Orders updated, refreshing stats");
+    if (shop) {
+      fetchOrderStats(shop.vendor_id, shop.id);
+    }
   };
 
   const handleLogout = async () => {
@@ -195,7 +209,7 @@ const VendorDashboard = () => {
         .eq('id', shop.id);
         
       if (error) {
-        console.error('Error updating shop status:', error);
+        console.error('[VendorDashboard] Error updating shop status:', error);
         toast.error('Failed to update shop status');
         return;
       }
@@ -205,7 +219,7 @@ const VendorDashboard = () => {
       setShop({...shop, is_open: newStatus});
       toast.success(`Shop is now ${newStatus ? 'open' : 'closed'} for orders`);
     } catch (error) {
-      console.error('Error updating shop status:', error);
+      console.error('[VendorDashboard] Error updating shop status:', error);
       toast.error('Failed to update shop status');
     } finally {
       setIsSubmitting(false);
@@ -239,7 +253,7 @@ const VendorDashboard = () => {
         .upload(fileName, shopImage);
       
       if (error) {
-        console.error('Error uploading image:', error);
+        console.error('[VendorDashboard] Error uploading image:', error);
         toast.error('Failed to upload shop image');
         return null;
       }
@@ -251,7 +265,7 @@ const VendorDashboard = () => {
         
       return publicUrl;
     } catch (error) {
-      console.error('Image upload failed:', error);
+      console.error('[VendorDashboard] Image upload failed:', error);
       toast.error('Failed to upload shop image');
       return null;
     } finally {
@@ -274,7 +288,7 @@ const VendorDashboard = () => {
         .eq('id', shop.id);
         
       if (error) {
-        console.error('Error updating shop with image:', error);
+        console.error('[VendorDashboard] Error updating shop with image:', error);
         toast.error('Failed to update shop image');
         return;
       }
@@ -284,10 +298,38 @@ const VendorDashboard = () => {
       toast.success('Shop image updated successfully');
       setShowImageDialog(false);
     } catch (error) {
-      console.error('Error updating shop image:', error);
+      console.error('[VendorDashboard] Error updating shop image:', error);
       toast.error('Failed to update shop image');
     }
   };
+
+  // Set up a real-time listener for stats updates
+  useEffect(() => {
+    if (!shop) return;
+    
+    const channelId = `vendor-stats-${shop.vendor_id}-${shop.id}-${Date.now()}`;
+    console.log(`[VendorDashboard] Setting up real-time channel for stats: ${channelId}`);
+    
+    const channel = supabase
+      .channel(channelId)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'orders',
+        filter: `vendor_id=eq.${shop.vendor_id}&restaurant_id=eq.${shop.id}`
+      }, (payload) => {
+        console.log("[VendorDashboard] Real-time order update for stats:", payload);
+        
+        // Refresh stats when orders change
+        fetchOrderStats(shop.vendor_id, shop.id);
+      })
+      .subscribe();
+    
+    return () => {
+      console.log("[VendorDashboard] Cleaning up stats subscription");
+      supabase.removeChannel(channel);
+    };
+  }, [shop]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -469,13 +511,16 @@ const VendorDashboard = () => {
                   <VendorOrdersList 
                     vendorId={shop?.vendor_id || ''} 
                     shopId={shop?.id}
-                    onOrderUpdate={() => fetchOrderStats(shop?.vendor_id, shop?.id)}
+                    onOrderUpdate={handleOrdersUpdate}
                     onOrderDelivered={handleOrderDelivered}
                   />
                 </TabsContent>
                 
                 <TabsContent value="notifications">
-                  <VendorNotifications vendorId={shop?.vendor_id} />
+                  <VendorNotifications 
+                    vendorId={shop?.vendor_id}
+                    onOrderStatusChange={handleOrdersUpdate}
+                  />
                 </TabsContent>
               </Tabs>
             </div>
