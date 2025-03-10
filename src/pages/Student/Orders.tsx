@@ -137,8 +137,9 @@ const Orders = () => {
 
       if (activeError) {
         console.error("[StudentOrders] Error fetching active orders:", activeError);
+        toast.error("Failed to load active orders");
       } else {
-        console.log("[StudentOrders] Fetched active orders:", active?.length || 0);
+        console.log("[StudentOrders] Fetched active orders:", active?.length || 0, active);
       }
 
       // Fetch past orders
@@ -151,17 +152,31 @@ const Orders = () => {
 
       if (pastError) {
         console.error("[StudentOrders] Error fetching past orders:", pastError);
+        toast.error("Failed to load past orders");
       } else {
-        console.log("[StudentOrders] Fetched past orders:", past?.length || 0);
+        console.log("[StudentOrders] Fetched past orders:", past?.length || 0, past);
       }
 
       // Parse JSONB items field
       const parseOrders = (orders) => {
         return orders
-          ? orders.map((order) => ({
-              ...order,
-              items: Array.isArray(order.items) ? order.items : [],
-            }))
+          ? orders.map((order) => {
+              // Parse items if they're a string
+              let parsedItems = [];
+              try {
+                parsedItems = typeof order.items === 'string' 
+                  ? JSON.parse(order.items) 
+                  : (Array.isArray(order.items) ? order.items : []);
+              } catch (e) {
+                console.error("[StudentOrders] Error parsing items for order:", order.id, e);
+                parsedItems = [];
+              }
+              
+              return {
+                ...order,
+                items: parsedItems
+              };
+            })
           : [];
       };
 
@@ -199,75 +214,80 @@ const Orders = () => {
             (payload) => {
               console.log("[StudentOrders] Real-time order update received:", payload);
 
+              // Parse items if they're a string
+              let parsedItems = [];
+              try {
+                if (payload.new && payload.new.items) {
+                  parsedItems = typeof payload.new.items === 'string' 
+                    ? JSON.parse(payload.new.items) 
+                    : (Array.isArray(payload.new.items) ? payload.new.items : []);
+                }
+              } catch (e) {
+                console.error("[StudentOrders] Error parsing items for real-time update:", e);
+                parsedItems = [];
+              }
+              
               if (payload.eventType === 'INSERT') {
-                const newOrder = payload.new as Order;
+                const newOrder = {
+                  ...payload.new as Order,
+                  items: parsedItems
+                };
                 
                 // Add to appropriate list based on status
                 if (['pending', 'preparing', 'ready', 'delivering'].includes(newOrder.status)) {
                   console.log("[StudentOrders] Adding new order to active list:", newOrder.id);
-                  
-                  // Parse items if they're a string
-                  const parsedItems = typeof newOrder.items === 'string' 
-                    ? JSON.parse(newOrder.items) 
-                    : (Array.isArray(newOrder.items) ? newOrder.items : []);
-                  
-                  setActiveOrders(prev => [{...newOrder, items: parsedItems}, ...prev]);
+                  setActiveOrders(prev => [newOrder, ...prev]);
+                  toast.success("New order created!");
                 } else {
                   console.log("[StudentOrders] Adding new order to past list:", newOrder.id);
-                  
-                  // Parse items if they're a string
-                  const parsedItems = typeof newOrder.items === 'string' 
-                    ? JSON.parse(newOrder.items) 
-                    : (Array.isArray(newOrder.items) ? newOrder.items : []);
-                  
-                  setPastOrders(prev => [{...newOrder, items: parsedItems}, ...prev]);
+                  setPastOrders(prev => [newOrder, ...prev]);
                 }
               } 
               else if (payload.eventType === 'UPDATE') {
-                const updated = payload.new as Order;
-                console.log("[StudentOrders] Order updated:", updated.id, "New status:", updated.status);
+                const updatedOrder = {
+                  ...payload.new as Order,
+                  items: parsedItems
+                };
                 
-                // Parse items if they're a string
-                const parsedItems = typeof updated.items === 'string' 
-                  ? JSON.parse(updated.items) 
-                  : (Array.isArray(updated.items) ? updated.items : []);
+                console.log("[StudentOrders] Order updated:", updatedOrder.id, "New status:", updatedOrder.status);
                 
-                const updatedWithParsedItems = {...updated, items: parsedItems};
-                
-                if (['delivered', 'cancelled'].includes(updated.status)) {
+                if (['delivered', 'cancelled'].includes(updatedOrder.status)) {
                   // Move from active to past orders
-                  setActiveOrders(prev => prev.filter(order => order.id !== updated.id));
+                  setActiveOrders(prev => prev.filter(order => order.id !== updatedOrder.id));
                   
                   // Check if already in past orders
                   setPastOrders(prev => {
-                    const exists = prev.some(order => order.id === updated.id);
+                    const exists = prev.some(order => order.id === updatedOrder.id);
                     return exists 
-                      ? prev.map(order => order.id === updated.id ? updatedWithParsedItems : order)
-                      : [updatedWithParsedItems, ...prev];
+                      ? prev.map(order => order.id === updatedOrder.id ? updatedOrder : order)
+                      : [updatedOrder, ...prev];
                   });
                   
                   // Show a toast notification for status change
-                  if (updated.status === 'delivered') {
+                  if (updatedOrder.status === 'delivered') {
                     toast.success('Your order has been delivered!');
-                  } else if (updated.status === 'cancelled') {
+                  } else if (updatedOrder.status === 'cancelled') {
                     toast.error('Your order has been cancelled');
                   }
                 } 
-                else {
+                else if (['pending', 'preparing', 'ready', 'delivering'].includes(updatedOrder.status)) {
                   // Update in active orders
                   setActiveOrders(prev => {
                     // Check if order exists in active list
-                    const exists = prev.some(order => order.id === updated.id);
+                    const exists = prev.some(order => order.id === updatedOrder.id);
                     if (exists) {
-                      return prev.map(order => order.id === updated.id ? updatedWithParsedItems : order);
+                      return prev.map(order => order.id === updatedOrder.id ? updatedOrder : order);
                     } else {
-                      // If not in active orders (rare case), add it
-                      return [updatedWithParsedItems, ...prev];
+                      // If not in active orders (e.g., page just loaded), add it
+                      return [updatedOrder, ...prev];
                     }
                   });
                   
+                  // Remove from past orders if previously delivered/cancelled
+                  setPastOrders(prev => prev.filter(order => order.id !== updatedOrder.id));
+                  
                   // Show a toast for status update
-                  toast.info(`Order status updated: ${updated.status}`);
+                  toast.info(`Order status updated: ${updatedOrder.status}`);
                 }
               } 
               else if (payload.eventType === 'DELETE') {
@@ -276,6 +296,8 @@ const Orders = () => {
                 // Remove from both lists to be safe
                 setActiveOrders(prev => prev.filter(order => order.id !== payload.old.id));
                 setPastOrders(prev => prev.filter(order => order.id !== payload.old.id));
+                
+                toast.info("An order has been removed");
               }
             }
           )

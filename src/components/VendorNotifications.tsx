@@ -49,8 +49,21 @@ const VendorNotifications: React.FC<VendorNotificationsProps> = ({
           return;
         }
         
-        console.log("[VendorNotifications] Fetched notifications:", data?.length || 0);
-        setNotifications(data || []);
+        console.log("[VendorNotifications] Fetched notifications:", data?.length || 0, data);
+        
+        // Parse data field if it's a string
+        const parsedNotifications = data?.map(notification => {
+          if (typeof notification.data === 'string') {
+            try {
+              notification.data = JSON.parse(notification.data);
+            } catch (e) {
+              console.error("[VendorNotifications] Error parsing notification data:", e);
+            }
+          }
+          return notification;
+        }) || [];
+        
+        setNotifications(parsedNotifications);
       } catch (error) {
         console.error("[VendorNotifications] Error fetching notifications:", error);
       } finally {
@@ -75,6 +88,15 @@ const VendorNotifications: React.FC<VendorNotificationsProps> = ({
         console.log("[VendorNotifications] Realtime notification received:", payload);
         const newNotification = payload.new as Notification;
         
+        // Parse data field if it's a string
+        if (typeof newNotification.data === 'string') {
+          try {
+            newNotification.data = JSON.parse(newNotification.data);
+          } catch (e) {
+            console.error("[VendorNotifications] Error parsing new notification data:", e);
+          }
+        }
+        
         setNotifications(prev => [newNotification, ...prev]);
         toast.info("New notification received");
         
@@ -90,6 +112,15 @@ const VendorNotifications: React.FC<VendorNotificationsProps> = ({
       }, (payload) => {
         console.log("[VendorNotifications] Notification updated:", payload);
         const updatedNotification = payload.new as Notification;
+        
+        // Parse data field if it's a string
+        if (typeof updatedNotification.data === 'string') {
+          try {
+            updatedNotification.data = JSON.parse(updatedNotification.data);
+          } catch (e) {
+            console.error("[VendorNotifications] Error parsing updated notification data:", e);
+          }
+        }
         
         if (updatedNotification.is_read) {
           // Remove read notifications from the list
@@ -215,12 +246,21 @@ const VendorNotifications: React.FC<VendorNotificationsProps> = ({
   // Render order notification item
   const renderOrderNotification = (notification: Notification) => {
     const { data } = notification;
-    const orderItems = data?.items || [];
-    const formattedItems = Array.isArray(orderItems) 
-      ? orderItems.map((item: any) => `${item.quantity}x ${item.name}`).join(", ")
-      : typeof orderItems === 'string' 
-        ? JSON.parse(orderItems).map((item: any) => `${item.quantity}x ${item.name}`).join(", ")
-        : "Items not available";
+    
+    // Handle parsing of items if they're in string format
+    let formattedItems = "Items not available";
+    if (data && data.items) {
+      try {
+        const orderItems = typeof data.items === 'string' 
+          ? JSON.parse(data.items) 
+          : (Array.isArray(data.items) ? data.items : []);
+        
+        formattedItems = orderItems.map((item: any) => 
+          `${item.quantity}x ${item.name}`).join(", ");
+      } catch (e) {
+        console.error("[VendorNotifications] Error parsing order items:", e);
+      }
+    }
     
     return (
       <div className="border-b pb-4 mb-4 last:border-b-0 last:mb-0 last:pb-0">

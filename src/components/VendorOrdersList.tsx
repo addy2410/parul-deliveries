@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -70,13 +69,25 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         return;
       }
       
-      console.log("[VendorOrdersList] Fetched active orders:", data?.length || 0);
+      console.log("[VendorOrdersList] Fetched active orders:", data?.length || 0, data);
       
       // Parse JSONB items field
-      const parsedOrders = data.map(order => ({
-        ...order,
-        items: Array.isArray(order.items) ? order.items : []
-      }));
+      const parsedOrders = data.map(order => {
+        let parsedItems = [];
+        try {
+          parsedItems = typeof order.items === 'string' 
+            ? JSON.parse(order.items) 
+            : Array.isArray(order.items) ? order.items : [];
+        } catch (e) {
+          console.error("[VendorOrdersList] Error parsing items for order:", order.id, e);
+          parsedItems = [];
+        }
+        
+        return {
+          ...order,
+          items: parsedItems
+        };
+      });
       
       setOrders(parsedOrders);
     } catch (error) {
@@ -115,9 +126,15 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
             console.log("[VendorOrdersList] Adding new order:", newOrder.id);
             
             // Parse items if they're a string
-            const parsedItems = typeof newOrder.items === 'string' 
-              ? JSON.parse(newOrder.items) 
-              : (Array.isArray(newOrder.items) ? newOrder.items : []);
+            let parsedItems = [];
+            try {
+              parsedItems = typeof newOrder.items === 'string' 
+                ? JSON.parse(newOrder.items) 
+                : (Array.isArray(newOrder.items) ? newOrder.items : []);
+            } catch (e) {
+              console.error("[VendorOrdersList] Error parsing items for new order:", newOrder.id, e);
+              parsedItems = [];
+            }
             
             setOrders(prev => [{...newOrder, items: parsedItems}, ...prev]);
             
@@ -148,6 +165,19 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
             // Update the order in the list
             console.log("[VendorOrdersList] Updating order in list:", updated.id);
             
+            // Parse items if they're a string
+            let parsedItems = [];
+            try {
+              parsedItems = typeof updated.items === 'string' 
+                ? JSON.parse(updated.items) 
+                : (Array.isArray(updated.items) ? updated.items : []);
+            } catch (e) {
+              console.error("[VendorOrdersList] Error parsing items for updated order:", updated.id, e);
+              // Fallback to keeping the existing items
+              const existingOrder = orders.find(o => o.id === updated.id);
+              parsedItems = existingOrder ? existingOrder.items : [];
+            }
+            
             setOrders(prev => {
               // Check if order exists in the list
               const orderExists = prev.some(order => order.id === updated.id);
@@ -156,15 +186,11 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
                 // Update existing order
                 return prev.map(order => 
                   order.id === updated.id 
-                    ? {...updated, items: Array.isArray(updated.items) ? updated.items : order.items} 
+                    ? {...updated, items: parsedItems} 
                     : order
                 );
               } else {
                 // Add order if it doesn't exist (should be rare)
-                const parsedItems = typeof updated.items === 'string' 
-                  ? JSON.parse(updated.items) 
-                  : (Array.isArray(updated.items) ? updated.items : []);
-                
                 return [{...updated, items: parsedItems}, ...prev];
               }
             });
@@ -189,7 +215,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
       console.log("[VendorOrdersList] Cleaning up subscription");
       supabase.removeChannel(channel);
     };
-  }, [vendorId, shopId, onOrderUpdate, onOrderDelivered]);
+  }, [vendorId, shopId, onOrderUpdate, onOrderDelivered, orders]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
@@ -221,7 +247,23 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
       // Special handling for delivered orders
       if (newStatus === 'delivered') {
         console.log("[VendorOrdersList] Order marked as delivered, will be removed from active list");
-        // The real-time subscription will handle removing the order from the list
+        // Remove from local state immediately without waiting for real-time
+        setOrders(prev => prev.filter(order => order.id !== orderId));
+        
+        // Notify parent about delivered orders
+        if (onOrderDelivered) onOrderDelivered();
+        
+        // Notify parent to update stats
+        if (onOrderUpdate) onOrderUpdate();
+      } else {
+        // For other status updates, update local state immediately without waiting for real-time
+        setOrders(prev => 
+          prev.map(order => 
+            order.id === orderId 
+              ? {...order, status: newStatus} 
+              : order
+          )
+        );
       }
     } catch (error) {
       console.error("[VendorOrdersList] Error updating order status:", error);

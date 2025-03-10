@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -56,7 +55,7 @@ const OrderTracking = () => {
     if (!id) {
       console.error("No order ID provided in URL");
       toast.error("Order ID is missing");
-      navigate("/student/orders/active");
+      navigate("/student/orders");
       return;
     }
     
@@ -98,9 +97,20 @@ const OrderTracking = () => {
           return;
         }
         
+        // Parse items if they're a string
+        let parsedItems = [];
+        try {
+          parsedItems = typeof data.items === 'string' 
+            ? JSON.parse(data.items) 
+            : (Array.isArray(data.items) ? data.items : []);
+        } catch (e) {
+          console.error("Error parsing order items:", e);
+          parsedItems = [];
+        }
+        
         const orderData = {
           ...data,
-          items: Array.isArray(data.items) ? data.items : []
+          items: parsedItems
         };
         
         setOrder(orderData);
@@ -140,13 +150,25 @@ const OrderTracking = () => {
         
         setProgressValue(newProgressValue);
         
+        // Parse items if they're a string
+        let parsedItems = [];
+        try {
+          parsedItems = typeof updatedOrder.items === 'string' 
+            ? JSON.parse(updatedOrder.items) 
+            : (Array.isArray(updatedOrder.items) ? updatedOrder.items : []);
+        } catch (e) {
+          console.error("Error parsing updated order items:", e);
+          // Fallback to keeping existing items if available
+          parsedItems = order?.items || [];
+        }
+        
         setOrder(prev => {
           if (!prev) return null;
           const updated = {
             ...prev,
             ...updatedOrder,
             status: updatedOrder.status, // Explicitly set status to ensure it updates
-            items: prev.items // Keep the parsed items
+            items: parsedItems
           };
           console.log("Updated order state:", updated);
           return updated;
@@ -203,7 +225,7 @@ const OrderTracking = () => {
         <div className="container mx-auto p-4 text-center">
           <div className="flex justify-start mb-6">
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/student/orders/active" className="flex items-center gap-1">
+              <Link to="/student/orders" className="flex items-center gap-1">
                 <ArrowLeft size={16} />
                 Back to Orders
               </Link>
@@ -214,7 +236,7 @@ const OrderTracking = () => {
             <h1 className="text-2xl font-bold mb-2">Order Not Found</h1>
             <p className="text-muted-foreground mb-4">The order you're looking for doesn't exist or has been removed.</p>
             <Button asChild className="bg-[#ea384c] hover:bg-[#d02e40]">
-              <Link to="/student/orders/active">View Your Orders</Link>
+              <Link to="/student/orders">View Your Orders</Link>
             </Button>
           </div>
         </div>
@@ -231,7 +253,7 @@ const OrderTracking = () => {
       <div className="container mx-auto p-4">
         <div className="flex justify-between items-center mb-6">
           <Button variant="ghost" size="sm" asChild>
-            <Link to="/student/orders/active" className="flex items-center gap-1">
+            <Link to="/student/orders" className="flex items-center gap-1">
               <ArrowLeft size={16} />
               Back to Orders
             </Link>
@@ -245,7 +267,7 @@ const OrderTracking = () => {
               <h1 className="text-2xl font-bold mb-2">Order Not Found</h1>
               <p className="text-muted-foreground mb-4">The order you're looking for doesn't exist or has been removed.</p>
               <Button asChild className="bg-[#ea384c] hover:bg-[#d02e40]">
-                <Link to="/student/orders/active">View Your Orders</Link>
+                <Link to="/student/orders">View Your Orders</Link>
               </Button>
             </div>
           ) : (
