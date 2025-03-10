@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -233,12 +234,12 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           }
         } 
         else if (payload.eventType === 'DELETE') {
-          // Handle DELETE event with thorough type checking
+          // Handle DELETE event with full type safety
           if (payload.old && typeof payload.old === 'object') {
-            // Explicitly cast to Record first then extract id with safer checks
+            // Type-safe access to the id property
             const oldRecord = payload.old as Record<string, unknown>;
             
-            // Check if id exists and is a valid value using safer property access
+            // Check if id exists and is a valid value using proper type checking
             if ('id' in oldRecord && oldRecord.id !== undefined && oldRecord.id !== null) {
               // Convert id to string regardless of its original type
               const deletedOrderId = String(oldRecord.id);
