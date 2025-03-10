@@ -61,12 +61,14 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
     
     const fetchOrders = async () => {
       try {
+        setLoading(true);
+        console.log("Fetching active orders for vendor:", vendorId, "shop:", shopId);
+        
         let query = supabase
           .from('orders')
           .select('*')
           .eq('vendor_id', vendorId)
-          .not('status', 'eq', 'delivered') // Fixed filter to exclude only delivered orders
-          .not('status', 'eq', 'cancelled') // Keep excluding cancelled orders
+          .in('status', ['pending', 'preparing', 'ready', 'delivering']) // Explicitly include only active statuses
           .order('created_at', { ascending: false });
           
         if (shopId) {
@@ -79,6 +81,8 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           console.error("Error fetching orders:", error);
           return;
         }
+        
+        console.log("Fetched orders:", data?.length || 0);
         
         // Parse JSONB items field
         const parsedOrders = data.map(order => ({
@@ -111,23 +115,29 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         console.log("Vendor received real-time order update:", payload);
         
         if (payload.eventType === 'INSERT') {
-          // Only add new order if it's not delivered or cancelled
+          // Only add new order if it's an active order
           const newOrder = payload.new as Order;
-          if (newOrder.status !== 'delivered' && newOrder.status !== 'cancelled') {
+          if (['pending', 'preparing', 'ready', 'delivering'].includes(newOrder.status)) {
+            console.log("Adding new order to list:", newOrder.id);
             setOrders(prev => [newOrder, ...prev]);
           }
         } else if (payload.eventType === 'UPDATE') {
           const updated = payload.new as Order;
+          console.log("Order updated:", updated.id, "New status:", updated.status);
+          
           // If order is delivered or cancelled, remove it from active list
           if (updated.status === 'delivered' || updated.status === 'cancelled') {
+            console.log("Removing order from list (delivered/cancelled):", updated.id);
             setOrders(prev => prev.filter(order => order.id !== updated.id));
           } else {
             // Otherwise update it
+            console.log("Updating order in list:", updated.id);
             setOrders(prev => prev.map(order => 
-              order.id === updated.id ? {...updated, items: order.items} : order
+              order.id === updated.id ? {...updated, items: Array.isArray(updated.items) ? updated.items : order.items} : order
             ));
           }
         } else if (payload.eventType === 'DELETE') {
+          console.log("Removing deleted order from list:", payload.old.id);
           setOrders(prev => prev.filter(order => order.id !== payload.old.id));
         }
       })
@@ -177,6 +187,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
       
       // Special handling for delivered orders
       if (newStatus === 'delivered') {
+        console.log("Order marked as delivered, updating stats and removing from list");
         if (onOrderDelivered) onOrderDelivered();
         
         // Remove from active orders list
@@ -192,12 +203,13 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
   const fetchOrders = async () => {
     try {
       setLoading(true);
+      console.log("Re-fetching orders after error");
       
       let query = supabase
         .from('orders')
         .select('*')
         .eq('vendor_id', vendorId)
-        .not('status', 'in', '("delivered","cancelled")')
+        .in('status', ['pending', 'preparing', 'ready', 'delivering']) // Explicitly include only active statuses
         .order('created_at', { ascending: false });
         
       if (shopId) {

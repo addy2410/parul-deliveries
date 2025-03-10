@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -104,6 +105,8 @@ const VendorDashboard = () => {
 
   const fetchOrderStats = async (vendorId: string, shopId: string) => {
     try {
+      console.log("Fetching order stats for vendor:", vendorId, "shop:", shopId);
+      
       // Get total completed orders
       const { data: completedOrders, error: completedError } = await supabase
         .from('orders')
@@ -117,18 +120,22 @@ const VendorDashboard = () => {
         return;
       }
       
+      console.log("Completed orders count:", completedOrders?.length || 0);
+      
       // Get active orders
       const { data: activeOrders, error: activeError } = await supabase
         .from('orders')
         .select('id')
         .eq('vendor_id', vendorId)
         .eq('restaurant_id', shopId)
-        .not('status', 'in', '("delivered", "cancelled")');
+        .in('status', ['pending', 'preparing', 'ready', 'delivering']);
         
       if (activeError) {
         console.error('Error fetching active orders:', activeError);
         return;
       }
+      
+      console.log("Active orders count:", activeOrders?.length || 0);
       
       // Get menu items count
       const { count: menuItemsCount, error: menuError } = await supabase
@@ -143,6 +150,7 @@ const VendorDashboard = () => {
       
       // Calculate total revenue from completed orders
       const totalRevenue = completedOrders?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
+      console.log("Total revenue calculated:", totalRevenue);
       
       setStats({
         totalOrders: completedOrders?.length || 0,
@@ -156,6 +164,7 @@ const VendorDashboard = () => {
   };
 
   const handleOrderDelivered = () => {
+    console.log("Order delivered callback triggered");
     setStats(prev => ({
       ...prev,
       totalOrders: prev.totalOrders + 1,
