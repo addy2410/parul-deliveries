@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -235,7 +236,9 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         else if (payload.eventType === 'DELETE') {
           // Check if payload.old exists and has an id property
           if (payload.old && typeof payload.old === 'object') {
-            const deletedOrderId = payload.old.id;
+            // Use a local variable with explicit type annotation
+            const payloadOld = payload.old as { id?: string };
+            const deletedOrderId = payloadOld.id;
             
             // Only proceed if deletedOrderId is defined and is a string
             if (deletedOrderId && typeof deletedOrderId === 'string') {
