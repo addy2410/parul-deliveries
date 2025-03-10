@@ -233,13 +233,13 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           }
         } 
         else if (payload.eventType === 'DELETE') {
-          // Handle DELETE event with explicit type checking
+          // Handle DELETE event with thorough type checking
           if (payload.old && typeof payload.old === 'object') {
-            // Cast payload.old to our PayloadRecord type which can have an id property
-            const oldRecord = payload.old as PayloadRecord;
+            // Explicitly cast to Record first then extract id with safer checks
+            const oldRecord = payload.old as Record<string, unknown>;
             
-            // Check if id exists and is a valid value
-            if (oldRecord.id !== undefined && oldRecord.id !== null) {
+            // Check if id exists and is a valid value using safer property access
+            if ('id' in oldRecord && oldRecord.id !== undefined && oldRecord.id !== null) {
               // Convert id to string regardless of its original type
               const deletedOrderId = String(oldRecord.id);
               
