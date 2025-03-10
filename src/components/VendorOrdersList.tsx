@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,11 +27,17 @@ interface Order {
   created_at: string;
 }
 
-// Define a proper type for payload to avoid 'never' type issues
+// Define more specific types for the payload objects
 interface RealtimePayload {
   eventType: 'INSERT' | 'UPDATE' | 'DELETE';
-  new?: Record<string, any>; // For INSERT and UPDATE events
-  old?: Record<string, any>; // For UPDATE and DELETE events
+  new?: {
+    id?: string;
+    [key: string]: any;
+  }; 
+  old?: {
+    id?: string;
+    [key: string]: any;
+  };
 }
 
 interface VendorOrdersListProps {
@@ -228,17 +233,20 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           }
         } 
         else if (payload.eventType === 'DELETE') {
-          // Fix for the error: ensure payload.old exists, is an object, and has an id property
-          if (payload.old && typeof payload.old === 'object' && 'id' in payload.old) {
-            const deletedOrderId = payload.old.id as string;
-            console.log("[VendorOrdersList] Order deleted:", deletedOrderId);
+          // Check if payload.old exists and has an id property
+          if (payload.old && typeof payload.old === 'object') {
+            const deletedOrderId = payload.old.id;
             
-            // Ensure we have a string ID before using it in the filter function
-            if (typeof deletedOrderId === 'string') {
+            // Only proceed if deletedOrderId is defined and is a string
+            if (deletedOrderId && typeof deletedOrderId === 'string') {
+              console.log("[VendorOrdersList] Order deleted:", deletedOrderId);
+              
               setOrders(prev => prev.filter(order => order.id !== deletedOrderId));
               
               // Notify parent to update stats
               if (onOrderUpdate) onOrderUpdate();
+            } else {
+              console.error("[VendorOrdersList] Invalid deletedOrderId:", deletedOrderId);
             }
           }
         }
