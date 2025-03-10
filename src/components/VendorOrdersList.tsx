@@ -65,11 +65,12 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           .from('orders')
           .select('*')
           .eq('vendor_id', vendorId)
-          .not('status', 'in', '("delivered","cancelled")') // Only active orders
+          .not('status', 'eq', 'delivered') // Fixed filter to exclude only delivered orders
+          .not('status', 'eq', 'cancelled') // Keep excluding cancelled orders
           .order('created_at', { ascending: false });
           
         if (shopId) {
-          query = query.eq('restaurant_id', shopId);  // Changed from shop_id to restaurant_id
+          query = query.eq('restaurant_id', shopId);
         }
         
         const { data, error } = await query;
@@ -110,7 +111,11 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         console.log("Vendor received real-time order update:", payload);
         
         if (payload.eventType === 'INSERT') {
-          setOrders(prev => [payload.new as Order, ...prev]);
+          // Only add new order if it's not delivered or cancelled
+          const newOrder = payload.new as Order;
+          if (newOrder.status !== 'delivered' && newOrder.status !== 'cancelled') {
+            setOrders(prev => [newOrder, ...prev]);
+          }
         } else if (payload.eventType === 'UPDATE') {
           const updated = payload.new as Order;
           // If order is delivered or cancelled, remove it from active list
