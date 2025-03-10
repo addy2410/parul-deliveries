@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,8 +31,8 @@ interface Order {
 // Define more specific types for the payload objects
 interface RealtimePayload {
   eventType: 'INSERT' | 'UPDATE' | 'DELETE';
-  new?: Record<string, any> & { id?: string };
-  old?: Record<string, any> & { id?: string };
+  new?: Record<string, any>;
+  old?: Record<string, any>;
 }
 
 interface VendorOrdersListProps {
@@ -227,18 +228,26 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           }
         } 
         else if (payload.eventType === 'DELETE') {
-          // Safely handle DELETE event with proper type checking
-          if (payload.old && typeof payload.old === 'object' && 'id' in payload.old && payload.old.id) {
-            const deletedOrderId = payload.old.id;
-            
-            console.log("[VendorOrdersList] Order deleted:", deletedOrderId);
-            
-            setOrders(prev => prev.filter(order => order.id !== deletedOrderId));
-            
-            // Notify parent to update stats
-            if (onOrderUpdate) onOrderUpdate();
+          // Handle DELETE event with explicit type checking
+          if (payload.old && typeof payload.old === 'object') {
+            // First check if 'id' property exists in payload.old
+            if ('id' in payload.old && payload.old.id) {
+              const deletedOrderId = payload.old.id.toString(); // Ensure id is a string
+              
+              console.log("[VendorOrdersList] Order deleted:", deletedOrderId);
+              
+              // Only filter if we have a valid ID
+              if (deletedOrderId) {
+                setOrders(prev => prev.filter(order => order.id !== deletedOrderId));
+                
+                // Notify parent to update stats
+                if (onOrderUpdate) onOrderUpdate();
+              }
+            } else {
+              console.error("[VendorOrdersList] Missing id in DELETE payload:", payload.old);
+            }
           } else {
-            console.error("[VendorOrdersList] Invalid DELETE payload:", payload.old);
+            console.error("[VendorOrdersList] Invalid DELETE payload structure:", payload.old);
           }
         }
       })
@@ -250,7 +259,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
       console.log("[VendorOrdersList] Cleaning up subscription");
       supabase.removeChannel(channel);
     };
-  }, [vendorId, shopId, onOrderUpdate, onOrderDelivered]);
+  }, [vendorId, shopId, onOrderUpdate, onOrderDelivered, orders]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
