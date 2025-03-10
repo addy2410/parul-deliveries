@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,8 +30,12 @@ interface Order {
 // Define more specific types for the payload objects
 interface RealtimePayload {
   eventType: 'INSERT' | 'UPDATE' | 'DELETE';
-  new?: Record<string, any>;
-  old?: Record<string, any>;
+  new?: Record<string, unknown>;
+  old?: Record<string, unknown>;
+}
+
+interface PayloadRecord extends Record<string, unknown> {
+  id?: string;
 }
 
 interface VendorOrdersListProps {
@@ -230,21 +233,21 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         else if (payload.eventType === 'DELETE') {
           // Handle DELETE event with explicit type checking
           if (payload.old && typeof payload.old === 'object') {
-            // First check if 'id' property exists in payload.old
-            if ('id' in payload.old && payload.old.id) {
-              const deletedOrderId = payload.old.id.toString(); // Ensure id is a string
+            const oldRecord = payload.old as PayloadRecord;
+            
+            // Check if id exists and is a valid value
+            if (oldRecord.id !== undefined && oldRecord.id !== null) {
+              const deletedOrderId = String(oldRecord.id);
               
               console.log("[VendorOrdersList] Order deleted:", deletedOrderId);
               
               // Only filter if we have a valid ID
-              if (deletedOrderId) {
-                setOrders(prev => prev.filter(order => order.id !== deletedOrderId));
-                
-                // Notify parent to update stats
-                if (onOrderUpdate) onOrderUpdate();
-              }
+              setOrders(prev => prev.filter(order => order.id !== deletedOrderId));
+              
+              // Notify parent to update stats
+              if (onOrderUpdate) onOrderUpdate();
             } else {
-              console.error("[VendorOrdersList] Missing id in DELETE payload:", payload.old);
+              console.error("[VendorOrdersList] Missing or invalid id in DELETE payload:", payload.old);
             }
           } else {
             console.error("[VendorOrdersList] Invalid DELETE payload structure:", payload.old);
