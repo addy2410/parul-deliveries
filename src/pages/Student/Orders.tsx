@@ -135,7 +135,7 @@ const Orders = () => {
 
         const studentId = sessionData.session.user.id;
 
-        // Fetch active orders
+        // Double-check the query to ensure it correctly filters active orders
         const { data: active, error: activeError } = await supabase
           .from("orders")
           .select("*")
@@ -147,7 +147,7 @@ const Orders = () => {
           console.error("Error fetching active orders:", activeError);
         }
 
-        // Fetch past orders
+        // Verify the query for past orders
         const { data: past, error: pastError } = await supabase
           .from("orders")
           .select("*")
@@ -208,11 +208,13 @@ const Orders = () => {
                   updated.status === "delivered" ||
                   updated.status === "cancelled"
                 ) {
+                  // Move order from active to past
                   setActiveOrders((prev) =>
                     prev.filter((order) => order.id !== updated.id)
                   );
                   setPastOrders((prev) => [updated, ...prev]);
                 } else {
+                  // Update the order in active list
                   setActiveOrders((prev) =>
                     prev.map((order) =>
                       order.id === updated.id
@@ -222,12 +224,16 @@ const Orders = () => {
                   );
                 }
               } else if (payload.eventType === "DELETE") {
-                setActiveOrders((prev) =>
-                  prev.filter((order) => order.id !== payload.old.id)
-                );
-                setPastOrders((prev) =>
-                  prev.filter((order) => order.id !== payload.old.id)
-                );
+                // Safe type checking for payload.old
+                if (payload.old && typeof payload.old === 'object' && 'id' in payload.old) {
+                  const oldId = payload.old.id;
+                  if (oldId) {
+                    setActiveOrders((prev) => prev.filter((order) => order.id !== oldId));
+                    setPastOrders((prev) => prev.filter((order) => order.id !== oldId));
+                  }
+                } else {
+                  console.error("Invalid payload.old structure:", payload.old);
+                }
               }
             }
           )
