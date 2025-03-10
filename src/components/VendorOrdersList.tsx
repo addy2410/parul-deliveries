@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -155,7 +156,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         } 
         else if (payload.eventType === 'UPDATE') {
           // Check if the updated order data is valid
-          if (payload.new && typeof payload.new === 'object') {
+          if (payload.new && typeof payload.new === 'object' && 'id' in payload.new) {
             const updated = payload.new as Order;
             console.log("[VendorOrdersList] Order updated:", updated.id, "New status:", updated.status);
             
