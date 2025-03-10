@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,17 +27,12 @@ interface Order {
   created_at: string;
 }
 
-// Define more specific types for the payload objects
+// Define a more specific type for realtime payloads
 interface RealtimePayload {
   eventType: 'INSERT' | 'UPDATE' | 'DELETE';
-  new?: Record<string, unknown>;
-  old?: Record<string, unknown>;
-}
-
-// Define a more specific type for payload records that can have an id
-interface PayloadRecord {
-  id?: string | number | null;
-  [key: string]: unknown;
+  // Using Record instead of a specific type for flexibility
+  new?: Record<string, any>; 
+  old?: Record<string, any>;
 }
 
 interface VendorOrdersListProps {
@@ -142,7 +136,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         
         if (payload.eventType === 'INSERT') {
           // Only add new orders with active statuses
-          if (payload.new && typeof payload.new === 'object' && 'id' in payload.new && payload.new.id) {
+          if (payload.new && 'id' in payload.new) {
             const newOrder = payload.new as unknown as Order;
             if (['pending', 'preparing', 'ready', 'delivering'].includes(newOrder.status)) {
               console.log("[VendorOrdersList] Adding new order:", newOrder.id);
@@ -169,7 +163,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         } 
         else if (payload.eventType === 'UPDATE') {
           // Check if the updated order data is valid
-          if (payload.new && typeof payload.new === 'object' && 'id' in payload.new && payload.new.id) {
+          if (payload.new && 'id' in payload.new) {
             const updated = payload.new as unknown as Order;
             console.log("[VendorOrdersList] Order updated:", updated.id, "New status:", updated.status);
             
@@ -234,32 +228,24 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           }
         } 
         else if (payload.eventType === 'DELETE') {
-          // Handle DELETE event with improved type safety
+          // Handle DELETE event with better type safety
           if (payload.old && typeof payload.old === 'object') {
             console.log("[VendorOrdersList] DELETE event payload.old:", payload.old);
             
-            // Cast to Record<string, unknown> to enable property checks
-            const oldRecord = payload.old as Record<string, unknown>;
-            
-            // First check if id property exists on the object
-            if ('id' in oldRecord) {
-              // Then check if the id value is valid
-              if (oldRecord.id !== undefined && oldRecord.id !== null) {
-                // Convert id to string regardless of its original type
-                const deletedOrderId = String(oldRecord.id);
-                
-                console.log("[VendorOrdersList] Order deleted:", deletedOrderId);
-                
-                // Remove the deleted order from the state
-                setOrders(prev => prev.filter(order => order.id !== deletedOrderId));
-                
-                // Notify parent to update stats
-                if (onOrderUpdate) onOrderUpdate();
-              } else {
-                console.error("[VendorOrdersList] Invalid id value in DELETE payload:", oldRecord.id);
-              }
+            // Just check directly if 'id' exists in the object
+            if ('id' in payload.old && payload.old.id !== undefined && payload.old.id !== null) {
+              // Convert id to string regardless of its original type
+              const deletedOrderId = String(payload.old.id);
+              
+              console.log("[VendorOrdersList] Order deleted:", deletedOrderId);
+              
+              // Remove the deleted order from the state
+              setOrders(prev => prev.filter(order => order.id !== deletedOrderId));
+              
+              // Notify parent to update stats
+              if (onOrderUpdate) onOrderUpdate();
             } else {
-              console.error("[VendorOrdersList] Missing id property in DELETE payload:", payload.old);
+              console.error("[VendorOrdersList] Missing or invalid id in DELETE payload:", payload.old);
             }
           } else {
             console.error("[VendorOrdersList] Invalid DELETE payload structure:", payload.old);
