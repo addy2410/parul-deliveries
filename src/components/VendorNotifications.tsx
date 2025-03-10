@@ -17,26 +17,35 @@ interface Notification {
   created_at: string;
 }
 
+interface Order {
+  id: string;
+  student_id: string;
+  vendor_id: string;
+  restaurant_id: string;  // Changed from restaurant_id to match the database
+  items: any[];
+  total_amount: number;
+  status: string;
+  delivery_location: string;
+  student_name: string;
+  estimated_delivery_time?: string;
+  created_at: string;
+}
+
 interface VendorNotificationsProps {
   vendorId: string;
   onOrderStatusChange?: () => void;
 }
 
-const VendorNotifications: React.FC<VendorNotificationsProps> = ({ 
-  vendorId, 
-  onOrderStatusChange 
-}) => {
+const VendorNotifications: React.FC<VendorNotificationsProps> = ({ vendorId, onOrderStatusChange }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
+  // Fetch notifications
   useEffect(() => {
     if (!vendorId) return;
     
     const fetchNotifications = async () => {
       try {
-        setLoading(true);
-        console.log("[VendorNotifications] Fetching notifications for vendor:", vendorId);
-        
         const { data, error } = await supabase
           .from('notifications')
           .select('*')
@@ -45,27 +54,14 @@ const VendorNotifications: React.FC<VendorNotificationsProps> = ({
           .order('created_at', { ascending: false });
           
         if (error) {
-          console.error("[VendorNotifications] Error fetching notifications:", error);
+          console.error("Error fetching notifications:", error);
           return;
         }
         
-        console.log("[VendorNotifications] Fetched notifications:", data?.length || 0, data);
-        
-        // Parse data field if it's a string
-        const parsedNotifications = data?.map(notification => {
-          if (typeof notification.data === 'string') {
-            try {
-              notification.data = JSON.parse(notification.data);
-            } catch (e) {
-              console.error("[VendorNotifications] Error parsing notification data:", e);
-            }
-          }
-          return notification;
-        }) || [];
-        
-        setNotifications(parsedNotifications);
+        console.log("Fetched notifications:", data);
+        setNotifications(data || []);
       } catch (error) {
-        console.error("[VendorNotifications] Error fetching notifications:", error);
+        console.error("Error fetching notifications:", error);
       } finally {
         setLoading(false);
       }
@@ -73,80 +69,32 @@ const VendorNotifications: React.FC<VendorNotificationsProps> = ({
     
     fetchNotifications();
     
-    // Subscribe to real-time notifications with a unique channel name
-    const channelId = `vendor-notifications-${vendorId}-${Date.now()}`;
-    console.log(`[VendorNotifications] Setting up real-time channel: ${channelId}`);
-    
+    // Subscribe to real-time notifications
     const channel = supabase
-      .channel(channelId)
+      .channel('public:notifications')
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'notifications',
         filter: `recipient_id=eq.${vendorId}`
       }, (payload) => {
-        console.log("[VendorNotifications] Realtime notification received:", payload);
-        const newNotification = payload.new as Notification;
-        
-        // Parse data field if it's a string
-        if (typeof newNotification.data === 'string') {
-          try {
-            newNotification.data = JSON.parse(newNotification.data);
-          } catch (e) {
-            console.error("[VendorNotifications] Error parsing new notification data:", e);
-          }
-        }
-        
-        setNotifications(prev => [newNotification, ...prev]);
+        console.log("Realtime notification received:", payload);
+        setNotifications(prev => [payload.new as Notification, ...prev]);
         toast.info("New notification received");
-        
-        // Play notification sound
-        const audio = new Audio('/notification.mp3');
-        audio.play().catch(e => console.log("Audio play failed:", e));
       })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'notifications',
-        filter: `recipient_id=eq.${vendorId}`
-      }, (payload) => {
-        console.log("[VendorNotifications] Notification updated:", payload);
-        const updatedNotification = payload.new as Notification;
-        
-        // Parse data field if it's a string
-        if (typeof updatedNotification.data === 'string') {
-          try {
-            updatedNotification.data = JSON.parse(updatedNotification.data);
-          } catch (e) {
-            console.error("[VendorNotifications] Error parsing updated notification data:", e);
-          }
-        }
-        
-        if (updatedNotification.is_read) {
-          // Remove read notifications from the list
-          setNotifications(prev => prev.filter(n => n.id !== updatedNotification.id));
-        } else {
-          // Update existing notification
-          setNotifications(prev => 
-            prev.map(n => n.id === updatedNotification.id ? updatedNotification : n)
-          );
-        }
-      })
-      .subscribe((status) => {
-        console.log("[VendorNotifications] Subscription status:", status);
-      });
+      .subscribe();
     
     return () => {
-      console.log("[VendorNotifications] Cleaning up subscription");
       supabase.removeChannel(channel);
     };
   }, [vendorId]);
 
   const handleAcceptOrder = async (orderId: string) => {
     try {
-      console.log("[VendorNotifications] Accepting order:", orderId);
+      console.log("Accepting order:", orderId);
       
-      // First, find the delivery time estimate
+      // First, find the delivery time estimate based on order items
+      // In a real app, this might be calculated based on the number/type of items
       const estimatedTime = Math.floor(Math.random() * 20) + 15; // 15-35 minutes
       const estimatedDeliveryTime = `${estimatedTime} minutes`;
       
@@ -160,26 +108,34 @@ const VendorNotifications: React.FC<VendorNotificationsProps> = ({
         .eq('id', orderId);
       
       if (error) {
-        console.error("[VendorNotifications] Error accepting order:", error);
+        console.error("Error accepting order:", error);
         toast.error("Failed to accept order");
         return;
       }
       
       // Mark notification as read
-      await markNotificationRead(orderId);
+      const notif = notifications.find(n => n.data?.order_id === orderId);
+      if (notif) {
+        await supabase
+          .from('notifications')
+          .update({ is_read: true })
+          .eq('id', notif.id);
+          
+        setNotifications(prev => prev.filter(n => n.id !== notif.id));
+      }
       
       toast.success("Order accepted and moved to preparation");
       if (onOrderStatusChange) onOrderStatusChange();
       
     } catch (error) {
-      console.error("[VendorNotifications] Error accepting order:", error);
+      console.error("Error accepting order:", error);
       toast.error("An error occurred while accepting the order");
     }
   };
 
   const handleDeclineOrder = async (orderId: string) => {
     try {
-      console.log("[VendorNotifications] Declining order:", orderId);
+      console.log("Declining order:", orderId);
       
       // Update order status to 'cancelled'
       const { error } = await supabase
@@ -191,46 +147,33 @@ const VendorNotifications: React.FC<VendorNotificationsProps> = ({
         .eq('id', orderId);
       
       if (error) {
-        console.error("[VendorNotifications] Error declining order:", error);
+        console.error("Error declining order:", error);
         toast.error("Failed to decline order");
         return;
       }
       
       // Mark notification as read
-      await markNotificationRead(orderId);
-      
-      toast.success("Order has been declined");
-      if (onOrderStatusChange) onOrderStatusChange();
-      
-    } catch (error) {
-      console.error("[VendorNotifications] Error declining order:", error);
-      toast.error("An error occurred while declining the order");
-    }
-  };
-
-  const markNotificationRead = async (orderId: string) => {
-    // Find the notification for this order
-    const notif = notifications.find(n => n.data?.order_id === orderId);
-    if (notif) {
-      try {
-        console.log("[VendorNotifications] Marking notification as read:", notif.id);
-        
+      const notif = notifications.find(n => n.data?.order_id === orderId);
+      if (notif) {
         await supabase
           .from('notifications')
           .update({ is_read: true })
           .eq('id', notif.id);
           
         setNotifications(prev => prev.filter(n => n.id !== notif.id));
-      } catch (error) {
-        console.error("[VendorNotifications] Error marking notification as read:", error);
       }
+      
+      toast.success("Order has been declined");
+      if (onOrderStatusChange) onOrderStatusChange();
+      
+    } catch (error) {
+      console.error("Error declining order:", error);
+      toast.error("An error occurred while declining the order");
     }
   };
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
-      console.log("[VendorNotifications] Marking notification as read:", notificationId);
-      
       await supabase
         .from('notifications')
         .update({ is_read: true })
@@ -239,28 +182,17 @@ const VendorNotifications: React.FC<VendorNotificationsProps> = ({
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
       toast.success("Notification marked as read");
     } catch (error) {
-      console.error("[VendorNotifications] Error marking notification as read:", error);
+      console.error("Error marking notification as read:", error);
     }
   };
 
   // Render order notification item
   const renderOrderNotification = (notification: Notification) => {
     const { data } = notification;
-    
-    // Handle parsing of items if they're in string format
-    let formattedItems = "Items not available";
-    if (data && data.items) {
-      try {
-        const orderItems = typeof data.items === 'string' 
-          ? JSON.parse(data.items) 
-          : (Array.isArray(data.items) ? data.items : []);
-        
-        formattedItems = orderItems.map((item: any) => 
-          `${item.quantity}x ${item.name}`).join(", ");
-      } catch (e) {
-        console.error("[VendorNotifications] Error parsing order items:", e);
-      }
-    }
+    const orderItems = data?.items || [];
+    const formattedItems = Array.isArray(orderItems) 
+      ? orderItems.map((item: any) => `${item.quantity}x ${item.name}`).join(", ")
+      : "Items not available";
     
     return (
       <div className="border-b pb-4 mb-4 last:border-b-0 last:mb-0 last:pb-0">
