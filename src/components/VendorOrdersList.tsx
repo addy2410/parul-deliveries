@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +29,7 @@ interface Order {
   id: string;
   student_id: string;
   vendor_id: string;
-  restaurant_id: string;  // Updated to match the database field
+  restaurant_id: string;
   items: OrderItem[];
   total_amount: number;
   status: string;
@@ -69,7 +70,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           .order('created_at', { ascending: false });
           
         if (shopId) {
-          query = query.eq('restaurant_id', shopId);  // Changed from shop_id to restaurant_id
+          query = query.eq('restaurant_id', shopId);
         }
         
         const { data, error } = await query;
@@ -123,7 +124,9 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
             ));
           }
         } else if (payload.eventType === 'DELETE') {
-          setOrders(prev => prev.filter(order => order.id !== payload.old.id));
+          if (payload.old && typeof payload.old === 'object' && 'id' in payload.old) {
+            setOrders(prev => prev.filter(order => order.id !== payload.old.id));
+          }
         }
       })
       .subscribe((status) => {
@@ -173,9 +176,6 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
       // Special handling for delivered orders
       if (newStatus === 'delivered') {
         if (onOrderDelivered) onOrderDelivered();
-        
-        // Remove from active orders list
-        setOrders(prev => prev.filter(order => order.id !== orderId));
       }
     } catch (error) {
       console.error("Error updating order status:", error);
@@ -183,7 +183,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
     }
   };
   
-  // Added function to refetch orders
+  // Function to refetch orders
   const fetchOrders = async () => {
     try {
       setLoading(true);
@@ -253,8 +253,8 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
   const getNextStatus = (currentStatus: string) => {
     switch (currentStatus) {
       case 'pending': return 'preparing';
-      case 'preparing': return 'ready';
-      case 'ready': return 'delivering';
+      case 'preparing': return 'prepared';
+      case 'prepared': return 'delivering';
       case 'delivering': return 'delivered';
       default: return currentStatus;
     }
@@ -264,7 +264,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
     switch (status) {
       case 'pending': return <ShoppingBag className="h-5 w-5 text-yellow-500" />;
       case 'preparing': return <ChefHat className="h-5 w-5 text-blue-500" />;
-      case 'ready': return <Package className="h-5 w-5 text-purple-500" />;
+      case 'prepared': return <Package className="h-5 w-5 text-purple-500" />;
       case 'delivering': return <Truck className="h-5 w-5 text-orange-500" />;
       case 'delivered': return <CheckCircle className="h-5 w-5 text-green-500" />;
       default: return <ShoppingBag className="h-5 w-5 text-gray-500" />;
@@ -275,7 +275,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
     switch (status) {
       case 'pending': return 'bg-yellow-500';
       case 'preparing': return 'bg-blue-500';
-      case 'ready': return 'bg-purple-500';
+      case 'prepared': return 'bg-purple-500';
       case 'delivering': return 'bg-orange-500';
       case 'delivered': return 'bg-green-500';
       case 'cancelled': return 'bg-red-500';
@@ -381,7 +381,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
                       </AlertDialogContent>
                     </AlertDialog>
                     
-                    {order.status !== 'cancelled' && (
+                    {order.status !== 'cancelled' && order.status !== 'delivered' && (
                       <Button
                         className="bg-vendor-600 hover:bg-vendor-700"
                         onClick={() => updateOrderStatus(order.id, getNextStatus(order.status))}

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -156,11 +157,9 @@ const VendorDashboard = () => {
   };
 
   const handleOrderDelivered = () => {
-    setStats(prev => ({
-      ...prev,
-      totalOrders: prev.totalOrders + 1,
-      activeOrders: Math.max(0, prev.activeOrders - 1)
-    }));
+    if (shop) {
+      fetchOrderStats(shop.vendor_id, shop.id);
+    }
   };
 
   const handleLogout = async () => {

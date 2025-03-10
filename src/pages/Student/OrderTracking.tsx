@@ -3,7 +3,6 @@ import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Package, Check, ChefHat, Truck, AlertTriangle, Clock } from "lucide-react";
-import { motion } from "framer-motion";
 import StudentHeader from "@/components/StudentHeader";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,9 +42,9 @@ const OrderTracking = () => {
   const getOrderProgress = (status: string): number => {
     switch(status) {
       case 'pending': return 0;
-      case 'preparing': return 33;
-      case 'ready': return 66;
-      case 'delivering': return 90;
+      case 'preparing': return 25;
+      case 'prepared': return 50;
+      case 'delivering': return 75;
       case 'delivered': return 100;
       case 'cancelled': return 0;
       default: return 0;
@@ -156,6 +155,8 @@ const OrderTracking = () => {
         if (payload.old.status !== updatedOrder.status) {
           if (updatedOrder.status === 'cancelled') {
             toast.error("Your order has been cancelled");
+          } else if (updatedOrder.status === 'delivered') {
+            toast.success("Your order has been delivered!");
           } else {
             toast.success(`Order status updated to: ${updatedOrder.status}`);
           }
@@ -292,15 +293,15 @@ const OrderTracking = () => {
                         <span className="text-xs mt-1">Preparing</span>
                       </div>
                       
-                      <div className={`flex flex-col items-center ${order.status === 'ready' ? 'text-[#ea384c]' : (['pending', 'preparing'].includes(order.status) ? 'text-gray-400' : 'text-green-500')}`}>
-                        <div className={`rounded-full p-2 ${order.status === 'ready' ? 'bg-[#ea384c]' : (['pending', 'preparing'].includes(order.status) ? 'bg-gray-300' : 'bg-green-500')} text-white w-8 h-8 flex items-center justify-center`}>
+                      <div className={`flex flex-col items-center ${order.status === 'prepared' ? 'text-[#ea384c]' : (['pending', 'preparing'].includes(order.status) ? 'text-gray-400' : 'text-green-500')}`}>
+                        <div className={`rounded-full p-2 ${order.status === 'prepared' ? 'bg-[#ea384c]' : (['pending', 'preparing'].includes(order.status) ? 'bg-gray-300' : 'bg-green-500')} text-white w-8 h-8 flex items-center justify-center`}>
                           <Package size={16} />
                         </div>
-                        <span className="text-xs mt-1">Ready</span>
+                        <span className="text-xs mt-1">Prepared</span>
                       </div>
                       
-                      <div className={`flex flex-col items-center ${order.status === 'delivering' ? 'text-[#ea384c]' : (['pending', 'preparing', 'ready'].includes(order.status) ? 'text-gray-400' : 'text-green-500')}`}>
-                        <div className={`rounded-full p-2 ${order.status === 'delivering' ? 'bg-[#ea384c]' : (['pending', 'preparing', 'ready'].includes(order.status) ? 'bg-gray-300' : 'bg-green-500')} text-white w-8 h-8 flex items-center justify-center`}>
+                      <div className={`flex flex-col items-center ${order.status === 'delivering' ? 'text-[#ea384c]' : (['pending', 'preparing', 'prepared'].includes(order.status) ? 'text-gray-400' : 'text-green-500')}`}>
+                        <div className={`rounded-full p-2 ${order.status === 'delivering' ? 'bg-[#ea384c]' : (['pending', 'preparing', 'prepared'].includes(order.status) ? 'bg-gray-300' : 'bg-green-500')} text-white w-8 h-8 flex items-center justify-center`}>
                           <Truck size={16} />
                         </div>
                         <span className="text-xs mt-1">On the way</span>

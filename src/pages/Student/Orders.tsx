@@ -9,20 +9,8 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { ArrowLeft, ShoppingBag, Package, Check, ChefHat, Truck, AlertTriangle } from "lucide-react";
-import { motion } from "framer-motion";
 import StudentHeader from "@/components/StudentHeader";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -67,7 +55,7 @@ const OrderCard = ({ order }: { order: Order }) => {
                 ? "bg-yellow-500"
                 : order.status === "preparing"
                 ? "bg-blue-500"
-                : order.status === "ready"
+                : order.status === "prepared"
                 ? "bg-purple-500"
                 : order.status === "delivering"
                 ? "bg-orange-500"
@@ -135,7 +123,7 @@ const Orders = () => {
 
         const studentId = sessionData.session.user.id;
 
-        // Double-check the query to ensure it correctly filters active orders
+        // Fetch active orders - not delivered or cancelled
         const { data: active, error: activeError } = await supabase
           .from("orders")
           .select("*")
@@ -147,7 +135,7 @@ const Orders = () => {
           console.error("Error fetching active orders:", activeError);
         }
 
-        // Verify the query for past orders
+        // Fetch past orders - delivered or cancelled
         const { data: past, error: pastError } = await supabase
           .from("orders")
           .select("*")
