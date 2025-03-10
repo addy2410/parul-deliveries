@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,13 @@ interface Order {
   student_name: string;
   estimated_delivery_time?: string;
   created_at: string;
+}
+
+// Define a proper type for payload to avoid 'never' type issues
+interface RealtimePayload {
+  eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+  new?: Record<string, any>; // For INSERT and UPDATE events
+  old?: Record<string, any>; // For UPDATE and DELETE events
 }
 
 interface VendorOrdersListProps {
@@ -117,7 +125,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         filter: shopId 
           ? `vendor_id=eq.${vendorId}&restaurant_id=eq.${shopId}`
           : `vendor_id=eq.${vendorId}`
-      }, (payload) => {
+      }, (payload: RealtimePayload) => {
         console.log("[VendorOrdersList] Real-time update received:", payload);
         
         // Ensure payload has the expected structure before proceeding
@@ -128,7 +136,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         
         if (payload.eventType === 'INSERT') {
           // Only add new orders with active statuses
-          if (payload.new && typeof payload.new === 'object') {
+          if (payload.new && typeof payload.new === 'object' && 'id' in payload.new) {
             const newOrder = payload.new as Order;
             if (['pending', 'preparing', 'ready', 'delivering'].includes(newOrder.status)) {
               console.log("[VendorOrdersList] Adding new order:", newOrder.id);
@@ -220,6 +228,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           }
         } 
         else if (payload.eventType === 'DELETE') {
+          // Fix for the error: ensure payload.old exists, is an object, and has an id property
           if (payload.old && typeof payload.old === 'object' && 'id' in payload.old) {
             console.log("[VendorOrdersList] Order deleted:", payload.old.id);
             setOrders(prev => prev.filter(order => order.id !== payload.old.id));
