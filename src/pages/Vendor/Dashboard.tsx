@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -6,6 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   CircleCheckBig,
   XCircle,
@@ -19,7 +29,8 @@ import {
   AlertTriangle,
   BarChart3,
   Bell,
-  Image
+  Image,
+  Trash2
 } from "lucide-react";
 import VendorOrdersList from "@/components/VendorOrdersList";
 import VendorNotifications from "@/components/VendorNotifications";
@@ -40,6 +51,7 @@ const VendorDashboard = () => {
   const [shopImage, setShopImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showImageDialog, setShowImageDialog] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
@@ -53,7 +65,6 @@ const VendorDashboard = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Check if user is authenticated
         const { data, error } = await supabase.auth.getSession();
         if (error || !data.session) {
           toast.error("You need to login first");
@@ -63,7 +74,6 @@ const VendorDashboard = () => {
         
         const vendorId = data.session.user.id;
         
-        // Check if vendor has a shop
         const { data: shopData, error: shopError } = await supabase
           .from("shops")
           .select("*")
@@ -76,7 +86,6 @@ const VendorDashboard = () => {
         }
         
         if (!shopData) {
-          // No shop found, redirect to shop registration
           navigate("/vendor/register-shop");
           return;
         }
@@ -89,7 +98,6 @@ const VendorDashboard = () => {
         
         setIsLoading(false);
         
-        // Additionally fetch order stats
         if (shopData) {
           fetchOrderStats(shopData.vendor_id, shopData.id);
         }
@@ -105,7 +113,6 @@ const VendorDashboard = () => {
 
   const fetchOrderStats = async (vendorId: string, shopId: string) => {
     try {
-      // Get total completed orders
       const { data: completedOrders, error: completedError } = await supabase
         .from('orders')
         .select('id, total_amount')
@@ -118,7 +125,6 @@ const VendorDashboard = () => {
         return;
       }
       
-      // Get active orders
       const { data: activeOrders, error: activeError } = await supabase
         .from('orders')
         .select('id')
@@ -131,7 +137,6 @@ const VendorDashboard = () => {
         return;
       }
       
-      // Get menu items count
       const { count: menuItemsCount, error: menuError } = await supabase
         .from('menu_items')
         .select('id', { count: 'exact', head: true })
@@ -142,7 +147,6 @@ const VendorDashboard = () => {
         return;
       }
       
-      // Calculate total revenue from completed orders
       const totalRevenue = completedOrders?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
       
       setStats({
@@ -178,7 +182,6 @@ const VendorDashboard = () => {
       setIsSubmitting(true);
       const newStatus = !isOpen;
       
-      // Update shop status in the database
       const { error } = await supabase
         .from('shops')
         .update({ is_open: newStatus })
@@ -190,7 +193,6 @@ const VendorDashboard = () => {
         return;
       }
       
-      // Update local state
       setIsOpen(newStatus);
       setShop({...shop, is_open: newStatus});
       toast.success(`Shop is now ${newStatus ? 'open' : 'closed'} for orders`);
@@ -206,7 +208,6 @@ const VendorDashboard = () => {
     const file = e.target.files?.[0];
     if (file) {
       setShopImage(file);
-      // Create a preview URL
       const objectUrl = URL.createObjectURL(file);
       setPreviewUrl(objectUrl);
     }
@@ -234,7 +235,6 @@ const VendorDashboard = () => {
         return null;
       }
 
-      // Get public URL for the uploaded image
       const { data: { publicUrl } } = supabase.storage
         .from('shop_images')
         .getPublicUrl(fileName);
@@ -257,7 +257,6 @@ const VendorDashboard = () => {
         return;
       }
       
-      // Update shop with image URL
       const { error } = await supabase
         .from('shops')
         .update({ image_url: imageUrl })
@@ -269,7 +268,6 @@ const VendorDashboard = () => {
         return;
       }
       
-      // Update local state
       setShop({...shop, image_url: imageUrl});
       toast.success('Shop image updated successfully');
       setShowImageDialog(false);
@@ -279,9 +277,62 @@ const VendorDashboard = () => {
     }
   };
 
+  const handleDeleteShop = async () => {
+    if (!shop) return;
+    
+    try {
+      setIsDeleting(true);
+      
+      const { error: menuItemsError } = await supabase
+        .from('menu_items')
+        .delete()
+        .eq('shop_id', shop.id);
+        
+      if (menuItemsError) {
+        console.error('Error deleting menu items:', menuItemsError);
+        toast.error('Failed to delete menu items');
+        return;
+      }
+      
+      const { error: shopError } = await supabase
+        .from('shops')
+        .delete()
+        .eq('id', shop.id);
+        
+      if (shopError) {
+        console.error('Error deleting shop:', shopError);
+        toast.error('Failed to delete shop');
+        return;
+      }
+      
+      if (shop.image_url) {
+        try {
+          const imagePath = shop.image_url.split('/').slice(-2).join('/');
+          
+          const { error: storageError } = await supabase.storage
+            .from('shop_images')
+            .remove([imagePath]);
+            
+          if (storageError) {
+            console.error('Error deleting shop image:', storageError);
+          }
+        } catch (imageError) {
+          console.error('Error processing image path:', imageError);
+        }
+      }
+      
+      toast.success('Shop deleted successfully');
+      navigate('/vendor/register-shop');
+    } catch (error) {
+      console.error('Error during shop deletion:', error);
+      toast.error('An unexpected error occurred while deleting your shop');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -308,7 +359,6 @@ const VendorDashboard = () => {
       ) : (
         <div className="container mx-auto p-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
-            {/* Shop Info Card */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex justify-between items-center">
@@ -401,7 +451,6 @@ const VendorDashboard = () => {
                     </div>
                   </div>
                   
-                  {/* Open/Close Toggle */}
                   <div className="flex items-center justify-between border-t pt-3">
                     <span className="font-medium">Shop Status</span>
                     <div className="flex items-center gap-2">
@@ -437,11 +486,39 @@ const VendorDashboard = () => {
                       </Link>
                     </Button>
                   </div>
+                  
+                  <div className="pt-2">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" className="w-full">
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete Shop
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete your shop,
+                            all menu items, and remove it from the campus restaurant list.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction 
+                            className="bg-destructive hover:bg-destructive/90"
+                            onClick={handleDeleteShop}
+                            disabled={isDeleting}
+                          >
+                            {isDeleting ? 'Deleting...' : 'Delete Shop'}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           
-            {/* Orders and Notifications */}
             <div className="lg:col-span-2">
               <Tabs defaultValue="orders">
                 <TabsList className="grid grid-cols-2 mb-4">
@@ -470,7 +547,6 @@ const VendorDashboard = () => {
               </Tabs>
             </div>
             
-            {/* Stats Row */}
             <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card>
                 <CardContent className="p-6">
