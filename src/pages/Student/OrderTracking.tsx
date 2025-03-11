@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -55,7 +54,7 @@ const OrderTracking = () => {
     if (!id) {
       console.error("No order ID provided in URL");
       toast.error("Order ID is missing");
-      navigate("/student/orders/active");
+      navigate("/student/orders");
       return;
     }
     
@@ -118,7 +117,7 @@ const OrderTracking = () => {
     
     fetchOrder();
     
-    // Set up real-time subscription with a unique channel name
+    // Set up real-time subscription with a unique channel name to avoid conflicts
     const channelName = `order-tracking-${id}-${Date.now()}`;
     console.log(`Setting up real-time channel: ${channelName}`);
     
@@ -131,6 +130,8 @@ const OrderTracking = () => {
         filter: `id=eq.${id}`
       }, (payload) => {
         console.log("Real-time order update received:", payload);
+        if (!payload.new) return;
+        
         const updatedOrder = payload.new as Order;
         
         // Immediately update the progress value
@@ -152,7 +153,7 @@ const OrderTracking = () => {
         });
         
         // Show toast for status updates
-        if (payload.old.status !== updatedOrder.status) {
+        if (payload.old && payload.old.status !== updatedOrder.status) {
           if (updatedOrder.status === 'cancelled') {
             toast.error("Your order has been cancelled");
           } else if (updatedOrder.status === 'delivered') {
@@ -164,11 +165,6 @@ const OrderTracking = () => {
       })
       .subscribe((status) => {
         console.log("Subscription status:", status);
-        if (status === 'SUBSCRIBED') {
-          console.log("Successfully subscribed to real-time updates for order:", id);
-        } else {
-          console.error("Failed to subscribe to real-time updates. Status:", status);
-        }
       });
       
     return () => {
@@ -204,7 +200,7 @@ const OrderTracking = () => {
         <div className="container mx-auto p-4 text-center">
           <div className="flex justify-start mb-6">
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/student/orders/active" className="flex items-center gap-1">
+              <Link to="/student/orders" className="flex items-center gap-1">
                 <ArrowLeft size={16} />
                 Back to Orders
               </Link>
@@ -215,7 +211,7 @@ const OrderTracking = () => {
             <h1 className="text-2xl font-bold mb-2">Order Not Found</h1>
             <p className="text-muted-foreground mb-4">The order you're looking for doesn't exist or has been removed.</p>
             <Button asChild className="bg-[#ea384c] hover:bg-[#d02e40]">
-              <Link to="/student/orders/active">View Your Orders</Link>
+              <Link to="/student/orders">View Your Orders</Link>
             </Button>
           </div>
         </div>
@@ -232,7 +228,7 @@ const OrderTracking = () => {
       <div className="container mx-auto p-4">
         <div className="flex justify-between items-center mb-6">
           <Button variant="ghost" size="sm" asChild>
-            <Link to="/student/orders/active" className="flex items-center gap-1">
+            <Link to="/student/orders" className="flex items-center gap-1">
               <ArrowLeft size={16} />
               Back to Orders
             </Link>
@@ -246,7 +242,7 @@ const OrderTracking = () => {
               <h1 className="text-2xl font-bold mb-2">Order Not Found</h1>
               <p className="text-muted-foreground mb-4">The order you're looking for doesn't exist or has been removed.</p>
               <Button asChild className="bg-[#ea384c] hover:bg-[#d02e40]">
-                <Link to="/student/orders/active">View Your Orders</Link>
+                <Link to="/student/orders">View Your Orders</Link>
               </Button>
             </div>
           ) : (

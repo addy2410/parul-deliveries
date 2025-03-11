@@ -115,7 +115,8 @@ const Orders = () => {
         // Check if user is authenticated
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-        if (!sessionData?.session) {
+        if (sessionError || !sessionData?.session) {
+          console.error("Auth session error:", sessionError);
           toast.error("Please login to view your orders");
           navigate("/student/login");
           return;
@@ -133,6 +134,7 @@ const Orders = () => {
 
         if (activeError) {
           console.error("Error fetching active orders:", activeError);
+          toast.error("Failed to load active orders");
         }
 
         // Fetch past orders - delivered or cancelled
@@ -145,6 +147,7 @@ const Orders = () => {
 
         if (pastError) {
           console.error("Error fetching past orders:", pastError);
+          toast.error("Failed to load past orders");
         }
 
         // Parse JSONB items field
@@ -189,18 +192,32 @@ const Orders = () => {
               console.log("Student received real-time order update:", payload);
 
               if (payload.eventType === "INSERT") {
-                setActiveOrders((prev) => [payload.new as Order, ...prev]);
+                // Insert new order into active orders
+                const newOrder = payload.new as Order;
+                setActiveOrders((prev) => [newOrder, ...prev]);
               } else if (payload.eventType === "UPDATE") {
                 const updated = payload.new as Order;
+                
                 if (
                   updated.status === "delivered" ||
                   updated.status === "cancelled"
                 ) {
-                  // Move order from active to past
+                  // Move order from active to past orders
                   setActiveOrders((prev) =>
                     prev.filter((order) => order.id !== updated.id)
                   );
-                  setPastOrders((prev) => [updated, ...prev]);
+                  
+                  setPastOrders((prev) => {
+                    // Check if the order is already in past orders to avoid duplicates
+                    const exists = prev.some(order => order.id === updated.id);
+                    if (exists) {
+                      return prev.map(order => 
+                        order.id === updated.id ? updated : order
+                      );
+                    } else {
+                      return [updated, ...prev];
+                    }
+                  });
                 } else {
                   // Update the order in active list
                   setActiveOrders((prev) =>
