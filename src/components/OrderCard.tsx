@@ -44,7 +44,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
     switch(status) {
       case 'pending': return 'bg-yellow-500';
       case 'preparing': return 'bg-blue-500';
-      case 'ready': return 'bg-purple-500';
+      case 'prepared': return 'bg-purple-500';
       case 'delivering': return 'bg-orange-500';
       case 'delivered': return 'bg-green-500';
       case 'cancelled': return 'bg-red-500';
@@ -55,8 +55,8 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
   const getNextStatus = (currentStatus: string) => {
     switch(currentStatus) {
       case 'pending': return 'preparing';
-      case 'preparing': return 'ready';
-      case 'ready': return 'delivering';
+      case 'preparing': return 'prepared';
+      case 'prepared': return 'delivering';
       case 'delivering': return 'delivered';
       default: return currentStatus;
     }

@@ -1,19 +1,19 @@
 
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { ArrowLeft, ShoppingBag, Package, Check, ChefHat, Truck, AlertTriangle } from "lucide-react";
+import { ShoppingBag, Package } from "lucide-react";
 import StudentHeader from "@/components/StudentHeader";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import OrderCard from "@/components/OrderCard";
 
 interface OrderItem {
   menuItemId: string;
@@ -26,7 +26,8 @@ interface Order {
   id: string;
   student_id: string;
   vendor_id: string;
-  restaurant_id: string;
+  shop_id: string;
+  restaurant_id: string; // Also used in some places
   items: OrderItem[];
   total_amount: number;
   status: string;
@@ -34,72 +35,8 @@ interface Order {
   student_name: string;
   estimated_delivery_time?: string;
   created_at: string;
+  restaurantName?: string;
 }
-
-const OrderCard = ({ order }: { order: Order }) => {
-  return (
-    <Card className="border border-border/40">
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-3">
-          <div>
-            <h4 className="font-medium">
-              Order #{order.id.slice(0, 8)}...
-            </h4>
-            <p className="text-sm text-muted-foreground">
-              {new Date(order.created_at).toLocaleString()}
-            </p>
-          </div>
-          <Badge
-            className={`${
-              order.status === "pending"
-                ? "bg-yellow-500"
-                : order.status === "preparing"
-                ? "bg-blue-500"
-                : order.status === "prepared"
-                ? "bg-purple-500"
-                : order.status === "delivering"
-                ? "bg-orange-500"
-                : order.status === "delivered"
-                ? "bg-green-500"
-                : "bg-gray-500"
-            }`}
-          >
-            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-          </Badge>
-        </div>
-
-        <div className="mb-2">
-          <p className="text-sm">
-            <strong>Delivery:</strong> {order.delivery_location}
-          </p>
-          {order.estimated_delivery_time && (
-            <p className="text-sm">
-              <strong>Estimated time:</strong> {order.estimated_delivery_time}
-            </p>
-          )}
-        </div>
-
-        <div className="border-t border-border/40 pt-2 mb-3">
-          <p className="text-sm font-medium mb-1">Items:</p>
-          <ul className="text-sm space-y-1">
-            {order.items.map((item, idx) => (
-              <li key={idx} className="flex justify-between">
-                <span>
-                  {item.quantity}x {item.name}
-                </span>
-                <span>₹{(item.quantity * item.price).toFixed(2)}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="border-t border-border/40 pt-2 mt-2 flex justify-between font-medium">
-            <span>Total</span>
-            <span>₹{order.total_amount.toFixed(2)}</span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
 
 const Orders = () => {
   const [activeOrders, setActiveOrders] = useState<Order[]>([]);
@@ -108,7 +45,7 @@ const Orders = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchOrders = async () => {
+    const checkAuthAndFetchOrders = async () => {
       try {
         setLoading(true);
 
@@ -116,142 +53,213 @@ const Orders = () => {
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
         if (!sessionData?.session) {
+          console.error("Session error:", sessionError);
           toast.error("Please login to view your orders");
           navigate("/student/login");
           return;
         }
 
         const studentId = sessionData.session.user.id;
+        console.log("Fetching orders for student:", studentId);
 
-        // Fetch active orders - not delivered or cancelled
-        const { data: active, error: activeError } = await supabase
-          .from("orders")
-          .select("*")
-          .eq("student_id", studentId)
-          .not("status", "in", '("delivered", "cancelled")')
-          .order("created_at", { ascending: false });
-
-        if (activeError) {
-          console.error("Error fetching active orders:", activeError);
-        }
-
-        // Fetch past orders - delivered or cancelled
-        const { data: past, error: pastError } = await supabase
-          .from("orders")
-          .select("*")
-          .eq("student_id", studentId)
-          .in("status", ["delivered", "cancelled"])
-          .order("created_at", { ascending: false });
-
-        if (pastError) {
-          console.error("Error fetching past orders:", pastError);
-        }
-
-        // Parse JSONB items field
-        const parseOrders = (orders) => {
-          return orders
-            ? orders.map((order) => ({
-                ...order,
-                items: Array.isArray(order.items) ? order.items : [],
-              }))
-            : [];
-        };
-
-        setActiveOrders(parseOrders(active));
-        setPastOrders(parseOrders(past));
+        await fetchOrders(studentId);
       } catch (error) {
-        console.error("Error fetching orders:", error);
-        toast.error("Failed to load orders");
+        console.error("Error in auth check:", error);
+        toast.error("Authentication error");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchOrders();
-
-    // Subscribe to real-time updates
-    const fetchSession = async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData?.session?.user?.id) {
-        const userId = sessionData.session.user.id;
-        
-        const channel = supabase
-          .channel("student-orders")
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "orders",
-              filter: `student_id=eq.${userId}`,
-            },
-            (payload) => {
-              console.log("Student received real-time order update:", payload);
-
-              if (payload.eventType === "INSERT") {
-                setActiveOrders((prev) => [payload.new as Order, ...prev]);
-              } else if (payload.eventType === "UPDATE") {
-                const updated = payload.new as Order;
-                if (
-                  updated.status === "delivered" ||
-                  updated.status === "cancelled"
-                ) {
-                  // Move order from active to past
-                  setActiveOrders((prev) =>
-                    prev.filter((order) => order.id !== updated.id)
-                  );
-                  setPastOrders((prev) => [updated, ...prev]);
-                } else {
-                  // Update the order in active list
-                  setActiveOrders((prev) =>
-                    prev.map((order) =>
-                      order.id === updated.id
-                        ? { ...updated, items: order.items }
-                        : order
-                    )
-                  );
-                }
-              } else if (payload.eventType === "DELETE") {
-                // Safe type checking for payload.old
-                if (payload.old && typeof payload.old === 'object' && 'id' in payload.old) {
-                  const oldId = payload.old.id;
-                  if (oldId) {
-                    setActiveOrders((prev) => prev.filter((order) => order.id !== oldId));
-                    setPastOrders((prev) => prev.filter((order) => order.id !== oldId));
-                  }
-                } else {
-                  console.error("Invalid payload.old structure:", payload.old);
-                }
-              }
-            }
-          )
-          .subscribe();
-
-        return () => {
-          supabase.removeChannel(channel);
-        };
-      }
-    };
-    
-    fetchSession();
+    checkAuthAndFetchOrders();
   }, [navigate]);
 
-  const renderOrderCard = (order) => (
-    <div key={order.id} className="mb-4">
-      <OrderCard order={order} />
-      {order.status !== 'delivered' && order.status !== 'cancelled' && (
-        <div className="mt-2 flex justify-end">
-          <Button
-            size="sm"
-            className="bg-[#ea384c] hover:bg-[#d02e40]"
-            onClick={() => navigate(`/student/order-tracking/${order.id}`)}
-          >
-            Track Order
-          </Button>
-        </div>
-      )}
-    </div>
-  );
+  const fetchOrders = async (studentId: string) => {
+    try {
+      // Fetch active orders - not delivered or cancelled
+      const { data: active, error: activeError } = await supabase
+        .from("orders")
+        .select(`
+          *,
+          shops:shop_id(name)
+        `)
+        .eq("student_id", studentId)
+        .not("status", "in", '("delivered", "cancelled")')
+        .order("created_at", { ascending: false });
+
+      if (activeError) {
+        console.error("Error fetching active orders:", activeError);
+        toast.error("Failed to load active orders");
+      }
+
+      // Fetch past orders - delivered or cancelled
+      const { data: past, error: pastError } = await supabase
+        .from("orders")
+        .select(`
+          *,
+          shops:shop_id(name)
+        `)
+        .eq("student_id", studentId)
+        .in("status", ["delivered", "cancelled"])
+        .order("created_at", { ascending: false });
+
+      if (pastError) {
+        console.error("Error fetching past orders:", pastError);
+        toast.error("Failed to load past orders");
+      }
+
+      // Parse orders and add restaurant name
+      const parseOrders = (orders) => {
+        if (!orders) return [];
+        
+        return orders.map((order) => ({
+          ...order,
+          items: Array.isArray(order.items) ? order.items : [],
+          restaurantName: order.shops?.name || "Unknown Restaurant"
+        }));
+      };
+
+      const activeOrdersData = parseOrders(active);
+      const pastOrdersData = parseOrders(past);
+      
+      console.log("Active orders:", activeOrdersData.length);
+      console.log("Past orders:", pastOrdersData.length);
+
+      setActiveOrders(activeOrdersData);
+      setPastOrders(pastOrdersData);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      toast.error("Failed to load orders");
+    }
+  };
+
+  useEffect(() => {
+    // Set up real-time subscription for order updates
+    const setupRealtimeSubscription = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session?.user?.id) return;
+      
+      const userId = sessionData.session.user.id;
+      
+      // Create a channel with a unique name to avoid conflicts
+      const channelName = `student-orders-${userId}-${Math.random().toString(36).substring(2, 15)}`;
+      console.log("Setting up student orders channel:", channelName);
+      
+      const channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders',
+            filter: `student_id=eq.${userId}`,
+          },
+          async (payload) => {
+            console.log("Student received real-time order update:", payload);
+
+            if (payload.eventType === "INSERT") {
+              // Get restaurant name for the new order
+              try {
+                const { data: shopData } = await supabase
+                  .from('shops')
+                  .select('name')
+                  .eq('id', (payload.new as Order).shop_id)
+                  .single();
+                  
+                const newOrder = {
+                  ...(payload.new as Order),
+                  items: [],
+                  restaurantName: shopData?.name || "Unknown Restaurant"
+                };
+                
+                setActiveOrders((prev) => [newOrder, ...prev]);
+              } catch (error) {
+                console.error("Error processing new order:", error);
+                
+                // Fallback: add without restaurant name
+                setActiveOrders((prev) => [payload.new as Order, ...prev]);
+              }
+            } else if (payload.eventType === "UPDATE") {
+              const updated = payload.new as Order;
+              
+              if (
+                updated.status === "delivered" ||
+                updated.status === "cancelled"
+              ) {
+                // Move order from active to past
+                setActiveOrders((prev) => prev.filter((order) => order.id !== updated.id));
+                
+                // Try to get restaurant name
+                try {
+                  const { data: shopData } = await supabase
+                    .from('shops')
+                    .select('name')
+                    .eq('id', updated.shop_id)
+                    .single();
+
+                  const updatedWithRestaurant = {
+                    ...updated,
+                    items: Array.isArray(updated.items) ? updated.items : [], 
+                    restaurantName: shopData?.name || "Unknown Restaurant"
+                  };
+                  
+                  setPastOrders((prev) => [updatedWithRestaurant, ...prev]);
+                } catch (error) {
+                  console.error("Error processing order update:", error);
+                  
+                  // Fallback: add to past orders without restaurant name
+                  setPastOrders((prev) => [updated, ...prev]);
+                }
+                
+                if (updated.status === "delivered") {
+                  toast.success("Your order has been delivered!");
+                } else if (updated.status === "cancelled") {
+                  toast.error("Your order has been cancelled.");
+                }
+              } else {
+                // Update the order in active list
+                setActiveOrders((prev) =>
+                  prev.map((order) =>
+                    order.id === updated.id
+                      ? { 
+                          ...updated, 
+                          items: Array.isArray(order.items) ? order.items : [],
+                          restaurantName: order.restaurantName 
+                        }
+                      : order
+                  )
+                );
+                
+                // Show status update toast
+                toast.success(`Order status updated to: ${updated.status}`);
+              }
+            } else if (payload.eventType === "DELETE") {
+              if (payload.old && typeof payload.old === 'object' && 'id' in payload.old) {
+                const oldId = payload.old.id;
+                setActiveOrders((prev) => prev.filter((order) => order.id !== oldId));
+                setPastOrders((prev) => prev.filter((order) => order.id !== oldId));
+              }
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log("Student orders subscription status:", status);
+          if (status === 'SUBSCRIBED') {
+            console.log("Successfully subscribed to student orders real-time updates");
+          } else {
+            console.error("Failed to subscribe to student orders real-time updates. Status:", status);
+          }
+        });
+
+      return () => {
+        console.log("Cleaning up student orders subscription");
+        supabase.removeChannel(channel);
+      };
+    };
+    
+    setupRealtimeSubscription();
+  }, []);
 
   if (loading) {
     return (
@@ -275,12 +283,25 @@ const Orders = () => {
 
         <Tabs defaultValue="active" className="w-full">
           <TabsList>
-            <TabsTrigger value="active">Current Orders</TabsTrigger>
-            <TabsTrigger value="past">Past Orders</TabsTrigger>
+            <TabsTrigger value="active">
+              Current Orders
+              {activeOrders.length > 0 && (
+                <Badge className="ml-2 bg-blue-500">{activeOrders.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="past">
+              Past Orders
+              {pastOrders.length > 0 && (
+                <Badge className="ml-2 bg-gray-500">{pastOrders.length}</Badge>
+              )}
+            </TabsTrigger>
           </TabsList>
+          
           <TabsContent value="active" className="space-y-4">
             {activeOrders.length > 0 ? (
-              activeOrders.map((order) => renderOrderCard(order))
+              activeOrders.map((order) => (
+                <OrderCard key={order.id} order={order} />
+              ))
             ) : (
               <div className="text-center py-4">
                 <ShoppingBag className="h-10 w-10 mx-auto mb-2 opacity-20" />
@@ -296,12 +317,11 @@ const Orders = () => {
               </div>
             )}
           </TabsContent>
+          
           <TabsContent value="past" className="space-y-4">
             {pastOrders.length > 0 ? (
               pastOrders.map((order) => (
-                <div key={order.id} className="mb-4">
-                  <OrderCard order={order} />
-                </div>
+                <OrderCard key={order.id} order={order} />
               ))
             ) : (
               <div className="text-center py-4">

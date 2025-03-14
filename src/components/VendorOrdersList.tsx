@@ -62,6 +62,8 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
     
     const fetchOrders = async () => {
       try {
+        setLoading(true);
+        
         let query = supabase
           .from('orders')
           .select('*')
@@ -117,10 +119,14 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           // If order is delivered or cancelled, remove it from active list
           if (updated.status === 'delivered' || updated.status === 'cancelled') {
             setOrders(prev => prev.filter(order => order.id !== updated.id));
+            // Notify parent about delivered order
+            if (updated.status === 'delivered' && onOrderDelivered) {
+              onOrderDelivered();
+            }
           } else {
             // Otherwise update it
             setOrders(prev => prev.map(order => 
-              order.id === updated.id ? {...updated, items: order.items} : order
+              order.id === updated.id ? {...updated, items: Array.isArray(order.items) ? order.items : []} : order
             ));
           }
         } else if (payload.eventType === 'DELETE') {
@@ -142,7 +148,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
       console.log("Cleaning up vendor orders subscription");
       supabase.removeChannel(channel);
     };
-  }, [vendorId, shopId]);
+  }, [vendorId, shopId, onOrderDelivered]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
@@ -176,6 +182,9 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
       // Special handling for delivered orders
       if (newStatus === 'delivered') {
         if (onOrderDelivered) onOrderDelivered();
+        
+        // Remove delivered order from active orders list
+        setOrders(prev => prev.filter(order => order.id !== orderId));
       }
     } catch (error) {
       console.error("Error updating order status:", error);

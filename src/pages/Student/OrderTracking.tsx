@@ -131,34 +131,48 @@ const OrderTracking = () => {
         filter: `id=eq.${id}`
       }, (payload) => {
         console.log("Real-time order update received:", payload);
-        const updatedOrder = payload.new as Order;
         
-        // Immediately update the progress value
-        const newProgressValue = getOrderProgress(updatedOrder.status);
-        console.log("Status updated to:", updatedOrder.status, "New progress value:", newProgressValue);
-        
-        setProgressValue(newProgressValue);
-        
-        setOrder(prev => {
-          if (!prev) return null;
-          const updated = {
-            ...prev,
-            ...updatedOrder,
-            status: updatedOrder.status, // Explicitly set status to ensure it updates
-            items: prev.items // Keep the parsed items
-          };
-          console.log("Updated order state:", updated);
-          return updated;
-        });
-        
-        // Show toast for status updates
-        if (payload.old.status !== updatedOrder.status) {
-          if (updatedOrder.status === 'cancelled') {
-            toast.error("Your order has been cancelled");
-          } else if (updatedOrder.status === 'delivered') {
-            toast.success("Your order has been delivered!");
-          } else {
-            toast.success(`Order status updated to: ${updatedOrder.status}`);
+        if (payload.new && typeof payload.new === 'object') {
+          const updatedOrder = payload.new as Order;
+          
+          // Immediately update the progress value
+          const newProgressValue = getOrderProgress(updatedOrder.status);
+          console.log("Status updated to:", updatedOrder.status, "New progress value:", newProgressValue);
+          
+          setProgressValue(newProgressValue);
+          
+          // Update the order state with the new data
+          setOrder(prev => {
+            if (!prev) return null;
+            
+            // Preserve the items array from previous state to avoid issues with JSONB parsing
+            const items = Array.isArray(prev.items) ? prev.items : [];
+            
+            return {
+              ...updatedOrder,
+              items
+            };
+          });
+          
+          // Show toast for status updates
+          if (payload.old && payload.old.status !== updatedOrder.status) {
+            if (updatedOrder.status === 'cancelled') {
+              toast.error("Your order has been cancelled");
+              // Navigate to orders page if cancelled
+              if (updatedOrder.status === 'cancelled') {
+                setTimeout(() => {
+                  navigate("/student/orders/active");
+                }, 3000);
+              }
+            } else if (updatedOrder.status === 'delivered') {
+              toast.success("Your order has been delivered!");
+              // Navigate to orders page if delivered
+              setTimeout(() => {
+                navigate("/student/orders/active");
+              }, 3000);
+            } else {
+              toast.success(`Order status updated to: ${updatedOrder.status}`);
+            }
           }
         }
       })
@@ -176,15 +190,6 @@ const OrderTracking = () => {
       supabase.removeChannel(channel);
     };
   }, [id, navigate]);
-  
-  // Add a separate effect to update progress when order changes
-  useEffect(() => {
-    if (order) {
-      const newProgress = getOrderProgress(order.status);
-      console.log("Order status changed, updating progress to:", newProgress);
-      setProgressValue(newProgress);
-    }
-  }, [order?.status]);
   
   if (loading) {
     return (
@@ -222,8 +227,6 @@ const OrderTracking = () => {
       </div>
     );
   }
-  
-  console.log("Rendering OrderTracking with status:", order?.status, "Progress value:", progressValue);
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -279,36 +282,36 @@ const OrderTracking = () => {
                     />
                     
                     <div className="flex justify-between -mt-6">
-                      <div className={`flex flex-col items-center ${order.status === 'pending' ? 'text-[#ea384c]' : 'text-green-500'}`}>
-                        <div className={`rounded-full p-2 ${order.status === 'pending' ? 'bg-[#ea384c]' : 'bg-green-500'} text-white w-8 h-8 flex items-center justify-center`}>
-                          {order.status === 'pending' ? <Package size={16} /> : <Check size={16} />}
+                      <div className={`flex flex-col items-center ${progressValue >= 0 ? 'text-green-500' : 'text-gray-400'}`}>
+                        <div className={`rounded-full p-2 ${progressValue >= 0 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center`}>
+                          <Check size={16} />
                         </div>
                         <span className="text-xs mt-1">Confirmed</span>
                       </div>
                       
-                      <div className={`flex flex-col items-center ${order.status === 'preparing' ? 'text-[#ea384c]' : (order.status === 'pending' ? 'text-gray-400' : 'text-green-500')}`}>
-                        <div className={`rounded-full p-2 ${order.status === 'preparing' ? 'bg-[#ea384c]' : (order.status === 'pending' ? 'bg-gray-300' : 'bg-green-500')} text-white w-8 h-8 flex items-center justify-center`}>
+                      <div className={`flex flex-col items-center ${progressValue >= 25 ? 'text-green-500' : 'text-gray-400'}`}>
+                        <div className={`rounded-full p-2 ${progressValue >= 25 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center`}>
                           <ChefHat size={16} />
                         </div>
                         <span className="text-xs mt-1">Preparing</span>
                       </div>
                       
-                      <div className={`flex flex-col items-center ${order.status === 'prepared' ? 'text-[#ea384c]' : (['pending', 'preparing'].includes(order.status) ? 'text-gray-400' : 'text-green-500')}`}>
-                        <div className={`rounded-full p-2 ${order.status === 'prepared' ? 'bg-[#ea384c]' : (['pending', 'preparing'].includes(order.status) ? 'bg-gray-300' : 'bg-green-500')} text-white w-8 h-8 flex items-center justify-center`}>
+                      <div className={`flex flex-col items-center ${progressValue >= 50 ? 'text-green-500' : 'text-gray-400'}`}>
+                        <div className={`rounded-full p-2 ${progressValue >= 50 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center`}>
                           <Package size={16} />
                         </div>
                         <span className="text-xs mt-1">Prepared</span>
                       </div>
                       
-                      <div className={`flex flex-col items-center ${order.status === 'delivering' ? 'text-[#ea384c]' : (['pending', 'preparing', 'prepared'].includes(order.status) ? 'text-gray-400' : 'text-green-500')}`}>
-                        <div className={`rounded-full p-2 ${order.status === 'delivering' ? 'bg-[#ea384c]' : (['pending', 'preparing', 'prepared'].includes(order.status) ? 'bg-gray-300' : 'bg-green-500')} text-white w-8 h-8 flex items-center justify-center`}>
+                      <div className={`flex flex-col items-center ${progressValue >= 75 ? 'text-green-500' : 'text-gray-400'}`}>
+                        <div className={`rounded-full p-2 ${progressValue >= 75 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center`}>
                           <Truck size={16} />
                         </div>
                         <span className="text-xs mt-1">On the way</span>
                       </div>
                       
-                      <div className={`flex flex-col items-center ${order.status === 'delivered' ? 'text-green-500' : 'text-gray-400'}`}>
-                        <div className={`rounded-full p-2 ${order.status === 'delivered' ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center`}>
+                      <div className={`flex flex-col items-center ${progressValue >= 100 ? 'text-green-500' : 'text-gray-400'}`}>
+                        <div className={`rounded-full p-2 ${progressValue >= 100 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center`}>
                           <Check size={16} />
                         </div>
                         <span className="text-xs mt-1">Delivered</span>
