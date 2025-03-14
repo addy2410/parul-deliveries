@@ -36,7 +36,7 @@ interface Order {
 interface OrderCardProps {
   order: Order;
   isVendor?: boolean;
-  onStatusChange?: (orderId: string, newStatus: string) => void;
+  onStatusChange?: (orderId: string, newStatus: string) => Promise<boolean>;
 }
 
 const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatusChange }) => {
@@ -64,15 +64,21 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
   
   const handleNextStatus = async () => {
     if (isVendor && order.status !== 'delivered' && order.status !== 'cancelled') {
-      if (onStatusChange) {
-        onStatusChange(order.id, getNextStatus(order.status));
-      } else {
-        // Default implementation if no callback is provided
-        try {
-          console.log("Updating order status to:", getNextStatus(order.status));
+      const nextStatus = getNextStatus(order.status);
+      
+      try {
+        if (onStatusChange) {
+          // Use the callback if provided
+          const success = await onStatusChange(order.id, nextStatus);
+          if (!success) {
+            toast.error(`Failed to update order to ${nextStatus}`);
+          }
+        } else {
+          // Default implementation if no callback is provided
+          console.log("Updating order status to:", nextStatus);
           const { error } = await supabase
             .from('orders')
-            .update({ status: getNextStatus(order.status) })
+            .update({ status: nextStatus })
             .eq('id', order.id);
             
           if (error) {
@@ -80,12 +86,10 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
             toast.error("Failed to update order status");
             return;
           }
-          
-          toast.success(`Order status updated to: ${getNextStatus(order.status)}`);
-        } catch (error) {
-          console.error("Error updating order status:", error);
-          toast.error("An error occurred while updating order status");
         }
+      } catch (error) {
+        console.error("Error in handleNextStatus:", error);
+        toast.error("An error occurred while updating order status");
       }
     }
   };

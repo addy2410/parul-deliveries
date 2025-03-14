@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -89,9 +90,12 @@ const ViewOrder = () => {
     
     fetchOrder();
     
-    // Set up real-time subscription to order updates
+    // Set up real-time subscription to order updates with unique channel name
+    const channelName = `order-details-${id}-${Math.random().toString(36).substring(2, 9)}`;
+    console.log(`Setting up order details channel: ${channelName}`);
+    
     const channel = supabase
-      .channel('order-details-' + id)
+      .channel(channelName)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -123,7 +127,7 @@ const ViewOrder = () => {
             ...prev,
             ...updatedOrder,
             restaurantName,
-            items: prev.items // Keep the parsed items
+            items: Array.isArray(updatedOrder.items) ? updatedOrder.items : prev.items
           };
         });
         
@@ -135,9 +139,17 @@ const ViewOrder = () => {
           toast.success(`Order status updated to: ${updatedOrder.status}`);
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log("Order details subscription status:", status);
+        if (status === 'SUBSCRIBED') {
+          console.log("Successfully subscribed to order detail real-time updates");
+        } else {
+          console.error("Failed to subscribe to order details real-time updates. Status:", status);
+        }
+      });
       
     return () => {
+      console.log("Cleaning up order details subscription");
       supabase.removeChannel(channel);
     };
   }, [id]);
@@ -146,7 +158,7 @@ const ViewOrder = () => {
     switch(status) {
       case 'pending': return 10;
       case 'preparing': return 30;
-      case 'ready': return 50;
+      case 'prepared': return 50;
       case 'delivering': return 75;
       case 'delivered': return 100;
       case 'cancelled': return 0;
@@ -158,7 +170,7 @@ const ViewOrder = () => {
     switch(status) {
       case 'pending': return 'Restaurant is confirming your order';
       case 'preparing': return 'Chef is preparing your food';
-      case 'ready': return 'Your order is ready for delivery';
+      case 'prepared': return 'Your order is ready for delivery';
       case 'delivering': return 'Your order is on the way';
       case 'delivered': return 'Your order has been delivered';
       case 'cancelled': return 'Your order has been cancelled';

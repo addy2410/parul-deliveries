@@ -62,8 +62,8 @@ export const useOrdersData = ({
     
     fetchOrders();
     
-    // Subscribe to real-time updates with a unique channel name
-    const channelName = `vendor-orders-changes-${vendorId}-${Math.random().toString(36).substring(2, 15)}`;
+    // Subscribe to real-time updates with a unique channel name based on vendorId
+    const channelName = `vendor-orders-${vendorId}-${Math.random().toString(36).substring(2, 9)}`;
     console.log(`Setting up vendor orders channel: ${channelName}`);
     
     const channel = supabase
@@ -77,17 +77,31 @@ export const useOrdersData = ({
         console.log("Vendor received real-time order update:", payload);
         
         if (payload.eventType === 'INSERT') {
-          setOrders(prev => [payload.new as Order, ...prev]);
+          // Add new order to the list if it's not delivered or cancelled
+          const newOrder = payload.new as Order;
+          if (newOrder.status !== 'delivered' && newOrder.status !== 'cancelled') {
+            setOrders(prev => [newOrder, ...prev]);
+            // Show toast notification for new order
+            toast.success("New order received!");
+          }
         } else if (payload.eventType === 'UPDATE') {
           const updated = payload.new as Order;
           // If order is delivered or cancelled, remove it from active list
           if (updated.status === 'delivered' || updated.status === 'cancelled') {
             setOrders(prev => prev.filter(order => order.id !== updated.id));
+            if (updated.status === 'delivered') {
+              toast.success(`Order #${updated.id.slice(0, 8)} has been delivered!`);
+              if (onOrderDelivered) onOrderDelivered();
+            }
           } else {
-            // Otherwise update it
+            // Otherwise update it in the list
             setOrders(prev => prev.map(order => 
-              order.id === updated.id ? {...updated, items: order.items} : order
+              order.id === updated.id ? {
+                ...updated,
+                items: Array.isArray(updated.items) ? updated.items : order.items
+              } : order
             ));
+            toast.info(`Order #${updated.id.slice(0, 8)} status updated to: ${updated.status}`);
           }
         } else if (payload.eventType === 'DELETE') {
           // Safe type checking for payload.old
@@ -96,8 +110,6 @@ export const useOrdersData = ({
             if (oldId) {
               setOrders(prev => prev.filter(order => order.id !== oldId));
             }
-          } else {
-            console.error("Invalid payload.old structure:", payload.old);
           }
         }
       })
@@ -114,18 +126,13 @@ export const useOrdersData = ({
       console.log("Cleaning up vendor orders subscription");
       supabase.removeChannel(channel);
     };
-  }, [vendorId, shopId]);
+  }, [vendorId, shopId, onOrderDelivered]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
       console.log(`Updating order ${orderId} status to: ${newStatus}`);
       
-      // First update the local state for immediate feedback
-      setOrders(prev => prev.map(order => 
-        order.id === orderId ? {...order, status: newStatus} : order
-      ));
-      
-      // Then update in the database
+      // First update in the database
       const { error } = await supabase
         .from('orders')
         .update({ status: newStatus })
@@ -134,63 +141,19 @@ export const useOrdersData = ({
       if (error) {
         console.error("Error updating order status:", error);
         toast.error("Failed to update order status");
-        
-        // Revert local state change if update failed
-        fetchOrders();
-        return;
+        return false;
       }
       
-      toast.success(`Order status updated to: ${newStatus}`);
+      // Local update and notification will be handled by the real-time subscription
       
       // Notify parent component about updates
       if (onOrderUpdate) onOrderUpdate();
       
-      // Special handling for delivered orders
-      if (newStatus === 'delivered') {
-        if (onOrderDelivered) onOrderDelivered();
-        
-        // Remove from active orders list
-        setOrders(prev => prev.filter(order => order.id !== orderId));
-      }
+      return true;
     } catch (error) {
       console.error("Error updating order status:", error);
       toast.error("An error occurred while updating order status");
-    }
-  };
-  
-  // Added function to refetch orders
-  const fetchOrders = async () => {
-    try {
-      setLoading(true);
-      
-      let query = supabase
-        .from('orders')
-        .select('*')
-        .eq('vendor_id', vendorId)
-        .not('status', 'in', '("delivered","cancelled")')
-        .order('created_at', { ascending: false });
-        
-      if (shopId) {
-        query = query.eq('restaurant_id', shopId);
-      }
-      
-      const { data, error } = await query;
-        
-      if (error) {
-        console.error("Error fetching orders:", error);
-        return;
-      }
-      
-      const parsedOrders = data.map(order => ({
-        ...order,
-        items: Array.isArray(order.items) ? order.items : []
-      }));
-      
-      setOrders(parsedOrders);
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-    } finally {
-      setLoading(false);
+      return false;
     }
   };
   
@@ -209,10 +172,9 @@ export const useOrdersData = ({
         return;
       }
       
-      toast.success("Test order deleted successfully");
+      toast.success("Order deleted successfully");
       
-      // Update local state
-      setOrders(prev => prev.filter(order => order.id !== orderId));
+      // Update will be handled by the real-time subscription
       
       if (onOrderUpdate) onOrderUpdate();
       
