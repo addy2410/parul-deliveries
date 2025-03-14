@@ -5,7 +5,7 @@ import RoleSelection from "@/components/RoleSelection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { HeroSection } from "@/components/ui/HeroSection";
+import HeroSection from "@/components/ui/HeroSection";
 import { ClearAllOrders } from "@/components/ClearAllOrders";
 
 const Index = () => {
