@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/tabs";
 import { ShoppingBag, Package } from "lucide-react";
 import StudentHeader from "@/components/StudentHeader";
-import { supabase } from "@/lib/supabase";
+import { supabase, generateUniqueChannelId } from "@/lib/supabase";
 import { toast } from "sonner";
 import OrderCard from "@/components/OrderCard";
 
@@ -142,7 +142,7 @@ const Orders = () => {
       const userId = sessionData.session.user.id;
       
       // Create a channel with a unique name to avoid conflicts
-      const channelName = `student-orders-${userId}-${Math.random().toString(36).substring(2, 15)}`;
+      const channelName = generateUniqueChannelId(`student-orders-${userId}`);
       console.log("Setting up student orders channel:", channelName);
       
       const channel = supabase
@@ -169,11 +169,12 @@ const Orders = () => {
                   
                 const newOrder = {
                   ...(payload.new as Order),
-                  items: [],
+                  items: Array.isArray((payload.new as Order).items) ? (payload.new as Order).items : [],
                   restaurantName: shopData?.name || "Unknown Restaurant"
                 };
                 
                 setActiveOrders((prev) => [newOrder, ...prev]);
+                toast.success("New order placed!");
               } catch (error) {
                 console.error("Error processing new order:", error);
                 
@@ -209,7 +210,11 @@ const Orders = () => {
                   console.error("Error processing order update:", error);
                   
                   // Fallback: add to past orders without restaurant name
-                  setPastOrders((prev) => [updated, ...prev]);
+                  const parsedOrder = {
+                    ...updated,
+                    items: Array.isArray(updated.items) ? updated.items : []
+                  };
+                  setPastOrders((prev) => [parsedOrder, ...prev]);
                 }
                 
                 if (updated.status === "delivered") {
@@ -224,7 +229,8 @@ const Orders = () => {
                     order.id === updated.id
                       ? { 
                           ...updated, 
-                          items: Array.isArray(order.items) ? order.items : [],
+                          items: Array.isArray(updated.items) ? updated.items : 
+                                 Array.isArray(order.items) ? order.items : [],
                           restaurantName: order.restaurantName 
                         }
                       : order
@@ -233,12 +239,6 @@ const Orders = () => {
                 
                 // Show status update toast
                 toast.success(`Order status updated to: ${updated.status}`);
-              }
-            } else if (payload.eventType === "DELETE") {
-              if (payload.old && typeof payload.old === 'object' && 'id' in payload.old) {
-                const oldId = payload.old.id;
-                setActiveOrders((prev) => prev.filter((order) => order.id !== oldId));
-                setPastOrders((prev) => prev.filter((order) => order.id !== oldId));
               }
             }
           }

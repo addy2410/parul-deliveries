@@ -143,3 +143,8 @@ export const safelyDeleteUser = async (userId: string) => {
 
 // Log for debugging purposes
 console.log("Supabase initialized with URL:", supabaseUrl);
+
+// Helper function to generate unique channel IDs for realtime subscriptions
+export const generateUniqueChannelId = (base: string): string => {
+  return `${base}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+};

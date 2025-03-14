@@ -86,6 +86,8 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
             toast.error("Failed to update order status");
             return;
           }
+          
+          toast.success(`Order updated to ${nextStatus}`);
         }
       } catch (error) {
         console.error("Error in handleNextStatus:", error);

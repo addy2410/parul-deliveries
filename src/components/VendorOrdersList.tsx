@@ -1,22 +1,10 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabase";
+import { supabase, generateUniqueChannelId } from "@/lib/supabase";
 import { toast } from "sonner";
-import { ChefHat, Package, Truck, CheckCircle, ShoppingBag, Trash2 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ChefHat, Package, Truck, CheckCircle, ShoppingBag } from "lucide-react";
 
 interface OrderItem {
   menuItemId: string;
@@ -54,8 +42,6 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
 }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
-  const [isDeletingOrder, setIsDeletingOrder] = useState(false);
 
   useEffect(() => {
     if (!vendorId) return;
@@ -99,7 +85,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
     fetchOrders();
     
     // Subscribe to real-time updates with a unique channel name
-    const channelName = `vendor-orders-changes-${vendorId}-${Math.random().toString(36).substring(2, 15)}`;
+    const channelName = generateUniqueChannelId(`vendor-orders-changes-${vendorId}`);
     console.log(`Setting up vendor orders channel: ${channelName}`);
     
     const channel = supabase
@@ -113,7 +99,11 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         console.log("Vendor received real-time order update:", payload);
         
         if (payload.eventType === 'INSERT') {
-          setOrders(prev => [payload.new as Order, ...prev]);
+          const newOrder = payload.new as Order;
+          if (newOrder.status !== 'delivered' && newOrder.status !== 'cancelled') {
+            setOrders(prev => [newOrder, ...prev]);
+            toast.success("New order received!");
+          }
         } else if (payload.eventType === 'UPDATE') {
           const updated = payload.new as Order;
           // If order is delivered or cancelled, remove it from active list
@@ -129,11 +119,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
               order.id === updated.id ? {...updated, items: Array.isArray(order.items) ? order.items : []} : order
             ));
           }
-        } else if (payload.eventType === 'DELETE') {
-          if (payload.old && typeof payload.old === 'object' && 'id' in payload.old) {
-            setOrders(prev => prev.filter(order => order.id !== payload.old.id));
-          }
-        }
+        } 
       })
       .subscribe((status) => {
         console.log("Vendor orders subscription status:", status);
@@ -225,37 +211,6 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
       console.error("Error fetching orders:", error);
     } finally {
       setLoading(false);
-    }
-  };
-  
-  const deleteOrder = async (orderId: string) => {
-    try {
-      setIsDeletingOrder(true);
-      
-      const { error } = await supabase
-        .from('orders')
-        .delete()
-        .eq('id', orderId);
-      
-      if (error) {
-        console.error("Error deleting order:", error);
-        toast.error("Failed to delete order");
-        return;
-      }
-      
-      toast.success("Test order deleted successfully");
-      
-      // Update local state
-      setOrders(prev => prev.filter(order => order.id !== orderId));
-      
-      if (onOrderUpdate) onOrderUpdate();
-      
-    } catch (error) {
-      console.error("Error deleting order:", error);
-      toast.error("An error occurred while deleting order");
-    } finally {
-      setIsDeletingOrder(false);
-      setSelectedOrder(null);
     }
   };
   
@@ -357,39 +312,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
                     </div>
                   </div>
                   
-                  <div className="flex justify-between">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button 
-                          variant="destructive" 
-                          size="sm"
-                          className="bg-red-600 hover:bg-red-700"
-                          onClick={() => setSelectedOrder(order.id)}
-                        >
-                          <Trash2 size={16} className="mr-1" />
-                          Delete Test Order
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Test Order</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete this test order? This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction 
-                            className="bg-red-600 hover:bg-red-700"
-                            onClick={() => selectedOrder && deleteOrder(selectedOrder)}
-                            disabled={isDeletingOrder}
-                          >
-                            {isDeletingOrder ? "Deleting..." : "Delete Order"}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                    
+                  <div className="flex justify-end">
                     {order.status !== 'cancelled' && order.status !== 'delivered' && (
                       <Button
                         className="bg-vendor-600 hover:bg-vendor-700"
@@ -398,7 +321,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
                         {getStatusIcon(getNextStatus(order.status))}
                         <span className="ml-2">
                           Mark as {getNextStatus(order.status).charAt(0).toUpperCase() + 
-                                   getNextStatus(order.status).slice(1)}
+                                  getNextStatus(order.status).slice(1)}
                         </span>
                       </Button>
                     )}

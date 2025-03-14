@@ -6,7 +6,7 @@ import { ArrowLeft, Package, Check, ChefHat, Truck, AlertTriangle, Clock } from 
 import StudentHeader from "@/components/StudentHeader";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
-import { supabase } from "@/lib/supabase";
+import { supabase, generateUniqueChannelId } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 
@@ -41,8 +41,8 @@ const OrderTracking = () => {
   // This function accepts a status parameter so it can work without relying on the order state
   const getOrderProgress = (status: string): number => {
     switch(status) {
-      case 'pending': return 0;
-      case 'preparing': return 25;
+      case 'pending': return 10;
+      case 'preparing': return 30;
       case 'prepared': return 50;
       case 'delivering': return 75;
       case 'delivered': return 100;
@@ -119,7 +119,7 @@ const OrderTracking = () => {
     fetchOrder();
     
     // Set up real-time subscription with a unique channel name
-    const channelName = `order-tracking-${id}-${Date.now()}`;
+    const channelName = generateUniqueChannelId(`order-tracking-${id}`);
     console.log(`Setting up real-time channel: ${channelName}`);
     
     const channel = supabase
@@ -282,15 +282,15 @@ const OrderTracking = () => {
                     />
                     
                     <div className="flex justify-between -mt-6">
-                      <div className={`flex flex-col items-center ${progressValue >= 0 ? 'text-green-500' : 'text-gray-400'}`}>
-                        <div className={`rounded-full p-2 ${progressValue >= 0 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center`}>
+                      <div className={`flex flex-col items-center ${progressValue >= 10 ? 'text-green-500' : 'text-gray-400'}`}>
+                        <div className={`rounded-full p-2 ${progressValue >= 10 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center`}>
                           <Check size={16} />
                         </div>
                         <span className="text-xs mt-1">Confirmed</span>
                       </div>
                       
-                      <div className={`flex flex-col items-center ${progressValue >= 25 ? 'text-green-500' : 'text-gray-400'}`}>
-                        <div className={`rounded-full p-2 ${progressValue >= 25 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center`}>
+                      <div className={`flex flex-col items-center ${progressValue >= 30 ? 'text-green-500' : 'text-gray-400'}`}>
+                        <div className={`rounded-full p-2 ${progressValue >= 30 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center`}>
                           <ChefHat size={16} />
                         </div>
                         <span className="text-xs mt-1">Preparing</span>
