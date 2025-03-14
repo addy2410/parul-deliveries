@@ -1,11 +1,5 @@
-
-import { useState, useEffect, useCallback } from "react";
-import { 
-  supabase, 
-  generateUniqueChannelId, 
-  updateOrderStatus as updateOrderStatusUtil,
-  fetchVendorActiveOrders
-} from "@/lib/supabase";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Order } from "./types";
 
@@ -26,42 +20,50 @@ export const useOrdersData = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
   const [isDeletingOrder, setIsDeletingOrder] = useState(false);
-  const [processingOrderIds, setProcessingOrderIds] = useState<string[]>([]);
-  const [autoRefreshTimer, setAutoRefreshTimer] = useState<NodeJS.Timeout | null>(null);
-  
-  const fetchOrders = useCallback(async () => {
-    if (!vendorId) return;
-    
-    try {
-      setLoading(true);
-      const result = await fetchVendorActiveOrders(vendorId, shopId);
-      
-      if (result.success && result.data) {
-        setOrders(result.data);
-      } else {
-        console.error("Error fetching orders:", result.error);
-      }
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [vendorId, shopId]);
 
   useEffect(() => {
     if (!vendorId) return;
     
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        
+        let query = supabase
+          .from('orders')
+          .select('*')
+          .eq('vendor_id', vendorId)
+          .not('status', 'in', '("delivered","cancelled")') // Only active orders
+          .order('created_at', { ascending: false });
+          
+        if (shopId) {
+          query = query.eq('restaurant_id', shopId);
+        }
+        
+        const { data, error } = await query;
+          
+        if (error) {
+          console.error("Error fetching orders:", error);
+          return;
+        }
+        
+        // Parse JSONB items field
+        const parsedOrders = data.map(order => ({
+          ...order,
+          items: Array.isArray(order.items) ? order.items : []
+        }));
+        
+        setOrders(parsedOrders);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
     fetchOrders();
     
-    // Setup auto-refresh every 30 seconds as a fallback
-    const timer = setInterval(() => {
-      fetchOrders();
-    }, 30000);
-    
-    setAutoRefreshTimer(timer);
-    
     // Subscribe to real-time updates with a unique channel name based on vendorId
-    const channelName = generateUniqueChannelId(`vendor-orders-${vendorId}`);
+    const channelName = `vendor-orders-${vendorId}-${Math.random().toString(36).substring(2, 9)}`;
     console.log(`Setting up vendor orders channel: ${channelName}`);
     
     const channel = supabase
@@ -78,36 +80,18 @@ export const useOrdersData = ({
           // Add new order to the list if it's not delivered or cancelled
           const newOrder = payload.new as Order;
           if (newOrder.status !== 'delivered' && newOrder.status !== 'cancelled') {
-            setOrders(prev => {
-              // Check if order already exists to avoid duplicates
-              if (prev.some(order => order.id === newOrder.id)) {
-                return prev;
-              }
-              return [newOrder, ...prev];
-            });
+            setOrders(prev => [newOrder, ...prev]);
             // Show toast notification for new order
             toast.success("New order received!");
           }
         } else if (payload.eventType === 'UPDATE') {
           const updated = payload.new as Order;
-          const oldStatus = (payload.old as Order)?.status;
-          
-          // Only update if it's an actual change
-          if (updated.status === oldStatus) {
-            return;
-          }
-          
-          // Remove the order from processing state if it's being processed
-          setProcessingOrderIds(prev => prev.filter(id => id !== updated.id));
-          
           // If order is delivered or cancelled, remove it from active list
           if (updated.status === 'delivered' || updated.status === 'cancelled') {
             setOrders(prev => prev.filter(order => order.id !== updated.id));
             if (updated.status === 'delivered') {
               toast.success(`Order #${updated.id.slice(0, 8)} has been delivered!`);
               if (onOrderDelivered) onOrderDelivered();
-            } else if (updated.status === 'cancelled') {
-              toast.error(`Order #${updated.id.slice(0, 8)} has been cancelled.`);
             }
           } else {
             // Otherwise update it in the list
@@ -141,46 +125,26 @@ export const useOrdersData = ({
     return () => {
       console.log("Cleaning up vendor orders subscription");
       supabase.removeChannel(channel);
-      
-      if (autoRefreshTimer) {
-        clearInterval(autoRefreshTimer);
-      }
     };
-  }, [vendorId, shopId, onOrderDelivered, fetchOrders]);
+  }, [vendorId, shopId, onOrderDelivered]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
-      // Prevent multiple status updates at the same time for the same order
-      if (processingOrderIds.includes(orderId)) {
-        return false;
-      }
-      
-      // Add the order to the processing list
-      setProcessingOrderIds(prev => [...prev, orderId]);
-      
       console.log(`Updating order ${orderId} status to: ${newStatus}`);
       
-      // Optimistically update UI
-      setOrders(prev => prev.map(order => 
-        order.id === orderId ? { ...order, status: newStatus } : order
-      ));
+      // First update in the database
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
       
-      // Actually update in database
-      const result = await updateOrderStatusUtil(orderId, newStatus);
-      
-      if (!result.success) {
-        console.error("Error updating order status:", result.error);
+      if (error) {
+        console.error("Error updating order status:", error);
         toast.error("Failed to update order status");
-        
-        // Revert optimistic update
-        setOrders(prev => prev.map(order => 
-          order.id === orderId ? { ...order, status: order.status } : order
-        ));
-        
-        // Remove the order from processing state
-        setProcessingOrderIds(prev => prev.filter(id => id !== orderId));
         return false;
       }
+      
+      // Local update and notification will be handled by the real-time subscription
       
       // Notify parent component about updates
       if (onOrderUpdate) onOrderUpdate();
@@ -189,9 +153,6 @@ export const useOrdersData = ({
     } catch (error) {
       console.error("Error updating order status:", error);
       toast.error("An error occurred while updating order status");
-      
-      // Remove the order from processing state
-      setProcessingOrderIds(prev => prev.filter(id => id !== orderId));
       return false;
     }
   };
@@ -232,9 +193,7 @@ export const useOrdersData = ({
     selectedOrder,
     setSelectedOrder,
     isDeletingOrder,
-    processingOrderIds,
     updateOrderStatus,
-    deleteOrder,
-    refreshOrders: fetchOrders
+    deleteOrder
   };
 };

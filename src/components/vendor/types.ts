@@ -18,5 +18,4 @@ export interface Order {
   student_name: string;
   estimated_delivery_time?: string;
   created_at: string;
-  updated_at?: string;
 }

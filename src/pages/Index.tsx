@@ -1,86 +1,93 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
-import RoleSelection from "@/components/RoleSelection";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import HeroSection from "@/components/ui/HeroSection";
-import { ClearAllOrders } from "@/components/ClearAllOrders";
+import { ChevronRight, Coffee, Book, Users } from "lucide-react";
+import usePerformanceOptimizer from "@/hooks/usePerformanceOptimizer";
+import RoleSelection from "@/components/RoleSelection";
+import { motion } from "framer-motion"; // Import the motion component
 
 const Index = () => {
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <HeroSection
-        title="Campus Food Delivery"
-        subtitle="Hungry? Order food from your favorite campus restaurants!"
-        cta={<RoleSelection />}
-      />
-
-      <div className="container mx-auto px-4 py-12">
-        <div className="mb-8 text-center">
-          <h2 className="text-2xl font-bold mb-2">Admin Controls</h2>
-          <p className="text-muted-foreground mb-4">
-            Use these controls with caution
-          </p>
-          <ClearAllOrders />
-        </div>
+  const { optimizeImages } = usePerformanceOptimizer();
+  
+  useEffect(() => {
+    optimizeImages();
+    
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => {
+        const preloadLinks = [
+          '/student/login',
+          '/vendor/login'
+        ];
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader>
-              <Badge className="w-fit mb-2">Students</Badge>
-              <CardTitle>Order Food</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Browse restaurants, place orders, and track delivery in real-time.
-              </p>
-            </CardContent>
-            <CardFooter>
-              <Button asChild className="w-full">
-                <Link to="/student/restaurants">Get Started</Link>
-              </Button>
-            </CardFooter>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <Badge className="w-fit mb-2 bg-vendor-500">Vendors</Badge>
-              <CardTitle>Manage Restaurant</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Register your restaurant, manage menu items, and fulfill orders.
-              </p>
-            </CardContent>
-            <CardFooter>
-              <Button asChild className="w-full bg-vendor-600 hover:bg-vendor-700">
-                <Link to="/vendor/login">Vendor Login</Link>
-              </Button>
-            </CardFooter>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <Badge className="w-fit mb-2 bg-blue-500">Community</Badge>
-              <CardTitle>About the Project</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Learn about the campus food delivery project and its features.
-              </p>
-            </CardContent>
-            <CardFooter>
-              <Button asChild variant="outline" className="w-full">
-                <Link to="/about">Learn More</Link>
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
+        preloadLinks.forEach(link => {
+          const preloadLink = document.createElement('link');
+          preloadLink.rel = 'prefetch';
+          preloadLink.href = link;
+          document.head.appendChild(preloadLink);
+        });
+      });
+    }
+  }, [optimizeImages]);
+  
+  return (
+    <div className="min-h-screen indian-pattern flex flex-col relative overflow-hidden">
+      <div className="absolute top-20 left-10 opacity-10 pointer-events-none">
+        <motion.img 
+          src="https://images.unsplash.com/photo-1528735602780-2552fd46c7af" 
+          alt="Decorative spices" 
+          className="w-64 h-64 object-cover rounded-full"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 0.1, scale: 1, rotate: 15 }}
+          transition={{ duration: 1, delay: 0.2 }}
+        />
       </div>
+      <div className="absolute bottom-20 right-10 opacity-10 pointer-events-none">
+        <motion.img 
+          src="https://images.unsplash.com/photo-1589301760014-d929f3979dbc" 
+          alt="Decorative food" 
+          className="w-72 h-72 object-cover rounded-full"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 0.1, scale: 1, rotate: -10 }}
+          transition={{ duration: 1, delay: 0.4 }}
+        />
+      </div>
+
+      <header className="py-8 container mx-auto relative z-10">
+        <motion.h1 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="text-4xl md:text-5xl font-semibold text-center text-[#ea384c] px-2"
+        >
+          Parul In-Campus Delivery
+        </motion.h1>
+        <motion.p 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="text-center mt-2 text-muted-foreground text-lg"
+        >
+          Order food from your favorite campus eateries
+        </motion.p>
+      </header>
+
+      <main className="flex-1 flex items-center justify-center p-4 relative z-10">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          className="w-full max-w-4xl"
+        >
+          <RoleSelection />
+        </motion.div>
+      </main>
+
+      <footer className="py-6 text-center text-sm text-muted-foreground relative z-10">
+        <p>© {new Date().getFullYear()} Parul In-Campus Delivery. All rights reserved.</p>
+      </footer>
     </div>
   );
 };
 
-export default Index;
+export default React.memo(Index);
