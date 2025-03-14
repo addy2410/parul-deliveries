@@ -116,8 +116,6 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000, // 5 minutes
       gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
       retry: 1,
-      suspense: false,
-      useErrorBoundary: false,
       networkMode: 'always',
     },
     mutations: {
@@ -160,17 +158,14 @@ const App = () => {
           <BrowserRouter>
             <Suspense fallback={<PageLoading />}>
               <Routes>
-                {/* The routes remain unchanged */}
                 <Route path="/" element={<Index />} />
                 
-                {/* Vendor Routes */}
                 <Route path="/vendor/login" element={<VendorLogin />} />
                 <Route path="/vendor/dashboard" element={<VendorDashboard />} />
                 <Route path="/vendor/menu" element={<VendorMenuManagement />} />
                 <Route path="/vendor/register-shop" element={<RegisterShop />} />
                 <Route path="/vendor/delete-empty-shop" element={<DeleteEmptyShop />} />
                 
-                {/* Student Routes - Allow direct access to restaurants */}
                 <Route path="/student" element={<Navigate to="/student/restaurants" replace />} />
                 <Route path="/student/login" element={<StudentLogin />} />
                 <Route path="/student/restaurants" element={<StudentRestaurants />} />
@@ -182,11 +177,9 @@ const App = () => {
                 <Route path="/student/view-order/:id" element={<ViewOrder />} />
                 <Route path="/student/address-book" element={<AddressBook />} />
                 
-                {/* About and Community Pages */}
                 <Route path="/about" element={<About />} />
                 <Route path="/community" element={<Community />} />
                 
-                {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
