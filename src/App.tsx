@@ -50,65 +50,6 @@ const PageLoading = React.memo(() => (
   </div>
 ));
 
-// Function to clear all test orders - optimized with better error handling and batching
-const clearAllTestOrders = async () => {
-  try {
-    console.log("Clearing all test orders from the database...");
-    
-    // Delete orders in smaller batches for better performance
-    const batchSize = 100;
-    let count = 0;
-    
-    // Get the total count first
-    const { count: totalCount, error: countError } = await supabase
-      .from('orders')
-      .select('id', { count: 'exact', head: true });
-      
-    if (countError) {
-      console.error("Error counting test orders:", countError);
-      return;
-    }
-    
-    // If we have orders to delete
-    if (totalCount && totalCount > 0) {
-      // Delete in batches
-      for (let i = 0; i < totalCount; i += batchSize) {
-        const { data: batchData, error: fetchError } = await supabase
-          .from('orders')
-          .select('id')
-          .range(i, i + batchSize - 1);
-          
-        if (fetchError) {
-          console.error("Error fetching batch of orders:", fetchError);
-          continue;
-        }
-        
-        if (batchData && batchData.length > 0) {
-          const ids = batchData.map(order => order.id);
-          
-          const { error: deleteError } = await supabase
-            .from('orders')
-            .delete()
-            .in('id', ids);
-            
-          if (deleteError) {
-            console.error("Error deleting batch of orders:", deleteError);
-          } else {
-            count += batchData.length;
-            console.log(`Deleted ${count}/${totalCount} orders`);
-          }
-        }
-      }
-      
-      console.log(`All test orders cleared successfully. Total: ${count}`);
-    } else {
-      console.log("No test orders to clear");
-    }
-  } catch (err) {
-    console.error("Error in clearAllTestOrders:", err);
-  }
-};
-
 // Creating a QueryClient with optimized settings for better performance
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -140,16 +81,6 @@ const App = () => {
     };
     
     loadFonts();
-    
-    // Use requestIdleCallback for non-critical operations like clearing test orders
-    if ('requestIdleCallback' in window) {
-      const idleCallbackId = requestIdleCallback(() => clearAllTestOrders());
-      return () => cancelIdleCallback(idleCallbackId);
-    } else {
-      // Fallback for browsers that don't support requestIdleCallback
-      const timeoutId = setTimeout(clearAllTestOrders, 2000);
-      return () => clearTimeout(timeoutId);
-    }
   }, []);
 
   return (
