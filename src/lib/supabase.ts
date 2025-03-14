@@ -191,6 +191,10 @@ export const updateOrderStatus = async (orderId: string, newStatus: string) => {
   try {
     console.log(`Updating order ${orderId} status to: ${newStatus}`);
     
+    // Add a small delay to ensure UI transitions are smooth
+    // This prevents race conditions between optimistic updates and realtime updates
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
     const { error } = await supabase
       .from('orders')
       .update({ 

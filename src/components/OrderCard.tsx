@@ -45,6 +45,7 @@ interface OrderCardProps {
 
 const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatusChange }) => {
   const [isUpdating, setIsUpdating] = useState(false);
+  const [localStatus, setLocalStatus] = useState(order.status);
   
   const getStatusColor = (status: string) => {
     switch(status) {
@@ -59,16 +60,20 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
   };
   
   const handleNextStatus = async () => {
-    if (isVendor && order.status !== 'delivered' && order.status !== 'cancelled') {
-      const nextStatus = getNextOrderStatus(order.status);
+    if (isVendor && localStatus !== 'delivered' && localStatus !== 'cancelled' && !isUpdating) {
+      const nextStatus = getNextOrderStatus(localStatus);
       
       try {
         setIsUpdating(true);
+        // Optimistically update local status to prevent UI flicker
+        setLocalStatus(nextStatus);
         
         if (onStatusChange) {
           // Use the callback if provided
           const success = await onStatusChange(order.id, nextStatus);
           if (!success) {
+            // If the update failed, revert the local status
+            setLocalStatus(order.status);
             toast.error(`Failed to update order to ${nextStatus}`);
           }
         } else {
@@ -76,12 +81,15 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
           const result = await updateOrderStatus(order.id, nextStatus);
           
           if (!result.success) {
+            // If the update failed, revert the local status
+            setLocalStatus(order.status);
             console.error("Error updating order status:", result.error);
             toast.error("Failed to update order status");
-            return;
           }
         }
       } catch (error) {
+        // If there was an error, revert the local status
+        setLocalStatus(order.status);
         console.error("Error in handleNextStatus:", error);
         toast.error("An error occurred while updating order status");
       } finally {
@@ -89,6 +97,9 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
       }
     }
   };
+
+  // Always use localStatus for UI rendering to prevent jitter
+  const displayStatus = isUpdating ? localStatus : (order.status || localStatus);
 
   return (
     <motion.div
@@ -112,8 +123,8 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
                 {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
               </p>
             </div>
-            <Badge className={`${getStatusColor(order.status)} capitalize`}>
-              {order.status}
+            <Badge className={`${getStatusColor(displayStatus)} capitalize`}>
+              {displayStatus}
             </Badge>
           </div>
         </CardHeader>
@@ -163,7 +174,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
           </div>
         </CardContent>
         
-        {isVendor && order.status !== 'delivered' && order.status !== 'cancelled' ? (
+        {isVendor && displayStatus !== 'delivered' && displayStatus !== 'cancelled' ? (
           <CardFooter className="pt-2">
             <Button 
               onClick={handleNextStatus} 
@@ -176,13 +187,13 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
                   Updating...
                 </>
               ) : (
-                `Mark as ${getNextOrderStatus(order.status).replace(/^\w/, c => c.toUpperCase())}`
+                `Mark as ${getNextOrderStatus(displayStatus).replace(/^\w/, c => c.toUpperCase())}`
               )}
             </Button>
           </CardFooter>
         ) : !isVendor ? (
           <CardFooter className="pt-2 flex gap-2">
-            {order.status !== 'delivered' && order.status !== 'cancelled' ? (
+            {displayStatus !== 'delivered' && displayStatus !== 'cancelled' ? (
               <Button 
                 asChild
                 className="flex-1 bg-[#ea384c] hover:bg-[#d02e40]"

@@ -78,12 +78,24 @@ export const useOrdersData = ({
           // Add new order to the list if it's not delivered or cancelled
           const newOrder = payload.new as Order;
           if (newOrder.status !== 'delivered' && newOrder.status !== 'cancelled') {
-            setOrders(prev => [newOrder, ...prev]);
+            setOrders(prev => {
+              // Check if order already exists to avoid duplicates
+              if (prev.some(order => order.id === newOrder.id)) {
+                return prev;
+              }
+              return [newOrder, ...prev];
+            });
             // Show toast notification for new order
             toast.success("New order received!");
           }
         } else if (payload.eventType === 'UPDATE') {
           const updated = payload.new as Order;
+          const oldStatus = (payload.old as Order)?.status;
+          
+          // Only update if it's an actual change
+          if (updated.status === oldStatus) {
+            return;
+          }
           
           // Remove the order from processing state if it's being processed
           setProcessingOrderIds(prev => prev.filter(id => id !== updated.id));
@@ -148,18 +160,27 @@ export const useOrdersData = ({
       
       console.log(`Updating order ${orderId} status to: ${newStatus}`);
       
+      // Optimistically update UI
+      setOrders(prev => prev.map(order => 
+        order.id === orderId ? { ...order, status: newStatus } : order
+      ));
+      
+      // Actually update in database
       const result = await updateOrderStatusUtil(orderId, newStatus);
       
       if (!result.success) {
         console.error("Error updating order status:", result.error);
         toast.error("Failed to update order status");
         
+        // Revert optimistic update
+        setOrders(prev => prev.map(order => 
+          order.id === orderId ? { ...order, status: order.status } : order
+        ));
+        
         // Remove the order from processing state
         setProcessingOrderIds(prev => prev.filter(id => id !== orderId));
         return false;
       }
-      
-      // The real-time subscription will handle the UI updates
       
       // Notify parent component about updates
       if (onOrderUpdate) onOrderUpdate();
