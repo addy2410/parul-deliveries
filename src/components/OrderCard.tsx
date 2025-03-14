@@ -1,13 +1,17 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, MapPin, ExternalLink } from "lucide-react";
+import { Clock, MapPin, ExternalLink, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { 
+  supabase, 
+  updateOrderStatus, 
+  getNextOrderStatus 
+} from "@/lib/supabase";
 import { toast } from "sonner";
 
 interface OrderItem {
@@ -40,6 +44,8 @@ interface OrderCardProps {
 }
 
 const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatusChange }) => {
+  const [isUpdating, setIsUpdating] = useState(false);
+  
   const getStatusColor = (status: string) => {
     switch(status) {
       case 'pending': return 'bg-yellow-500';
@@ -52,21 +58,13 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
     }
   };
   
-  const getNextStatus = (currentStatus: string) => {
-    switch(currentStatus) {
-      case 'pending': return 'preparing';
-      case 'preparing': return 'prepared';
-      case 'prepared': return 'delivering';
-      case 'delivering': return 'delivered';
-      default: return currentStatus;
-    }
-  };
-  
   const handleNextStatus = async () => {
     if (isVendor && order.status !== 'delivered' && order.status !== 'cancelled') {
-      const nextStatus = getNextStatus(order.status);
+      const nextStatus = getNextOrderStatus(order.status);
       
       try {
+        setIsUpdating(true);
+        
         if (onStatusChange) {
           // Use the callback if provided
           const success = await onStatusChange(order.id, nextStatus);
@@ -74,24 +72,20 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
             toast.error(`Failed to update order to ${nextStatus}`);
           }
         } else {
-          // Default implementation if no callback is provided
-          console.log("Updating order status to:", nextStatus);
-          const { error } = await supabase
-            .from('orders')
-            .update({ status: nextStatus })
-            .eq('id', order.id);
-            
-          if (error) {
-            console.error("Error updating order status:", error);
+          // Default implementation using the utility function
+          const result = await updateOrderStatus(order.id, nextStatus);
+          
+          if (!result.success) {
+            console.error("Error updating order status:", result.error);
             toast.error("Failed to update order status");
             return;
           }
-          
-          toast.success(`Order updated to ${nextStatus}`);
         }
       } catch (error) {
         console.error("Error in handleNextStatus:", error);
         toast.error("An error occurred while updating order status");
+      } finally {
+        setIsUpdating(false);
       }
     }
   };
@@ -174,8 +168,16 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
             <Button 
               onClick={handleNextStatus} 
               className="w-full"
+              disabled={isUpdating}
             >
-              Mark as {getNextStatus(order.status).replace(/^\w/, c => c.toUpperCase())}
+              {isUpdating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                `Mark as ${getNextOrderStatus(order.status).replace(/^\w/, c => c.toUpperCase())}`
+              )}
             </Button>
           </CardFooter>
         ) : !isVendor ? (

@@ -148,3 +148,213 @@ console.log("Supabase initialized with URL:", supabaseUrl);
 export const generateUniqueChannelId = (base: string): string => {
   return `${base}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 };
+
+/**
+ * Get the progress percentage based on order status
+ * @param status Current order status
+ * @returns Progress percentage (0-100)
+ */
+export const getOrderProgressPercentage = (status: string): number => {
+  switch (status) {
+    case 'pending': return 0;
+    case 'preparing': return 30;
+    case 'prepared': return 60;
+    case 'delivering': return 90;
+    case 'delivered': return 100;
+    case 'cancelled': return 0;
+    default: return 0;
+  }
+};
+
+/**
+ * Get the next status in the order workflow
+ * @param currentStatus Current order status
+ * @returns The next status in the workflow
+ */
+export const getNextOrderStatus = (currentStatus: string): string => {
+  switch (currentStatus) {
+    case 'pending': return 'preparing';
+    case 'preparing': return 'prepared';
+    case 'prepared': return 'delivering';
+    case 'delivering': return 'delivered';
+    default: return currentStatus;
+  }
+};
+
+/**
+ * Update an order's status
+ * @param orderId The order ID to update
+ * @param newStatus The new status to set
+ * @returns Object indicating success or error
+ */
+export const updateOrderStatus = async (orderId: string, newStatus: string) => {
+  try {
+    console.log(`Updating order ${orderId} status to: ${newStatus}`);
+    
+    const { error } = await supabase
+      .from('orders')
+      .update({ 
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId);
+    
+    if (error) {
+      console.error("Error updating order status:", error);
+      return { success: false, error };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    return { success: false, error };
+  }
+};
+
+/**
+ * Clean up stale orders (older than 2 hours that are still in processing state)
+ * @returns Object indicating success or error
+ */
+export const cleanupStaleOrders = async () => {
+  try {
+    const twoHoursAgo = new Date();
+    twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
+    
+    const { error } = await supabase
+      .from('orders')
+      .update({ 
+        status: 'delivered',
+        updated_at: new Date().toISOString()
+      })
+      .lt('created_at', twoHoursAgo.toISOString())
+      .in('status', ['pending', 'preparing', 'prepared']);
+    
+    if (error) {
+      console.error("Error cleaning up stale orders:", error);
+      return { success: false, error };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error cleaning up stale orders:", error);
+    return { success: false, error };
+  }
+};
+
+/**
+ * Fetch active orders for a vendor
+ * @param vendorId The vendor ID
+ * @param shopId Optional shop ID to filter by
+ * @returns Object containing the orders or an error
+ */
+export const fetchVendorActiveOrders = async (vendorId: string, shopId?: string) => {
+  try {
+    // Only get orders from the last 24 hours that are not delivered or cancelled
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+    
+    let query = supabase
+      .from('orders')
+      .select('*')
+      .eq('vendor_id', vendorId)
+      .not('status', 'in', '("delivered","cancelled")')
+      .gte('created_at', oneDayAgo.toISOString())
+      .order('created_at', { ascending: false });
+      
+    if (shopId) {
+      query = query.eq('restaurant_id', shopId);
+    }
+    
+    const { data, error } = await query;
+      
+    if (error) {
+      console.error("Error fetching vendor active orders:", error);
+      return { success: false, error };
+    }
+    
+    // Parse JSONB items field
+    const parsedOrders = data.map(order => ({
+      ...order,
+      items: Array.isArray(order.items) ? order.items : []
+    }));
+    
+    return { success: true, data: parsedOrders };
+  } catch (error) {
+    console.error("Error fetching vendor active orders:", error);
+    return { success: false, error };
+  }
+};
+
+/**
+ * Fetch student active orders
+ * @param studentId The student ID
+ * @returns Object containing the orders or an error
+ */
+export const fetchStudentActiveOrders = async (studentId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        shops:shop_id(name)
+      `)
+      .eq('student_id', studentId)
+      .not('status', 'in', '("delivered", "cancelled")')
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      console.error("Error fetching student active orders:", error);
+      return { success: false, error };
+    }
+    
+    // Parse orders and add restaurant name
+    const parsedOrders = data.map((order) => ({
+      ...order,
+      items: Array.isArray(order.items) ? order.items : [],
+      restaurantName: order.shops?.name || "Unknown Restaurant"
+    }));
+    
+    return { success: true, data: parsedOrders };
+  } catch (error) {
+    console.error("Error fetching student active orders:", error);
+    return { success: false, error };
+  }
+};
+
+/**
+ * Fetch student order history
+ * @param studentId The student ID
+ * @param limit Optional limit on number of orders to return
+ * @returns Object containing the orders or an error
+ */
+export const fetchStudentOrderHistory = async (studentId: string, limit: number = 50) => {
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        shops:shop_id(name)
+      `)
+      .eq('student_id', studentId)
+      .in('status', ['delivered', 'cancelled'])
+      .order('updated_at', { ascending: false })
+      .limit(limit);
+      
+    if (error) {
+      console.error("Error fetching student order history:", error);
+      return { success: false, error };
+    }
+    
+    // Parse orders and add restaurant name
+    const parsedOrders = data.map((order) => ({
+      ...order,
+      items: Array.isArray(order.items) ? order.items : [],
+      restaurantName: order.shops?.name || "Unknown Restaurant"
+    }));
+    
+    return { success: true, data: parsedOrders };
+  } catch (error) {
+    console.error("Error fetching student order history:", error);
+    return { success: false, error };
+  }
+};
