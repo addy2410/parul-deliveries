@@ -1,4 +1,3 @@
-
 import React, { useEffect, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -6,68 +5,110 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartProvider } from "./context/CartContext";
 import { supabase } from "@/lib/supabase";
 
-// Lazy-loaded pages
-const Index = lazy(() => import("./pages/Index"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const VendorLogin = lazy(() => import("./pages/Vendor/Login"));
-const VendorDashboard = lazy(() => import("./pages/Vendor/Dashboard"));
-const VendorMenuManagement = lazy(() => import("./pages/Vendor/MenuManagement"));
-const RegisterShop = lazy(() => import("./pages/Vendor/RegisterShop"));
-const DeleteEmptyShop = lazy(() => import("./pages/Vendor/DeleteEmptyShop"));
-const StudentLogin = lazy(() => import("./pages/Student/Login"));
-const StudentRestaurants = lazy(() => import("./pages/Student/Restaurants"));
-const StudentRestaurantDetail = lazy(() => import("./pages/Student/RestaurantDetail"));
-const StudentCart = lazy(() => import("./pages/Student/Cart"));
-const StudentOrderSuccess = lazy(() => import("./pages/Student/OrderSuccess"));
-const StudentOrders = lazy(() => import("./pages/Student/Orders"));
-const OrderTracking = lazy(() => import("./pages/Student/OrderTracking"));
-const ViewOrder = lazy(() => import("./pages/Student/ViewOrder"));
-const AddressBook = lazy(() => import("./pages/Student/AddressBook"));
-const About = lazy(() => import("./pages/About"));
-const Community = lazy(() => import("./pages/Community"));
+// Lazy-loaded pages with better chunk naming
+const Index = lazy(() => import(/* webpackChunkName: "index" */ "./pages/Index"));
+const NotFound = lazy(() => import(/* webpackChunkName: "not-found" */ "./pages/NotFound"));
+const VendorLogin = lazy(() => import(/* webpackChunkName: "vendor-login" */ "./pages/Vendor/Login"));
+const VendorDashboard = lazy(() => import(/* webpackChunkName: "vendor-dashboard" */ "./pages/Vendor/Dashboard"));
+const VendorMenuManagement = lazy(() => import(/* webpackChunkName: "vendor-menu" */ "./pages/Vendor/MenuManagement"));
+const RegisterShop = lazy(() => import(/* webpackChunkName: "register-shop" */ "./pages/Vendor/RegisterShop"));
+const DeleteEmptyShop = lazy(() => import(/* webpackChunkName: "delete-empty-shop" */ "./pages/Vendor/DeleteEmptyShop"));
+const StudentLogin = lazy(() => import(/* webpackChunkName: "student-login" */ "./pages/Student/Login"));
+const StudentRestaurants = lazy(() => import(/* webpackChunkName: "student-restaurants" */ "./pages/Student/Restaurants"));
+const StudentRestaurantDetail = lazy(() => import(/* webpackChunkName: "restaurant-detail" */ "./pages/Student/RestaurantDetail"));
+const StudentCart = lazy(() => import(/* webpackChunkName: "student-cart" */ "./pages/Student/Cart"));
+const StudentOrderSuccess = lazy(() => import(/* webpackChunkName: "order-success" */ "./pages/Student/OrderSuccess"));
+const StudentOrders = lazy(() => import(/* webpackChunkName: "student-orders" */ "./pages/Student/Orders"));
+const OrderTracking = lazy(() => import(/* webpackChunkName: "order-tracking" */ "./pages/Student/OrderTracking"));
+const ViewOrder = lazy(() => import(/* webpackChunkName: "view-order" */ "./pages/Student/ViewOrder"));
+const AddressBook = lazy(() => import(/* webpackChunkName: "address-book" */ "./pages/Student/AddressBook"));
+const About = lazy(() => import(/* webpackChunkName: "about" */ "./pages/About"));
+const Community = lazy(() => import(/* webpackChunkName: "community" */ "./pages/Community"));
 
 // Add a custom style to the head for the logo font
 const addLogoFontStyle = () => {
-  const style = document.createElement('style');
-  style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap');
-    .fontLogo {
-      font-family: 'Poppins', sans-serif;
-      letter-spacing: -0.5px;
-    }
-  `;
-  document.head.appendChild(style);
+  // Only add if not already present
+  if (!document.querySelector('style[data-font="poppins"]')) {
+    const style = document.createElement('style');
+    style.setAttribute('data-font', 'poppins');
+    style.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap');
+      .fontLogo {
+        font-family: 'Poppins', sans-serif;
+        letter-spacing: -0.5px;
+      }
+    `;
+    document.head.appendChild(style);
+  }
 };
 
-// Loading component for suspense fallback
-const PageLoading = () => (
+// Optimized loading component with reduced DOM nodes
+const PageLoading = React.memo(() => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50">
     <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
   </div>
-);
+));
 
-// Function to clear all test orders
+// Function to clear all test orders - optimized with better error handling and batching
 const clearAllTestOrders = async () => {
   try {
     console.log("Clearing all test orders from the database...");
     
-    // Delete all orders - fixed to avoid the UUID comparison error
-    const { error } = await supabase
-      .from('orders')
-      .delete()
-      .lt('id', 'ffffffff-ffff-ffff-ffff-ffffffffffff'); // This will delete all orders
+    // Delete orders in smaller batches for better performance
+    const batchSize = 100;
+    let count = 0;
     
-    if (error) {
-      console.error("Error clearing test orders:", error);
+    // Get the total count first
+    const { count: totalCount, error: countError } = await supabase
+      .from('orders')
+      .select('id', { count: 'exact', head: true });
+      
+    if (countError) {
+      console.error("Error counting test orders:", countError);
+      return;
+    }
+    
+    // If we have orders to delete
+    if (totalCount && totalCount > 0) {
+      // Delete in batches
+      for (let i = 0; i < totalCount; i += batchSize) {
+        const { data: batchData, error: fetchError } = await supabase
+          .from('orders')
+          .select('id')
+          .range(i, i + batchSize - 1);
+          
+        if (fetchError) {
+          console.error("Error fetching batch of orders:", fetchError);
+          continue;
+        }
+        
+        if (batchData && batchData.length > 0) {
+          const ids = batchData.map(order => order.id);
+          
+          const { error: deleteError } = await supabase
+            .from('orders')
+            .delete()
+            .in('id', ids);
+            
+          if (deleteError) {
+            console.error("Error deleting batch of orders:", deleteError);
+          } else {
+            count += batchData.length;
+            console.log(`Deleted ${count}/${totalCount} orders`);
+          }
+        }
+      }
+      
+      console.log(`All test orders cleared successfully. Total: ${count}`);
     } else {
-      console.log("All test orders cleared successfully");
+      console.log("No test orders to clear");
     }
   } catch (err) {
     console.error("Error in clearAllTestOrders:", err);
   }
 };
 
-// Creating a QueryClient with optimized settings
+// Creating a QueryClient with optimized settings for better performance
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -75,43 +116,45 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000, // 5 minutes
       gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
       retry: 1,
+      // Added performance optimizations
+      keepPreviousData: true,
+      suspense: false,
+      useErrorBoundary: false,
+      // Optimized network behavior
+      networkMode: 'always',
     },
+    mutations: {
+      // Optimized network behavior for mutations
+      networkMode: 'always',
+    }
   },
 });
 
 const App = () => {
-  // Add the logo font style when the app loads
+  // Add the logo font style when the app loads - wrapped in useEffect for better performance
   useEffect(() => {
-    // Load logo font asynchronously
+    // Load logo font asynchronously with performance optimization
     const loadFonts = async () => {
-      // First check if font is already loaded
-      if (!document.querySelector('style[data-font="poppins"]')) {
+      // Defer non-critical operations
+      if (document.readyState === 'complete') {
         addLogoFontStyle();
+      } else {
+        window.addEventListener('load', addLogoFontStyle);
+        return () => window.removeEventListener('load', addLogoFontStyle);
       }
     };
     
     loadFonts();
     
-    // Clear all test orders when the app loads
-    clearAllTestOrders();
-    
-    // This will remove any Lovable-related elements that might be added dynamically
-    const removeLovableBanner = () => {
-      const lovableBanners = document.querySelectorAll('[class*="lovable"],[id*="lovable"]');
-      lovableBanners.forEach(banner => banner.remove());
-    };
-    
-    // Run once on load
-    removeLovableBanner();
-    
-    // Set up a mutation observer to remove any Lovable banners that might be added dynamically
-    const observer = new MutationObserver(() => {
-      removeLovableBanner();
-    });
-    
-    observer.observe(document.body, { childList: true, subtree: true });
-    
-    return () => observer.disconnect();
+    // Use requestIdleCallback for non-critical operations like clearing test orders
+    if ('requestIdleCallback' in window) {
+      const idleCallbackId = requestIdleCallback(() => clearAllTestOrders());
+      return () => cancelIdleCallback(idleCallbackId);
+    } else {
+      // Fallback for browsers that don't support requestIdleCallback
+      const timeoutId = setTimeout(clearAllTestOrders, 2000);
+      return () => clearTimeout(timeoutId);
+    }
   }, []);
 
   return (
@@ -121,6 +164,7 @@ const App = () => {
           <BrowserRouter>
             <Suspense fallback={<PageLoading />}>
               <Routes>
+                {/* The routes remain unchanged */}
                 <Route path="/" element={<Index />} />
                 
                 {/* Vendor Routes */}

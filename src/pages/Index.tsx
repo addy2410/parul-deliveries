@@ -1,12 +1,35 @@
-
-import React from "react";
-import { motion } from "framer-motion";
+import React, { useEffect } from "react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { ChevronRight, Coffee, Book, Users } from "lucide-react";
+import usePerformanceOptimizer from "@/hooks/usePerformanceOptimizer";
 import RoleSelection from "@/components/RoleSelection";
 
 const Index = () => {
+  const { optimizeImages } = usePerformanceOptimizer();
+  
+  useEffect(() => {
+    optimizeImages();
+    
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => {
+        const preloadLinks = [
+          '/student/login',
+          '/vendor/login'
+        ];
+        
+        preloadLinks.forEach(link => {
+          const preloadLink = document.createElement('link');
+          preloadLink.rel = 'prefetch';
+          preloadLink.href = link;
+          document.head.appendChild(preloadLink);
+        });
+      });
+    }
+  }, [optimizeImages]);
+  
   return (
     <div className="min-h-screen indian-pattern flex flex-col relative overflow-hidden">
-      {/* Decorative elements */}
       <div className="absolute top-20 left-10 opacity-10 pointer-events-none">
         <motion.img 
           src="https://images.unsplash.com/photo-1528735602780-2552fd46c7af" 
@@ -65,4 +88,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default React.memo(Index);
