@@ -24,46 +24,93 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
-    console.log('Starting stale orders cleanup process')
-    
-    // Set cutoff time to 2 hours ago
-    const twoHoursAgo = new Date()
-    twoHoursAgo.setHours(twoHoursAgo.getHours() - 2)
-    const cutoffTime = twoHoursAgo.toISOString()
-    
-    console.log(`Cleaning up orders created before: ${cutoffTime}`)
-    
-    // Update stale orders to delivered status
-    const { data, error, count } = await supabase
-      .from('orders')
-      .update({ 
-        status: 'delivered',
-        updated_at: new Date().toISOString()
-      })
-      .lt('created_at', cutoffTime)
-      .in('status', ['pending', 'preparing', 'prepared'])
-      .select('id')
-    
-    if (error) {
-      throw error
+    // Parse request body to check if we should clear all orders
+    let clearAll = false
+    if (req.method === 'POST') {
+      try {
+        const body = await req.json()
+        clearAll = !!body.clearAll
+      } catch (e) {
+        // If body parsing fails, proceed with default behavior (cleanup stale orders only)
+        console.log('Failed to parse request body, proceeding with stale orders cleanup only')
+      }
     }
     
-    const cleanedOrderIds = data?.map(order => order.id) || []
-    console.log(`Cleaned up ${cleanedOrderIds.length} stale orders`)
-    
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: `Successfully updated ${cleanedOrderIds.length} stale orders to 'delivered' status`,
-        cleaned_orders: cleanedOrderIds
-      }),
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders
-        }
+    if (clearAll) {
+      console.log('Starting cleanup of ALL active orders')
+      
+      // Update all active orders to delivered status
+      const { data, error, count } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'delivered',
+          updated_at: new Date().toISOString()
+        })
+        .in('status', ['pending', 'preparing', 'prepared', 'delivering'])
+        .select('id')
+      
+      if (error) {
+        throw error
       }
-    )
+      
+      const cleanedOrderIds = data?.map(order => order.id) || []
+      console.log(`Cleaned up ${cleanedOrderIds.length} active orders`)
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `Successfully updated ${cleanedOrderIds.length} active orders to 'delivered' status`,
+          cleaned_orders: cleanedOrderIds
+        }),
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        }
+      )
+    } else {
+      console.log('Starting stale orders cleanup process')
+      
+      // Set cutoff time to 2 hours ago
+      const twoHoursAgo = new Date()
+      twoHoursAgo.setHours(twoHoursAgo.getHours() - 2)
+      const cutoffTime = twoHoursAgo.toISOString()
+      
+      console.log(`Cleaning up orders created before: ${cutoffTime}`)
+      
+      // Update stale orders to delivered status
+      const { data, error, count } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'delivered',
+          updated_at: new Date().toISOString()
+        })
+        .lt('created_at', cutoffTime)
+        .in('status', ['pending', 'preparing', 'prepared'])
+        .select('id')
+      
+      if (error) {
+        throw error
+      }
+      
+      const cleanedOrderIds = data?.map(order => order.id) || []
+      console.log(`Cleaned up ${cleanedOrderIds.length} stale orders`)
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `Successfully updated ${cleanedOrderIds.length} stale orders to 'delivered' status`,
+          cleaned_orders: cleanedOrderIds
+        }),
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        }
+      )
+    }
   } catch (error) {
     console.error('Error in cleanup-stale-orders function:', error)
     

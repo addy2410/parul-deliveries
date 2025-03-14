@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 // Use environment variables or the provided Supabase project details
@@ -144,7 +143,9 @@ export const safelyDeleteUser = async (userId: string) => {
 // Log for debugging purposes
 console.log("Supabase initialized with URL:", supabaseUrl);
 
-// Helper function to generate unique channel IDs for realtime subscriptions
+/**
+ * Helper function to generate unique channel IDs for realtime subscriptions
+ */
 export const generateUniqueChannelId = (base: string): string => {
   return `${base}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 };
@@ -221,26 +222,39 @@ export const updateOrderStatus = async (orderId: string, newStatus: string) => {
  */
 export const cleanupStaleOrders = async () => {
   try {
-    const twoHoursAgo = new Date();
-    twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
-    
-    const { error } = await supabase
-      .from('orders')
-      .update({ 
-        status: 'delivered',
-        updated_at: new Date().toISOString()
-      })
-      .lt('created_at', twoHoursAgo.toISOString())
-      .in('status', ['pending', 'preparing', 'prepared']);
+    const { data, error } = await supabase.functions.invoke('cleanup-stale-orders');
     
     if (error) {
       console.error("Error cleaning up stale orders:", error);
       return { success: false, error };
     }
     
-    return { success: true };
+    return { success: true, data };
   } catch (error) {
     console.error("Error cleaning up stale orders:", error);
+    return { success: false, error };
+  }
+};
+
+/**
+ * Clean up ALL active orders (set them to delivered)
+ * @returns Object indicating success or error
+ */
+export const cleanupAllOrders = async () => {
+  try {
+    const { data, error } = await supabase.functions.invoke('cleanup-stale-orders', {
+      method: 'POST',
+      body: { clearAll: true }
+    });
+    
+    if (error) {
+      console.error("Error cleaning up all orders:", error);
+      return { success: false, error };
+    }
+    
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error cleaning up all orders:", error);
     return { success: false, error };
   }
 };
