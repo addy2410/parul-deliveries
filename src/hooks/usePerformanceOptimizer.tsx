@@ -58,10 +58,16 @@ export const usePerformanceOptimizer = (options = {}) => {
         try {
           const observer = new PerformanceObserver((entryList) => {
             for (const entry of entryList.getEntries()) {
-              if (entry.hadRecentInput) continue;
+              // Use type assertion to correctly type the LayoutShift entry
+              const layoutShift = entry as unknown as {
+                hadRecentInput: boolean;
+                value: number;
+              };
+              
+              if (layoutShift.hadRecentInput) continue;
               
               // Log significant layout shifts (CLS > 0.1)
-              if (entry.value > 0.1) {
+              if (layoutShift.value > 0.1) {
                 console.warn('Significant layout shift detected:', entry);
               }
             }

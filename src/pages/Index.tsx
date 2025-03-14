@@ -1,9 +1,11 @@
+
 import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, Coffee, Book, Users } from "lucide-react";
 import usePerformanceOptimizer from "@/hooks/usePerformanceOptimizer";
 import RoleSelection from "@/components/RoleSelection";
+import { motion } from "framer-motion"; // Import the motion component
 
 const Index = () => {
   const { optimizeImages } = usePerformanceOptimizer();

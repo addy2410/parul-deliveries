@@ -116,15 +116,11 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000, // 5 minutes
       gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
       retry: 1,
-      // Added performance optimizations
-      keepPreviousData: true,
       suspense: false,
       useErrorBoundary: false,
-      // Optimized network behavior
       networkMode: 'always',
     },
     mutations: {
-      // Optimized network behavior for mutations
       networkMode: 'always',
     }
   },
