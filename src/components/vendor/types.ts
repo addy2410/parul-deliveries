@@ -11,11 +11,14 @@ export interface Order {
   student_id: string;
   vendor_id: string;
   restaurant_id: string;
+  shop_id: string; // Alias for restaurant_id
   items: OrderItem[];
   total_amount: number;
-  status: string;
+  status: 'pending' | 'preparing' | 'prepared' | 'delivering' | 'delivered' | 'cancelled';
   delivery_location: string;
   student_name: string;
   estimated_delivery_time?: string;
   created_at: string;
+  updated_at?: string;
+  restaurantName?: string;
 }

@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,29 +9,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-
-interface OrderItem {
-  menuItemId: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
-interface Order {
-  id: string;
-  student_id: string;
-  vendor_id: string;
-  shop_id: string;
-  items: OrderItem[];
-  total_amount: number;
-  status: string;
-  delivery_location: string;
-  student_name: string;
-  estimated_delivery_time?: string;
-  created_at: string;
-  restaurantName?: string;
-  customerName?: string;
-}
+import { Order } from "@/components/vendor/types";
 
 interface OrderCardProps {
   order: Order;
@@ -40,6 +18,17 @@ interface OrderCardProps {
 }
 
 const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatusChange }) => {
+  // Local state to prevent UI jitter during status updates
+  const [localStatus, setLocalStatus] = useState<string>(order.status);
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);
+  
+  // When order prop changes, update local state if needed (but not during an active update)
+  React.useEffect(() => {
+    if (!isUpdating) {
+      setLocalStatus(order.status);
+    }
+  }, [order.status, isUpdating]);
+  
   const getStatusColor = (status: string) => {
     switch(status) {
       case 'pending': return 'bg-yellow-500';
@@ -63,35 +52,51 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
   };
   
   const handleNextStatus = async () => {
-    if (isVendor && order.status !== 'delivered' && order.status !== 'cancelled') {
-      const nextStatus = getNextStatus(order.status);
+    if (isVendor && localStatus !== 'delivered' && localStatus !== 'cancelled' && !isUpdating) {
+      const nextStatus = getNextStatus(localStatus);
       
       try {
+        // Set updating flag and update local state immediately for a responsive UI
+        setIsUpdating(true);
+        setLocalStatus(nextStatus);
+        
         if (onStatusChange) {
           // Use the callback if provided
           const success = await onStatusChange(order.id, nextStatus);
           if (!success) {
+            // Revert on failure
+            setLocalStatus(order.status);
             toast.error(`Failed to update order to ${nextStatus}`);
           }
         } else {
           // Default implementation if no callback is provided
           console.log("Updating order status to:", nextStatus);
+          
+          // First update in database
           const { error } = await supabase
             .from('orders')
             .update({ status: nextStatus })
             .eq('id', order.id);
             
           if (error) {
+            // Revert on failure
+            setLocalStatus(order.status);
             console.error("Error updating order status:", error);
             toast.error("Failed to update order status");
-            return;
+          } else {
+            toast.success(`Order updated to ${nextStatus}`);
           }
-          
-          toast.success(`Order updated to ${nextStatus}`);
         }
       } catch (error) {
+        // Revert on exception
+        setLocalStatus(order.status);
         console.error("Error in handleNextStatus:", error);
         toast.error("An error occurred while updating order status");
+      } finally {
+        // Give a small delay before allowing new updates to prevent rapid clicking
+        setTimeout(() => {
+          setIsUpdating(false);
+        }, 500);
       }
     }
   };
@@ -118,8 +123,8 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
                 {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
               </p>
             </div>
-            <Badge className={`${getStatusColor(order.status)} capitalize`}>
-              {order.status}
+            <Badge className={`${getStatusColor(localStatus)} capitalize`}>
+              {localStatus}
             </Badge>
           </div>
         </CardHeader>
@@ -169,18 +174,19 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
           </div>
         </CardContent>
         
-        {isVendor && order.status !== 'delivered' && order.status !== 'cancelled' ? (
+        {isVendor && localStatus !== 'delivered' && localStatus !== 'cancelled' ? (
           <CardFooter className="pt-2">
             <Button 
               onClick={handleNextStatus} 
               className="w-full"
+              disabled={isUpdating}
             >
-              Mark as {getNextStatus(order.status).replace(/^\w/, c => c.toUpperCase())}
+              {isUpdating ? 'Updating...' : `Mark as ${getNextStatus(localStatus).replace(/^\w/, c => c.toUpperCase())}`}
             </Button>
           </CardFooter>
         ) : !isVendor ? (
           <CardFooter className="pt-2 flex gap-2">
-            {order.status !== 'delivered' && order.status !== 'cancelled' ? (
+            {localStatus !== 'delivered' && localStatus !== 'cancelled' ? (
               <Button 
                 asChild
                 className="flex-1 bg-[#ea384c] hover:bg-[#d02e40]"

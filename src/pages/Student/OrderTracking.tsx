@@ -1,35 +1,15 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Package, Check, ChefHat, Truck, AlertTriangle, Clock } from "lucide-react";
 import StudentHeader from "@/components/StudentHeader";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
-import { supabase, generateUniqueChannelId } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
-
-interface OrderItem {
-  menuItemId: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
-interface Order {
-  id: string;
-  student_id: string;
-  vendor_id: string;
-  restaurant_id: string;
-  items: OrderItem[];
-  total_amount: number;
-  status: string;
-  delivery_location: string;
-  student_name: string;
-  estimated_delivery_time?: string;
-  created_at: string;
-}
+import { Order } from "@/components/vendor/types";
 
 const OrderTracking = () => {
   const { id } = useParams<{ id: string }>();
@@ -37,6 +17,7 @@ const OrderTracking = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [progressValue, setProgressValue] = useState(0);
+  const channelRef = useRef<any>(null);
   
   // This function accepts a status parameter so it can work without relying on the order state
   const getOrderProgress = (status: string): number => {
@@ -119,7 +100,7 @@ const OrderTracking = () => {
     fetchOrder();
     
     // Set up real-time subscription with a unique channel name
-    const channelName = generateUniqueChannelId(`order-tracking-${id}`);
+    const channelName = `order-tracking-${id}-${Math.random().toString(36).substring(2, 9)}`;
     console.log(`Setting up real-time channel: ${channelName}`);
     
     const channel = supabase
@@ -135,11 +116,12 @@ const OrderTracking = () => {
         if (payload.new && typeof payload.new === 'object') {
           const updatedOrder = payload.new as Order;
           
-          // Immediately update the progress value
+          // Animate progress value change
           const newProgressValue = getOrderProgress(updatedOrder.status);
           console.log("Status updated to:", updatedOrder.status, "New progress value:", newProgressValue);
           
-          setProgressValue(newProgressValue);
+          // Update progress with animation
+          animateProgressValue(progressValue, newProgressValue);
           
           // Update the order state with the new data
           setOrder(prev => {
@@ -159,11 +141,9 @@ const OrderTracking = () => {
             if (updatedOrder.status === 'cancelled') {
               toast.error("Your order has been cancelled");
               // Navigate to orders page if cancelled
-              if (updatedOrder.status === 'cancelled') {
-                setTimeout(() => {
-                  navigate("/student/orders/active");
-                }, 3000);
-              }
+              setTimeout(() => {
+                navigate("/student/orders/active");
+              }, 3000);
             } else if (updatedOrder.status === 'delivered') {
               toast.success("Your order has been delivered!");
               // Navigate to orders page if delivered
@@ -184,12 +164,42 @@ const OrderTracking = () => {
           console.error("Failed to subscribe to real-time updates. Status:", status);
         }
       });
+    
+    channelRef.current = channel;
       
     return () => {
       console.log("Cleaning up real-time subscription");
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
     };
   }, [id, navigate]);
+  
+  // Function to animate progress value changes for a smoother experience
+  const animateProgressValue = (startValue: number, endValue: number) => {
+    const duration = 500; // ms
+    const frameRate = 20; // ms
+    const steps = duration / frameRate;
+    const increment = (endValue - startValue) / steps;
+    
+    let currentStep = 0;
+    let currentValue = startValue;
+    
+    const animate = () => {
+      currentStep++;
+      currentValue += increment;
+      
+      if (currentStep >= steps) {
+        setProgressValue(endValue);
+        return;
+      }
+      
+      setProgressValue(currentValue);
+      setTimeout(animate, frameRate);
+    };
+    
+    animate();
+  };
   
   if (loading) {
     return (
@@ -243,15 +253,19 @@ const OrderTracking = () => {
         </div>
         
         <div className="max-w-3xl mx-auto">
-          {!order ? (
-            <div className="text-center py-4">
-              <AlertTriangle size={48} className="mx-auto text-yellow-500 mb-4" />
-              <h1 className="text-2xl font-bold mb-2">Order Not Found</h1>
-              <p className="text-muted-foreground mb-4">The order you're looking for doesn't exist or has been removed.</p>
-              <Button asChild className="bg-[#ea384c] hover:bg-[#d02e40]">
-                <Link to="/student/orders/active">View Your Orders</Link>
-              </Button>
-            </div>
+          {order.status === 'cancelled' ? (
+            <Card className="mb-6 bg-red-50 border-red-200">
+              <CardContent className="p-6 text-center">
+                <AlertTriangle size={48} className="mx-auto text-red-500 mb-4" />
+                <h2 className="text-xl font-bold text-red-700 mb-2">Order Cancelled</h2>
+                <p className="text-red-600">
+                  Sorry, your item was not available at the moment.
+                </p>
+                <Button asChild className="mt-4 bg-[#ea384c] hover:bg-[#d02e40]">
+                  <Link to="/student/restaurants">Order Again</Link>
+                </Button>
+              </CardContent>
+            </Card>
           ) : (
             <>
               <h1 className="text-2xl font-bold mb-2">Tracking Order #{order.id.slice(0, 8)}</h1>
@@ -260,119 +274,104 @@ const OrderTracking = () => {
                 Estimated Delivery: {order.estimated_delivery_time || 'Waiting for confirmation'}
               </p>
               
-              {order.status === 'cancelled' ? (
-                <Card className="mb-6 bg-red-50 border-red-200">
-                  <CardContent className="p-6 text-center">
-                    <AlertTriangle size={48} className="mx-auto text-red-500 mb-4" />
-                    <h2 className="text-xl font-bold text-red-700 mb-2">Order Cancelled</h2>
-                    <p className="text-red-600">
-                      Sorry, your item was not available at the moment.
-                    </p>
-                    <Button asChild className="mt-4 bg-[#ea384c] hover:bg-[#d02e40]">
-                      <Link to="/student/restaurants">Order Again</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
-                  <div className="relative">
-                    <Progress 
-                      value={progressValue} 
-                      className="h-2 mb-10 rounded bg-gray-200"
-                    />
+              <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+                <div className="relative">
+                  <Progress 
+                    value={progressValue} 
+                    className="h-2 mb-10 rounded bg-gray-200 transition-all duration-500 ease-in-out"
+                  />
+                  
+                  <div className="flex justify-between -mt-6">
+                    <div className={`flex flex-col items-center ${progressValue >= 10 ? 'text-green-500' : 'text-gray-400'}`}>
+                      <div className={`rounded-full p-2 ${progressValue >= 10 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center transition-colors duration-300`}>
+                        <Check size={16} />
+                      </div>
+                      <span className="text-xs mt-1">Confirmed</span>
+                    </div>
                     
-                    <div className="flex justify-between -mt-6">
-                      <div className={`flex flex-col items-center ${progressValue >= 10 ? 'text-green-500' : 'text-gray-400'}`}>
-                        <div className={`rounded-full p-2 ${progressValue >= 10 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center`}>
-                          <Check size={16} />
-                        </div>
-                        <span className="text-xs mt-1">Confirmed</span>
+                    <div className={`flex flex-col items-center ${progressValue >= 30 ? 'text-green-500' : 'text-gray-400'}`}>
+                      <div className={`rounded-full p-2 ${progressValue >= 30 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center transition-colors duration-300`}>
+                        <ChefHat size={16} />
                       </div>
-                      
-                      <div className={`flex flex-col items-center ${progressValue >= 30 ? 'text-green-500' : 'text-gray-400'}`}>
-                        <div className={`rounded-full p-2 ${progressValue >= 30 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center`}>
-                          <ChefHat size={16} />
-                        </div>
-                        <span className="text-xs mt-1">Preparing</span>
+                      <span className="text-xs mt-1">Preparing</span>
+                    </div>
+                    
+                    <div className={`flex flex-col items-center ${progressValue >= 50 ? 'text-green-500' : 'text-gray-400'}`}>
+                      <div className={`rounded-full p-2 ${progressValue >= 50 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center transition-colors duration-300`}>
+                        <Package size={16} />
                       </div>
-                      
-                      <div className={`flex flex-col items-center ${progressValue >= 50 ? 'text-green-500' : 'text-gray-400'}`}>
-                        <div className={`rounded-full p-2 ${progressValue >= 50 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center`}>
-                          <Package size={16} />
-                        </div>
-                        <span className="text-xs mt-1">Prepared</span>
+                      <span className="text-xs mt-1">Prepared</span>
+                    </div>
+                    
+                    <div className={`flex flex-col items-center ${progressValue >= 75 ? 'text-green-500' : 'text-gray-400'}`}>
+                      <div className={`rounded-full p-2 ${progressValue >= 75 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center transition-colors duration-300`}>
+                        <Truck size={16} />
                       </div>
-                      
-                      <div className={`flex flex-col items-center ${progressValue >= 75 ? 'text-green-500' : 'text-gray-400'}`}>
-                        <div className={`rounded-full p-2 ${progressValue >= 75 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center`}>
-                          <Truck size={16} />
-                        </div>
-                        <span className="text-xs mt-1">On the way</span>
+                      <span className="text-xs mt-1">On the way</span>
+                    </div>
+                    
+                    <div className={`flex flex-col items-center ${progressValue >= 100 ? 'text-green-500' : 'text-gray-400'}`}>
+                      <div className={`rounded-full p-2 ${progressValue >= 100 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center transition-colors duration-300`}>
+                        <Check size={16} />
                       </div>
-                      
-                      <div className={`flex flex-col items-center ${progressValue >= 100 ? 'text-green-500' : 'text-gray-400'}`}>
-                        <div className={`rounded-full p-2 ${progressValue >= 100 ? 'bg-green-500' : 'bg-gray-300'} text-white w-8 h-8 flex items-center justify-center`}>
-                          <Check size={16} />
-                        </div>
-                        <span className="text-xs mt-1">Delivered</span>
-                      </div>
+                      <span className="text-xs mt-1">Delivered</span>
                     </div>
                   </div>
                 </div>
-              )}
-              
-              <Card className="mb-6">
-                <CardContent className="p-6">
-                  <h2 className="text-lg font-medium mb-4">Order Details</h2>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm font-medium mb-2">Delivery Address:</p>
-                      <div className="flex items-start text-sm">
-                        <span>{order.delivery_location}</span>
-                      </div>
-                    </div>
-                    
-                    <Separator />
-                    
-                    <div>
-                      <p className="text-sm font-medium mb-2">Items:</p>
-                      <ul className="space-y-2">
-                        {order.items.map((item, index) => (
-                          <li key={index} className="flex justify-between text-sm">
-                            <span className="flex items-center gap-2">
-                              <span className="bg-gray-100 w-6 h-6 rounded-full flex items-center justify-center text-xs">
-                                {item.quantity}
-                              </span>
-                              {item.name}
-                            </span>
-                            <span>₹{(item.price * item.quantity).toFixed(2)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    
-                    <Separator />
-                    
-                    <div>
-                      <div className="flex justify-between text-sm">
-                        <span>Subtotal</span>
-                        <span>₹{(order.total_amount - 30).toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm mt-1">
-                        <span>Delivery Fee</span>
-                        <span>₹30.00</span>
-                      </div>
-                      <div className="flex justify-between font-medium mt-3 text-base">
-                        <span>Total</span>
-                        <span>₹{order.total_amount.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              </div>
             </>
           )}
+          
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <h2 className="text-lg font-medium mb-4">Order Details</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium mb-2">Delivery Address:</p>
+                  <div className="flex items-start text-sm">
+                    <span>{order.delivery_location}</span>
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                <div>
+                  <p className="text-sm font-medium mb-2">Items:</p>
+                  <ul className="space-y-2">
+                    {order.items.map((item, index) => (
+                      <li key={index} className="flex justify-between text-sm">
+                        <span className="flex items-center gap-2">
+                          <span className="bg-gray-100 w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                            {item.quantity}
+                          </span>
+                          {item.name}
+                        </span>
+                        <span>₹{(item.price * item.quantity).toFixed(2)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                
+                <Separator />
+                
+                <div>
+                  <div className="flex justify-between text-sm">
+                    <span>Subtotal</span>
+                    <span>₹{(order.total_amount - 30).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm mt-1">
+                    <span>Delivery Fee</span>
+                    <span>₹30.00</span>
+                  </div>
+                  <div className="flex justify-between font-medium mt-3 text-base">
+                    <span>Total</span>
+                    <span>₹{order.total_amount.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

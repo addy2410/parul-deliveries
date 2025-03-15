@@ -1,31 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { supabase, generateUniqueChannelId } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { ChefHat, Package, Truck, CheckCircle, ShoppingBag } from "lucide-react";
-
-interface OrderItem {
-  menuItemId: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
-interface Order {
-  id: string;
-  student_id: string;
-  vendor_id: string;
-  restaurant_id: string;
-  items: OrderItem[];
-  total_amount: number;
-  status: string;
-  delivery_location: string;
-  student_name: string;
-  estimated_delivery_time?: string;
-  created_at: string;
-}
+import { Order } from "@/components/vendor/types";
+import OrderCard from "@/components/OrderCard";
 
 interface VendorOrdersListProps {
   vendorId: string;
@@ -42,6 +23,10 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
 }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  // Track which orders are currently being updated to prevent UI flicker
+  const [updatingOrders, setUpdatingOrders] = useState<Record<string, boolean>>({});
+  // Use a ref to keep track of the channel
+  const channelRef = useRef<any>(null);
 
   useEffect(() => {
     if (!vendorId) return;
@@ -58,7 +43,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           .order('created_at', { ascending: false });
           
         if (shopId) {
-          query = query.eq('restaurant_id', shopId);
+          query = query.eq('shop_id', shopId);
         }
         
         const { data, error } = await query;
@@ -85,7 +70,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
     fetchOrders();
     
     // Subscribe to real-time updates with a unique channel name
-    const channelName = generateUniqueChannelId(`vendor-orders-changes-${vendorId}`);
+    const channelName = `vendor-orders-${vendorId}-${Math.random().toString(36).substring(2, 9)}`;
     console.log(`Setting up vendor orders channel: ${channelName}`);
     
     const channel = supabase
@@ -106,20 +91,35 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           }
         } else if (payload.eventType === 'UPDATE') {
           const updated = payload.new as Order;
+          
+          // If order is being updated locally, wait for our update to complete
+          if (updatingOrders[updated.id]) {
+            console.log(`Order ${updated.id} is being updated locally, skipping real-time update`);
+            return;
+          }
+          
           // If order is delivered or cancelled, remove it from active list
           if (updated.status === 'delivered' || updated.status === 'cancelled') {
             setOrders(prev => prev.filter(order => order.id !== updated.id));
-            // Notify parent about delivered order
-            if (updated.status === 'delivered' && onOrderDelivered) {
-              onOrderDelivered();
+            
+            if (updated.status === 'delivered') {
+              toast.success(`Order #${updated.id.slice(0, 8)} has been delivered!`);
+              if (onOrderDelivered) onOrderDelivered();
             }
           } else {
             // Otherwise update it
             setOrders(prev => prev.map(order => 
-              order.id === updated.id ? {...updated, items: Array.isArray(order.items) ? order.items : []} : order
+              order.id === updated.id ? {
+                ...updated, 
+                items: Array.isArray(updated.items) ? updated.items : 
+                       Array.isArray(order.items) ? order.items : []
+              } : order
             ));
+            
+            // Show status update toast if we aren't the ones updating it
+            toast.info(`Order status updated to: ${updated.status}`);
           }
-        } 
+        }
       })
       .subscribe((status) => {
         console.log("Vendor orders subscription status:", status);
@@ -130,9 +130,13 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         }
       });
     
+    channelRef.current = channel;
+    
     return () => {
       console.log("Cleaning up vendor orders subscription");
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
     };
   }, [vendorId, shopId, onOrderDelivered]);
 
@@ -140,15 +144,24 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
     try {
       console.log(`Updating order ${orderId} status to: ${newStatus}`);
       
+      // Mark this order as being updated locally
+      setUpdatingOrders(prev => ({...prev, [orderId]: true}));
+      
       // First update the local state for immediate feedback
       setOrders(prev => prev.map(order => 
         order.id === orderId ? {...order, status: newStatus} : order
       ));
       
+      // Small delay to prevent race conditions with real-time updates
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       // Then update in the database
       const { error } = await supabase
         .from('orders')
-        .update({ status: newStatus })
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', orderId);
       
       if (error) {
@@ -157,7 +170,15 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         
         // Revert local state change if update failed
         fetchOrders();
-        return;
+        
+        // Remove from updating orders
+        setUpdatingOrders(prev => {
+          const newState = {...prev};
+          delete newState[orderId];
+          return newState;
+        });
+        
+        return false;
       }
       
       toast.success(`Order status updated to: ${newStatus}`);
@@ -172,9 +193,29 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         // Remove delivered order from active orders list
         setOrders(prev => prev.filter(order => order.id !== orderId));
       }
+      
+      // Remove from updating orders after a small delay to ensure real-time update is processed correctly
+      setTimeout(() => {
+        setUpdatingOrders(prev => {
+          const newState = {...prev};
+          delete newState[orderId];
+          return newState;
+        });
+      }, 1000);
+      
+      return true;
     } catch (error) {
       console.error("Error updating order status:", error);
       toast.error("An error occurred while updating order status");
+      
+      // Remove from updating orders
+      setUpdatingOrders(prev => {
+        const newState = {...prev};
+        delete newState[orderId];
+        return newState;
+      });
+      
+      return false;
     }
   };
   
@@ -191,7 +232,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         .order('created_at', { ascending: false });
         
       if (shopId) {
-        query = query.eq('restaurant_id', shopId);
+        query = query.eq('shop_id', shopId);
       }
       
       const { data, error } = await query;
@@ -211,39 +252,6 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
       console.error("Error fetching orders:", error);
     } finally {
       setLoading(false);
-    }
-  };
-  
-  const getNextStatus = (currentStatus: string) => {
-    switch (currentStatus) {
-      case 'pending': return 'preparing';
-      case 'preparing': return 'prepared';
-      case 'prepared': return 'delivering';
-      case 'delivering': return 'delivered';
-      default: return currentStatus;
-    }
-  };
-  
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pending': return <ShoppingBag className="h-5 w-5 text-yellow-500" />;
-      case 'preparing': return <ChefHat className="h-5 w-5 text-blue-500" />;
-      case 'prepared': return <Package className="h-5 w-5 text-purple-500" />;
-      case 'delivering': return <Truck className="h-5 w-5 text-orange-500" />;
-      case 'delivered': return <CheckCircle className="h-5 w-5 text-green-500" />;
-      default: return <ShoppingBag className="h-5 w-5 text-gray-500" />;
-    }
-  };
-  
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-500';
-      case 'preparing': return 'bg-blue-500';
-      case 'prepared': return 'bg-purple-500';
-      case 'delivering': return 'bg-orange-500';
-      case 'delivered': return 'bg-green-500';
-      case 'cancelled': return 'bg-red-500';
-      default: return 'bg-gray-500';
     }
   };
 
@@ -266,68 +274,12 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         ) : orders.length > 0 ? (
           <div className="space-y-4">
             {orders.map(order => (
-              <Card key={order.id} className="border border-border/40">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h4 className="font-medium">
-                        Order #{order.id.slice(0, 8)}... 
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(order.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                    <Badge className={`${getStatusColor(order.status)}`}>
-                      {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                    </Badge>
-                  </div>
-                  
-                  <div className="mb-2">
-                    <p className="text-sm">
-                      <strong>Customer:</strong> {order.student_name}
-                    </p>
-                    <p className="text-sm">
-                      <strong>Delivery:</strong> {order.delivery_location}
-                    </p>
-                    {order.estimated_delivery_time && (
-                      <p className="text-sm">
-                        <strong>Estimated time:</strong> {order.estimated_delivery_time}
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div className="border-t border-border/40 pt-2 mb-3">
-                    <p className="text-sm font-medium mb-1">Items:</p>
-                    <ul className="text-sm space-y-1">
-                      {order.items.map((item, idx) => (
-                        <li key={idx} className="flex justify-between">
-                          <span>{item.quantity}x {item.name}</span>
-                          <span>₹{(item.quantity * item.price).toFixed(2)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="border-t border-border/40 pt-2 mt-2 flex justify-between font-medium">
-                      <span>Total</span>
-                      <span>₹{order.total_amount.toFixed(2)}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end">
-                    {order.status !== 'cancelled' && order.status !== 'delivered' && (
-                      <Button
-                        className="bg-vendor-600 hover:bg-vendor-700"
-                        onClick={() => updateOrderStatus(order.id, getNextStatus(order.status))}
-                      >
-                        {getStatusIcon(getNextStatus(order.status))}
-                        <span className="ml-2">
-                          Mark as {getNextStatus(order.status).charAt(0).toUpperCase() + 
-                                  getNextStatus(order.status).slice(1)}
-                        </span>
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              <OrderCard 
+                key={order.id} 
+                order={order} 
+                isVendor={true}
+                onStatusChange={updateOrderStatus}
+              />
             ))}
           </div>
         ) : (

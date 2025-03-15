@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,34 +9,14 @@ import StudentHeader from "@/components/StudentHeader";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { Progress } from "@/components/ui/progress";
-
-interface OrderItem {
-  menuItemId: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
-interface Order {
-  id: string;
-  student_id: string;
-  vendor_id: string;
-  shop_id: string;
-  items: OrderItem[];
-  total_amount: number;
-  status: string;
-  delivery_location: string;
-  student_name: string;
-  estimated_delivery_time?: string;
-  created_at: string;
-  restaurantName?: string;
-}
+import { Order } from "@/components/vendor/types";
 
 const ViewOrder = () => {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [deliveryProgress, setDeliveryProgress] = useState(0);
+  const channelRef = useRef<any>(null);
   
   useEffect(() => {
     if (!id) return;
@@ -131,8 +111,9 @@ const ViewOrder = () => {
           };
         });
         
-        // Update progress based on new status
-        setDeliveryProgress(getStatusProgress(updatedOrder.status));
+        // Animate progress update based on new status
+        const newProgress = getStatusProgress(updatedOrder.status);
+        animateProgressValue(deliveryProgress, newProgress);
         
         // Show toast for status updates
         if (payload.old.status !== updatedOrder.status) {
@@ -147,12 +128,42 @@ const ViewOrder = () => {
           console.error("Failed to subscribe to order details real-time updates. Status:", status);
         }
       });
+    
+    channelRef.current = channel;
       
     return () => {
       console.log("Cleaning up order details subscription");
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
     };
   }, [id]);
+  
+  // Function to animate progress value changes for a smoother experience
+  const animateProgressValue = (startValue: number, endValue: number) => {
+    const duration = 500; // ms
+    const frameRate = 20; // ms
+    const steps = duration / frameRate;
+    const increment = (endValue - startValue) / steps;
+    
+    let currentStep = 0;
+    let currentValue = startValue;
+    
+    const animate = () => {
+      currentStep++;
+      currentValue += increment;
+      
+      if (currentStep >= steps) {
+        setDeliveryProgress(endValue);
+        return;
+      }
+      
+      setDeliveryProgress(currentValue);
+      setTimeout(animate, frameRate);
+    };
+    
+    animate();
+  };
   
   const getStatusProgress = (status: string) => {
     switch(status) {
@@ -234,7 +245,7 @@ const ViewOrder = () => {
                 <div className="relative pt-4">
                   <Progress
                     value={deliveryProgress}
-                    className="h-2 mb-4 rounded bg-gray-200"
+                    className="h-2 mb-4 rounded bg-gray-200 transition-all duration-500 ease-in-out"
                   />
                   
                   <div className="text-center">
