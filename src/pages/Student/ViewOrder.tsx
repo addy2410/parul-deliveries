@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,22 +9,39 @@ import StudentHeader from "@/components/StudentHeader";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { Progress } from "@/components/ui/progress";
-import { Order, OrderStatusHistory } from "@/components/vendor/types";
+
+interface OrderItem {
+  menuItemId: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+interface Order {
+  id: string;
+  student_id: string;
+  vendor_id: string;
+  shop_id: string;
+  items: OrderItem[];
+  total_amount: number;
+  status: string;
+  delivery_location: string;
+  student_name: string;
+  estimated_delivery_time?: string;
+  created_at: string;
+  restaurantName?: string;
+}
 
 const ViewOrder = () => {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
-  const [statusHistory, setStatusHistory] = useState<OrderStatusHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [deliveryProgress, setDeliveryProgress] = useState(0);
-  const orderChannelRef = useRef<any>(null);
-  const historyChannelRef = useRef<any>(null);
   
   useEffect(() => {
     if (!id) return;
     
-    // First fetch current order status and history
-    const fetchOrderDetails = async () => {
+    const fetchOrder = async () => {
       try {
         setLoading(true);
         
@@ -57,36 +74,13 @@ const ViewOrder = () => {
         const formattedOrder: Order = {
           ...data,
           items: Array.isArray(data.items) ? data.items : [],
-          restaurantName: data.shops?.name || 'Unknown Restaurant',
-          status: data.status as Order['status']
+          restaurantName: data.shops?.name || 'Unknown Restaurant'
         };
         
         setOrder(formattedOrder);
         
-        // Also fetch status history for progress calculation
-        const { data: historyData, error: historyError } = await supabase
-          .from('order_status_history')
-          .select('*')
-          .eq('order_id', id)
-          .order('timestamp', { ascending: true });
-        
-        if (historyError) {
-          console.error("Error fetching order history:", historyError);
-        } else if (historyData && historyData.length > 0) {
-          console.log("Order history received:", historyData);
-          setStatusHistory(historyData.map(item => ({
-            ...item,
-            status: item.status as Order['status']
-          })));
-          
-          // Use the latest status from history, or fall back to order status
-          const latestStatus = historyData[historyData.length - 1]?.status || formattedOrder.status;
-          const newProgress = calculateProgress(latestStatus);
-          setDeliveryProgress(newProgress);
-        } else {
-          // If no history, use the order status directly
-          setDeliveryProgress(calculateProgress(formattedOrder.status));
-        }
+        // Set initial progress based on status
+        setDeliveryProgress(getStatusProgress(formattedOrder.status));
       } catch (error) {
         console.error("Error fetching order:", error);
       } finally {
@@ -94,14 +88,14 @@ const ViewOrder = () => {
       }
     };
     
-    fetchOrderDetails();
+    fetchOrder();
     
-    // Subscribe to order updates
-    const orderChannelName = `order-details-${id}-${Math.random().toString(36).substring(2, 9)}`;
-    console.log(`Setting up order details channel: ${orderChannelName}`);
+    // Set up real-time subscription to order updates with unique channel name
+    const channelName = `order-details-${id}-${Math.random().toString(36).substring(2, 9)}`;
+    console.log(`Setting up order details channel: ${channelName}`);
     
-    const orderChannel = supabase
-      .channel(orderChannelName)
+    const channel = supabase
+      .channel(channelName)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -133,10 +127,12 @@ const ViewOrder = () => {
             ...prev,
             ...updatedOrder,
             restaurantName,
-            items: Array.isArray(updatedOrder.items) ? updatedOrder.items : prev.items,
-            status: updatedOrder.status as Order['status']
+            items: Array.isArray(updatedOrder.items) ? updatedOrder.items : prev.items
           };
         });
+        
+        // Update progress based on new status
+        setDeliveryProgress(getStatusProgress(updatedOrder.status));
         
         // Show toast for status updates
         if (payload.old.status !== updatedOrder.status) {
@@ -151,99 +147,23 @@ const ViewOrder = () => {
           console.error("Failed to subscribe to order details real-time updates. Status:", status);
         }
       });
-    
-    orderChannelRef.current = orderChannel;
-    
-    // CRITICAL: Also subscribe to status history updates
-    const historyChannelName = `order-history-${id}-${Math.random().toString(36).substring(2, 9)}`;
-    console.log(`Setting up order history channel: ${historyChannelName}`);
-    
-    const historyChannel = supabase
-      .channel(historyChannelName)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'order_status_history',
-        filter: `order_id=eq.${id}`
-      }, (payload) => {
-        console.log("Real-time order history update received:", payload);
-        
-        if (payload.new && typeof payload.new === 'object') {
-          const newHistoryEntry = payload.new as OrderStatusHistory;
-          
-          // Add the new status history entry
-          setStatusHistory(prev => [...prev, {
-            ...newHistoryEntry,
-            status: newHistoryEntry.status as Order['status']
-          }]);
-          
-          // Update progress based on the new status
-          const newProgress = calculateProgress(newHistoryEntry.status);
-          console.log("New status from history:", newHistoryEntry.status, "New progress value:", newProgress);
-          
-          // Animate progress value change
-          animateProgressValue(deliveryProgress, newProgress);
-        }
-      })
-      .subscribe((status) => {
-        console.log("Order history subscription status:", status);
-        if (status === 'SUBSCRIBED') {
-          console.log("Successfully subscribed to order history updates");
-        } else {
-          console.error("Failed to subscribe to order history updates. Status:", status);
-        }
-      });
-    
-    historyChannelRef.current = historyChannel;
       
     return () => {
       console.log("Cleaning up order details subscription");
-      if (orderChannelRef.current) {
-        supabase.removeChannel(orderChannelRef.current);
-      }
-      if (historyChannelRef.current) {
-        supabase.removeChannel(historyChannelRef.current);
-      }
+      supabase.removeChannel(channel);
     };
   }, [id]);
   
-  // Function to animate progress value changes for a smoother experience
-  const animateProgressValue = (startValue: number, endValue: number) => {
-    const duration = 500; // ms
-    const frameRate = 20; // ms
-    const steps = duration / frameRate;
-    const increment = (endValue - startValue) / steps;
-    
-    let currentStep = 0;
-    let currentValue = startValue;
-    
-    const animate = () => {
-      currentStep++;
-      currentValue += increment;
-      
-      if (currentStep >= steps) {
-        setDeliveryProgress(endValue);
-        return;
-      }
-      
-      setDeliveryProgress(currentValue);
-      setTimeout(animate, frameRate);
-    };
-    
-    animate();
-  };
-  
-  const calculateProgress = (status: string) => {
-    const statusValues = {
-      'pending': 10,
-      'preparing': 30,
-      'prepared': 50,
-      'delivering': 75,
-      'delivered': 100,
-      'cancelled': 0
-    };
-    
-    return statusValues[status] || 0;
+  const getStatusProgress = (status: string) => {
+    switch(status) {
+      case 'pending': return 10;
+      case 'preparing': return 30;
+      case 'prepared': return 50;
+      case 'delivering': return 75;
+      case 'delivered': return 100;
+      case 'cancelled': return 0;
+      default: return 0;
+    }
   };
   
   const getStatusText = (status: string) => {
@@ -314,7 +234,7 @@ const ViewOrder = () => {
                 <div className="relative pt-4">
                   <Progress
                     value={deliveryProgress}
-                    className="h-2 mb-4 rounded bg-gray-200 transition-all duration-500 ease-in-out"
+                    className="h-2 mb-4 rounded bg-gray-200"
                   />
                   
                   <div className="text-center">

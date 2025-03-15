@@ -14,7 +14,29 @@ import StudentHeader from "@/components/StudentHeader";
 import { supabase, generateUniqueChannelId } from "@/lib/supabase";
 import { toast } from "sonner";
 import OrderCard from "@/components/OrderCard";
-import { Order, OrderItem } from "@/components/vendor/types";
+
+interface OrderItem {
+  menuItemId: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+interface Order {
+  id: string;
+  student_id: string;
+  vendor_id: string;
+  shop_id: string;
+  restaurant_id: string; // Also used in some places
+  items: OrderItem[];
+  total_amount: number;
+  status: string;
+  delivery_location: string;
+  student_name: string;
+  estimated_delivery_time?: string;
+  created_at: string;
+  restaurantName?: string;
+}
 
 const Orders = () => {
   const [activeOrders, setActiveOrders] = useState<Order[]>([]);
@@ -87,19 +109,18 @@ const Orders = () => {
       }
 
       // Parse orders and add restaurant name
-      const parseOrders = (orders: any[]): Order[] => {
+      const parseOrders = (orders) => {
         if (!orders) return [];
         
         return orders.map((order) => ({
           ...order,
           items: Array.isArray(order.items) ? order.items : [],
-          restaurantName: order.shops?.name || "Unknown Restaurant",
-          status: order.status as Order['status'] // Ensure status is properly typed
+          restaurantName: order.shops?.name || "Unknown Restaurant"
         }));
       };
 
-      const activeOrdersData = parseOrders(active || []);
-      const pastOrdersData = parseOrders(past || []);
+      const activeOrdersData = parseOrders(active);
+      const pastOrdersData = parseOrders(past);
       
       console.log("Active orders:", activeOrdersData.length);
       console.log("Past orders:", pastOrdersData.length);
@@ -143,14 +164,13 @@ const Orders = () => {
                 const { data: shopData } = await supabase
                   .from('shops')
                   .select('name')
-                  .eq('id', (payload.new as any).shop_id)
+                  .eq('id', (payload.new as Order).shop_id)
                   .single();
                   
-                const newOrder: Order = {
-                  ...(payload.new as any),
-                  items: Array.isArray((payload.new as any).items) ? (payload.new as any).items : [],
-                  restaurantName: shopData?.name || "Unknown Restaurant",
-                  status: (payload.new as any).status as Order['status']
+                const newOrder = {
+                  ...(payload.new as Order),
+                  items: Array.isArray((payload.new as Order).items) ? (payload.new as Order).items : [],
+                  restaurantName: shopData?.name || "Unknown Restaurant"
                 };
                 
                 setActiveOrders((prev) => [newOrder, ...prev]);
@@ -159,20 +179,14 @@ const Orders = () => {
                 console.error("Error processing new order:", error);
                 
                 // Fallback: add without restaurant name
-                const typedNewOrder = {
-                  ...(payload.new as any),
-                  items: Array.isArray((payload.new as any).items) ? (payload.new as any).items : [],
-                  status: (payload.new as any).status as Order['status']
-                };
-                setActiveOrders((prev) => [typedNewOrder as Order, ...prev]);
+                setActiveOrders((prev) => [payload.new as Order, ...prev]);
               }
             } else if (payload.eventType === "UPDATE") {
-              const updated = payload.new as any;
-              const typedStatus = updated.status as Order['status'];
+              const updated = payload.new as Order;
               
               if (
-                typedStatus === "delivered" ||
-                typedStatus === "cancelled"
+                updated.status === "delivered" ||
+                updated.status === "cancelled"
               ) {
                 // Move order from active to past
                 setActiveOrders((prev) => prev.filter((order) => order.id !== updated.id));
@@ -185,11 +199,10 @@ const Orders = () => {
                     .eq('id', updated.shop_id)
                     .single();
 
-                  const updatedWithRestaurant: Order = {
+                  const updatedWithRestaurant = {
                     ...updated,
                     items: Array.isArray(updated.items) ? updated.items : [], 
-                    restaurantName: shopData?.name || "Unknown Restaurant",
-                    status: updated.status as Order['status']
+                    restaurantName: shopData?.name || "Unknown Restaurant"
                   };
                   
                   setPastOrders((prev) => [updatedWithRestaurant, ...prev]);
@@ -197,17 +210,16 @@ const Orders = () => {
                   console.error("Error processing order update:", error);
                   
                   // Fallback: add to past orders without restaurant name
-                  const parsedOrder: Order = {
+                  const parsedOrder = {
                     ...updated,
-                    items: Array.isArray(updated.items) ? updated.items : [],
-                    status: updated.status as Order['status']
+                    items: Array.isArray(updated.items) ? updated.items : []
                   };
                   setPastOrders((prev) => [parsedOrder, ...prev]);
                 }
                 
-                if (typedStatus === "delivered") {
+                if (updated.status === "delivered") {
                   toast.success("Your order has been delivered!");
-                } else if (typedStatus === "cancelled") {
+                } else if (updated.status === "cancelled") {
                   toast.error("Your order has been cancelled.");
                 }
               } else {
@@ -217,7 +229,6 @@ const Orders = () => {
                     order.id === updated.id
                       ? { 
                           ...updated, 
-                          status: updated.status as Order['status'],
                           items: Array.isArray(updated.items) ? updated.items : 
                                  Array.isArray(order.items) ? order.items : [],
                           restaurantName: order.restaurantName 
@@ -240,31 +251,10 @@ const Orders = () => {
             console.error("Failed to subscribe to student orders real-time updates. Status:", status);
           }
         });
-      
-      // Also subscribe to order_status_history updates 
-      const historyChannelName = generateUniqueChannelId(`student-order-history-${userId}`);
-      console.log("Setting up student order history channel:", historyChannelName);
-      
-      const historyChannel = supabase
-        .channel(historyChannelName)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'order_status_history'
-          },
-          (payload) => {
-            // We'll handle specific order updates through the order tracking pages
-            console.log("Student received order history update:", payload);
-          }
-        )
-        .subscribe();
 
       return () => {
         console.log("Cleaning up student orders subscription");
         supabase.removeChannel(channel);
-        supabase.removeChannel(historyChannel);
       };
     };
     
