@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -47,10 +48,11 @@ export const useOrdersData = ({
           return;
         }
         
-        // Parse JSONB items field
+        // Parse JSONB items field and ensure status is properly typed
         const parsedOrders = data.map(order => ({
           ...order,
-          items: Array.isArray(order.items) ? order.items : []
+          items: Array.isArray(order.items) ? order.items : [],
+          status: order.status as Order['status']
         }));
         
         setOrders(parsedOrders);
@@ -81,7 +83,13 @@ export const useOrdersData = ({
           // Add new order to the list if it's not delivered or cancelled
           const newOrder = payload.new as Order;
           if (newOrder.status !== 'delivered' && newOrder.status !== 'cancelled') {
-            setOrders(prev => [newOrder, ...prev]);
+            // Ensure status is properly typed
+            setOrders(prev => [{
+              ...newOrder,
+              status: newOrder.status as Order['status'],
+              items: Array.isArray(newOrder.items) ? newOrder.items : []
+            }, ...prev]);
+            
             // Show toast notification for new order
             toast.success("New order received!");
           }
@@ -119,6 +127,7 @@ export const useOrdersData = ({
                   
                   return {
                     ...updated,
+                    status: updated.status as Order['status'],
                     items: Array.isArray(updated.items) ? updated.items : order.items
                   };
                 }
@@ -167,6 +176,13 @@ export const useOrdersData = ({
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
+      // Validate that newStatus is a valid status type
+      if (!['pending', 'preparing', 'prepared', 'delivering', 'delivered', 'cancelled'].includes(newStatus)) {
+        console.error(`Invalid status: ${newStatus}`);
+        toast.error("Invalid status value");
+        return false;
+      }
+      
       console.log(`Updating order ${orderId} status to: ${newStatus}`);
       
       // Track that we're updating this order with optimistic UI
@@ -174,7 +190,7 @@ export const useOrdersData = ({
       
       // Update order in local state for immediate feedback
       setOrders(prev => prev.map(order => 
-        order.id === orderId ? {...order, status: newStatus} : order
+        order.id === orderId ? {...order, status: newStatus as Order['status']} : order
       ));
       
       // Small delay to prevent rapid-fire updates and race conditions

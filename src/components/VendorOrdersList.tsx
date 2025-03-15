@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -53,10 +54,12 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           return;
         }
         
-        // Parse JSONB items field
+        // Parse JSONB items field and ensure status is properly typed
         const parsedOrders = data.map(order => ({
           ...order,
-          items: Array.isArray(order.items) ? order.items : []
+          items: Array.isArray(order.items) ? order.items : [],
+          // Ensure status is properly typed as one of the allowed values
+          status: order.status as Order['status']
         }));
         
         setOrders(parsedOrders);
@@ -86,7 +89,12 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         if (payload.eventType === 'INSERT') {
           const newOrder = payload.new as Order;
           if (newOrder.status !== 'delivered' && newOrder.status !== 'cancelled') {
-            setOrders(prev => [newOrder, ...prev]);
+            // Ensure status is properly typed
+            const typedOrder = {
+              ...newOrder,
+              status: newOrder.status as Order['status']
+            };
+            setOrders(prev => [typedOrder, ...prev]);
             toast.success("New order received!");
           }
         } else if (payload.eventType === 'UPDATE') {
@@ -111,6 +119,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
             setOrders(prev => prev.map(order => 
               order.id === updated.id ? {
                 ...updated, 
+                status: updated.status as Order['status'],
                 items: Array.isArray(updated.items) ? updated.items : 
                        Array.isArray(order.items) ? order.items : []
               } : order
@@ -144,12 +153,19 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
     try {
       console.log(`Updating order ${orderId} status to: ${newStatus}`);
       
+      // Validate that newStatus is a valid status type
+      if (!['pending', 'preparing', 'prepared', 'delivering', 'delivered', 'cancelled'].includes(newStatus)) {
+        console.error(`Invalid status: ${newStatus}`);
+        toast.error("Invalid status value");
+        return false;
+      }
+      
       // Mark this order as being updated locally
       setUpdatingOrders(prev => ({...prev, [orderId]: true}));
       
       // First update the local state for immediate feedback
       setOrders(prev => prev.map(order => 
-        order.id === orderId ? {...order, status: newStatus} : order
+        order.id === orderId ? {...order, status: newStatus as Order['status']} : order
       ));
       
       // Small delay to prevent race conditions with real-time updates
@@ -244,7 +260,8 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
       
       const parsedOrders = data.map(order => ({
         ...order,
-        items: Array.isArray(order.items) ? order.items : []
+        items: Array.isArray(order.items) ? order.items : [],
+        status: order.status as Order['status']
       }));
       
       setOrders(parsedOrders);

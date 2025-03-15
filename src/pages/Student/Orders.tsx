@@ -14,29 +14,7 @@ import StudentHeader from "@/components/StudentHeader";
 import { supabase, generateUniqueChannelId } from "@/lib/supabase";
 import { toast } from "sonner";
 import OrderCard from "@/components/OrderCard";
-
-interface OrderItem {
-  menuItemId: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
-interface Order {
-  id: string;
-  student_id: string;
-  vendor_id: string;
-  shop_id: string;
-  restaurant_id: string; // Also used in some places
-  items: OrderItem[];
-  total_amount: number;
-  status: string;
-  delivery_location: string;
-  student_name: string;
-  estimated_delivery_time?: string;
-  created_at: string;
-  restaurantName?: string;
-}
+import { Order, OrderItem } from "@/components/vendor/types";
 
 const Orders = () => {
   const [activeOrders, setActiveOrders] = useState<Order[]>([]);
@@ -109,18 +87,19 @@ const Orders = () => {
       }
 
       // Parse orders and add restaurant name
-      const parseOrders = (orders) => {
+      const parseOrders = (orders: any[]): Order[] => {
         if (!orders) return [];
         
         return orders.map((order) => ({
           ...order,
           items: Array.isArray(order.items) ? order.items : [],
-          restaurantName: order.shops?.name || "Unknown Restaurant"
+          restaurantName: order.shops?.name || "Unknown Restaurant",
+          status: order.status as Order['status'] // Ensure status is properly typed
         }));
       };
 
-      const activeOrdersData = parseOrders(active);
-      const pastOrdersData = parseOrders(past);
+      const activeOrdersData = parseOrders(active || []);
+      const pastOrdersData = parseOrders(past || []);
       
       console.log("Active orders:", activeOrdersData.length);
       console.log("Past orders:", pastOrdersData.length);
@@ -164,13 +143,14 @@ const Orders = () => {
                 const { data: shopData } = await supabase
                   .from('shops')
                   .select('name')
-                  .eq('id', (payload.new as Order).shop_id)
+                  .eq('id', (payload.new as any).shop_id)
                   .single();
                   
-                const newOrder = {
-                  ...(payload.new as Order),
-                  items: Array.isArray((payload.new as Order).items) ? (payload.new as Order).items : [],
-                  restaurantName: shopData?.name || "Unknown Restaurant"
+                const newOrder: Order = {
+                  ...(payload.new as any),
+                  items: Array.isArray((payload.new as any).items) ? (payload.new as any).items : [],
+                  restaurantName: shopData?.name || "Unknown Restaurant",
+                  status: (payload.new as any).status as Order['status']
                 };
                 
                 setActiveOrders((prev) => [newOrder, ...prev]);
@@ -179,14 +159,20 @@ const Orders = () => {
                 console.error("Error processing new order:", error);
                 
                 // Fallback: add without restaurant name
-                setActiveOrders((prev) => [payload.new as Order, ...prev]);
+                const typedNewOrder = {
+                  ...(payload.new as any),
+                  items: Array.isArray((payload.new as any).items) ? (payload.new as any).items : [],
+                  status: (payload.new as any).status as Order['status']
+                };
+                setActiveOrders((prev) => [typedNewOrder as Order, ...prev]);
               }
             } else if (payload.eventType === "UPDATE") {
-              const updated = payload.new as Order;
+              const updated = payload.new as any;
+              const typedStatus = updated.status as Order['status'];
               
               if (
-                updated.status === "delivered" ||
-                updated.status === "cancelled"
+                typedStatus === "delivered" ||
+                typedStatus === "cancelled"
               ) {
                 // Move order from active to past
                 setActiveOrders((prev) => prev.filter((order) => order.id !== updated.id));
@@ -199,10 +185,11 @@ const Orders = () => {
                     .eq('id', updated.shop_id)
                     .single();
 
-                  const updatedWithRestaurant = {
+                  const updatedWithRestaurant: Order = {
                     ...updated,
                     items: Array.isArray(updated.items) ? updated.items : [], 
-                    restaurantName: shopData?.name || "Unknown Restaurant"
+                    restaurantName: shopData?.name || "Unknown Restaurant",
+                    status: updated.status as Order['status']
                   };
                   
                   setPastOrders((prev) => [updatedWithRestaurant, ...prev]);
@@ -210,16 +197,17 @@ const Orders = () => {
                   console.error("Error processing order update:", error);
                   
                   // Fallback: add to past orders without restaurant name
-                  const parsedOrder = {
+                  const parsedOrder: Order = {
                     ...updated,
-                    items: Array.isArray(updated.items) ? updated.items : []
+                    items: Array.isArray(updated.items) ? updated.items : [],
+                    status: updated.status as Order['status']
                   };
                   setPastOrders((prev) => [parsedOrder, ...prev]);
                 }
                 
-                if (updated.status === "delivered") {
+                if (typedStatus === "delivered") {
                   toast.success("Your order has been delivered!");
-                } else if (updated.status === "cancelled") {
+                } else if (typedStatus === "cancelled") {
                   toast.error("Your order has been cancelled.");
                 }
               } else {
@@ -229,6 +217,7 @@ const Orders = () => {
                     order.id === updated.id
                       ? { 
                           ...updated, 
+                          status: updated.status as Order['status'],
                           items: Array.isArray(updated.items) ? updated.items : 
                                  Array.isArray(order.items) ? order.items : [],
                           restaurantName: order.restaurantName 
