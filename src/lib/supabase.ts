@@ -149,10 +149,25 @@ export const generateUniqueChannelId = (base: string): string => {
   return `${base}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 };
 
-// Helper function to record order status history
+// Helper function to record order status history - implementing Claude's exact pattern
 export const recordOrderStatusHistory = async (orderId: string, status: string) => {
   try {
-    const { error } = await supabase
+    // First update the order status
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({ 
+        status, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', orderId);
+    
+    if (updateError) {
+      console.error("Failed to update order status:", updateError);
+      return false;
+    }
+    
+    // Then record in history table - THIS IS CRITICAL
+    const { error: historyError } = await supabase
       .from('order_status_history')
       .insert({
         order_id: orderId,
@@ -160,8 +175,8 @@ export const recordOrderStatusHistory = async (orderId: string, status: string) 
         timestamp: new Date().toISOString()
       });
     
-    if (error) {
-      console.error("Failed to record order status history:", error);
+    if (historyError) {
+      console.error("Failed to record order status history:", historyError);
       return false;
     }
     

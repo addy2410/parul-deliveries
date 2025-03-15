@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, recordOrderStatusHistory } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Order } from "./types";
 
@@ -38,7 +37,7 @@ export const useOrdersData = ({
           .order('created_at', { ascending: false });
           
         if (shopId) {
-          query = query.eq('shop_id', shopId);
+          query = query.eq('restaurant_id', shopId);
         }
         
         const { data, error } = await query;
@@ -193,20 +192,11 @@ export const useOrdersData = ({
         order.id === orderId ? {...order, status: newStatus as Order['status']} : order
       ));
       
-      // Small delay to prevent rapid-fire updates and race conditions
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Use the helper function to update order status and record history
+      const success = await recordOrderStatusHistory(orderId, newStatus);
       
-      // Then update in the database
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
-      
-      if (error) {
-        console.error("Error updating order status:", error);
+      if (!success) {
+        console.error("Error updating order status");
         toast.error("Failed to update order status");
         
         // Revert local state change if update failed

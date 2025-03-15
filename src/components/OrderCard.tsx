@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +6,7 @@ import { Clock, MapPin, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { recordOrderStatusHistory } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Order } from "@/components/vendor/types";
 
@@ -60,47 +59,21 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
         setIsUpdating(true);
         setLocalStatus(nextStatus);
         
+        let success = false;
+        
         if (onStatusChange) {
           // Use the callback if provided
-          const success = await onStatusChange(order.id, nextStatus);
-          if (!success) {
-            // Revert on failure
-            setLocalStatus(order.status);
-            toast.error(`Failed to update order to ${nextStatus}`);
-          }
+          success = await onStatusChange(order.id, nextStatus);
         } else {
-          // Default implementation if no callback is provided
-          console.log("Updating order status to:", nextStatus);
-          
-          // First update the order status
-          const { error: updateError } = await supabase
-            .from('orders')
-            .update({ status: nextStatus })
-            .eq('id', order.id);
-            
-          if (updateError) {
-            // Revert on failure
-            setLocalStatus(order.status);
-            console.error("Error updating order status:", updateError);
-            toast.error("Failed to update order status");
-            return;
-          }
-          
-          // Then record in history table - THIS IS CRITICAL
-          const { error: historyError } = await supabase
-            .from('order_status_history')
-            .insert({
-              order_id: order.id,
-              status: nextStatus,
-              timestamp: new Date().toISOString()
-            });
-          
-          if (historyError) {
-            console.error("Failed to record status history:", historyError);
-            toast.error("Failed to record status history");
-            // Continue since the main status was updated successfully
-          }
-          
+          // Use the utility function directly (implementing Claude's exact pattern)
+          success = await recordOrderStatusHistory(order.id, nextStatus);
+        }
+        
+        if (!success) {
+          // Revert on failure
+          setLocalStatus(order.status);
+          toast.error(`Failed to update order to ${nextStatus}`);
+        } else {
           toast.success(`Order updated to ${nextStatus}`);
         }
       } catch (error) {

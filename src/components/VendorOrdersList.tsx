@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabase";
+import { supabase, recordOrderStatusHistory } from "@/lib/supabase";
 import { toast } from "sonner";
 import { ChefHat, Package, Truck, CheckCircle, ShoppingBag } from "lucide-react";
 import { Order } from "@/components/vendor/types";
@@ -149,7 +148,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
     };
   }, [vendorId, shopId, onOrderDelivered]);
 
-  // UPDATED: Implement the exact pattern Claude specified for updating order status
+  // Implement the exact pattern Claude specified for updating order status
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
       console.log(`Updating order ${orderId} status to: ${newStatus}`);
@@ -169,17 +168,11 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         order.id === orderId ? {...order, status: newStatus as Order['status']} : order
       ));
       
-      // First update the order status
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({ 
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
+      // Use the helper function to update the order status and record history
+      const success = await recordOrderStatusHistory(orderId, newStatus);
       
-      if (updateError) {
-        console.error("Failed to update order status:", updateError);
+      if (!success) {
+        console.error("Failed to update order status");
         toast.error("Failed to update order status");
         
         // Revert local state change if update failed
@@ -192,21 +185,6 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           return newState;
         });
         
-        return false;
-      }
-      
-      // Then record in history table - THIS IS CRITICAL
-      const { error: historyError } = await supabase
-        .from('order_status_history')
-        .insert({
-          order_id: orderId,
-          status: newStatus,
-          timestamp: new Date().toISOString()
-        });
-      
-      if (historyError) {
-        console.error("Failed to record status history:", historyError);
-        toast.error("Failed to record status history");
         return false;
       }
       
