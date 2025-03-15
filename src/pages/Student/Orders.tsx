@@ -240,10 +240,31 @@ const Orders = () => {
             console.error("Failed to subscribe to student orders real-time updates. Status:", status);
           }
         });
+      
+      // Also subscribe to order_status_history updates 
+      const historyChannelName = generateUniqueChannelId(`student-order-history-${userId}`);
+      console.log("Setting up student order history channel:", historyChannelName);
+      
+      const historyChannel = supabase
+        .channel(historyChannelName)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'order_status_history'
+          },
+          (payload) => {
+            // We'll handle specific order updates through the order tracking pages
+            console.log("Student received order history update:", payload);
+          }
+        )
+        .subscribe();
 
       return () => {
         console.log("Cleaning up student orders subscription");
         supabase.removeChannel(channel);
+        supabase.removeChannel(historyChannel);
       };
     };
     

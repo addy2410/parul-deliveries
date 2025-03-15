@@ -148,3 +148,26 @@ console.log("Supabase initialized with URL:", supabaseUrl);
 export const generateUniqueChannelId = (base: string): string => {
   return `${base}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 };
+
+// Helper function to record order status history
+export const recordOrderStatusHistory = async (orderId: string, status: string) => {
+  try {
+    const { error } = await supabase
+      .from('order_status_history')
+      .insert({
+        order_id: orderId,
+        status,
+        timestamp: new Date().toISOString()
+      });
+    
+    if (error) {
+      console.error("Failed to record order status history:", error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error recording order status history:", error);
+    return false;
+  }
+};

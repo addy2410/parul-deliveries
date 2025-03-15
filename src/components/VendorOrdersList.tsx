@@ -149,6 +149,7 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
     };
   }, [vendorId, shopId, onOrderDelivered]);
 
+  // UPDATED: Implement the exact pattern Claude specified for updating order status
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
       console.log(`Updating order ${orderId} status to: ${newStatus}`);
@@ -168,11 +169,8 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         order.id === orderId ? {...order, status: newStatus as Order['status']} : order
       ));
       
-      // Small delay to prevent race conditions with real-time updates
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Then update in the database
-      const { error } = await supabase
+      // First update the order status
+      const { error: updateError } = await supabase
         .from('orders')
         .update({ 
           status: newStatus,
@@ -180,8 +178,8 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
         })
         .eq('id', orderId);
       
-      if (error) {
-        console.error("Error updating order status:", error);
+      if (updateError) {
+        console.error("Failed to update order status:", updateError);
         toast.error("Failed to update order status");
         
         // Revert local state change if update failed
@@ -194,6 +192,21 @@ const VendorOrdersList: React.FC<VendorOrdersListProps> = ({
           return newState;
         });
         
+        return false;
+      }
+      
+      // Then record in history table - THIS IS CRITICAL
+      const { error: historyError } = await supabase
+        .from('order_status_history')
+        .insert({
+          order_id: orderId,
+          status: newStatus,
+          timestamp: new Date().toISOString()
+        });
+      
+      if (historyError) {
+        console.error("Failed to record status history:", historyError);
+        toast.error("Failed to record status history");
         return false;
       }
       

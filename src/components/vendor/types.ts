@@ -22,3 +22,10 @@ export interface Order {
   updated_at?: string;
   restaurantName?: string;
 }
+
+export interface OrderStatusHistory {
+  id: string;
+  order_id: string;
+  status: 'pending' | 'preparing' | 'prepared' | 'delivering' | 'delivered' | 'cancelled';
+  timestamp: string;
+}

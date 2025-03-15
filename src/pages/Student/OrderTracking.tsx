@@ -9,27 +9,29 @@ import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
-import { Order } from "@/components/vendor/types";
+import { Order, OrderStatusHistory } from "@/components/vendor/types";
 
 const OrderTracking = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
+  const [statusHistory, setStatusHistory] = useState<OrderStatusHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [progressValue, setProgressValue] = useState(0);
-  const channelRef = useRef<any>(null);
+  const orderChannelRef = useRef<any>(null);
+  const historyChannelRef = useRef<any>(null);
   
   // This function accepts a status parameter so it can work without relying on the order state
-  const getOrderProgress = (status: string): number => {
-    switch(status) {
-      case 'pending': return 10;
-      case 'preparing': return 30;
-      case 'prepared': return 50;
-      case 'delivering': return 75;
-      case 'delivered': return 100;
-      case 'cancelled': return 0;
-      default: return 0;
-    }
+  const calculateProgress = (status: string): number => {
+    const statusValues = {
+      'pending': 10,
+      'preparing': 30,
+      'prepared': 50,
+      'delivering': 75,
+      'delivered': 100,
+      'cancelled': 0
+    };
+    return statusValues[status] || 0;
   };
   
   useEffect(() => {
@@ -42,7 +44,8 @@ const OrderTracking = () => {
     
     console.log("OrderTracking component mounted with order ID:", id);
     
-    const fetchOrder = async () => {
+    // First fetch current order status and history
+    const fetchOrderDetails = async () => {
       try {
         setLoading(true);
         
@@ -58,37 +61,61 @@ const OrderTracking = () => {
         console.log("Fetching order with ID:", id);
         
         // Get the order
-        const { data, error } = await supabase
+        const { data: orderData, error: orderError } = await supabase
           .from('orders')
           .select('*')
           .eq('id', id)
           .single();
           
-        if (error) {
-          console.error("Error fetching order:", error);
+        if (orderError) {
+          console.error("Error fetching order:", orderError);
           toast.error("Failed to load order");
           return;
         }
         
-        console.log("Order data received:", data);
+        console.log("Order data received:", orderData);
         
-        if (!data) {
+        if (!orderData) {
           console.error("No order found with ID:", id);
           toast.error("Order not found");
           return;
         }
         
-        const orderData = {
-          ...data,
-          items: Array.isArray(data.items) ? data.items : []
+        const orderWithItems = {
+          ...orderData,
+          items: Array.isArray(orderData.items) ? orderData.items : [],
+          status: orderData.status as Order['status']
         };
         
-        setOrder(orderData);
+        setOrder(orderWithItems);
         
-        // Update progress value based on current status
-        const newProgressValue = getOrderProgress(orderData.status);
-        setProgressValue(newProgressValue);
-        console.log("Initial order status:", orderData.status, "Progress value:", newProgressValue);
+        // Also fetch status history for progress calculation
+        const { data: historyData, error: historyError } = await supabase
+          .from('order_status_history')
+          .select('*')
+          .eq('order_id', id)
+          .order('timestamp', { ascending: true });
+        
+        if (historyError) {
+          console.error("Error fetching order history:", historyError);
+        } else if (historyData && historyData.length > 0) {
+          console.log("Order history received:", historyData);
+          setStatusHistory(historyData.map(item => ({
+            ...item,
+            status: item.status as Order['status']
+          })));
+          
+          // Use the latest status from history, or fall back to order status
+          const latestStatus = historyData[historyData.length - 1]?.status || orderWithItems.status;
+          const newProgressValue = calculateProgress(latestStatus);
+          setProgressValue(newProgressValue);
+          console.log("Initial order status:", latestStatus, "Progress value:", newProgressValue);
+        } else {
+          // If no history, use the order status directly
+          const newProgressValue = calculateProgress(orderWithItems.status);
+          setProgressValue(newProgressValue);
+          console.log("No history, using order status:", orderWithItems.status, "Progress value:", newProgressValue);
+        }
       } catch (error) {
         console.error("Error fetching order:", error);
         toast.error("Failed to load order data");
@@ -97,14 +124,14 @@ const OrderTracking = () => {
       }
     };
     
-    fetchOrder();
+    fetchOrderDetails();
     
-    // Set up real-time subscription with a unique channel name
-    const channelName = `order-tracking-${id}-${Math.random().toString(36).substring(2, 9)}`;
-    console.log(`Setting up real-time channel: ${channelName}`);
+    // Subscribe to order updates
+    const orderChannelName = `order-${id}-${Math.random().toString(36).substring(2, 9)}`;
+    console.log(`Setting up order channel: ${orderChannelName}`);
     
-    const channel = supabase
-      .channel(channelName)
+    const orderChannel = supabase
+      .channel(orderChannelName)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -116,13 +143,6 @@ const OrderTracking = () => {
         if (payload.new && typeof payload.new === 'object') {
           const updatedOrder = payload.new as Order;
           
-          // Animate progress value change
-          const newProgressValue = getOrderProgress(updatedOrder.status);
-          console.log("Status updated to:", updatedOrder.status, "New progress value:", newProgressValue);
-          
-          // Update progress with animation
-          animateProgressValue(progressValue, newProgressValue);
-          
           // Update the order state with the new data
           setOrder(prev => {
             if (!prev) return null;
@@ -132,7 +152,8 @@ const OrderTracking = () => {
             
             return {
               ...updatedOrder,
-              items
+              items,
+              status: updatedOrder.status as Order['status']
             };
           });
           
@@ -157,20 +178,65 @@ const OrderTracking = () => {
         }
       })
       .subscribe((status) => {
-        console.log("Subscription status:", status);
+        console.log("Order subscription status:", status);
         if (status === 'SUBSCRIBED') {
-          console.log("Successfully subscribed to real-time updates for order:", id);
+          console.log("Successfully subscribed to order updates");
         } else {
-          console.error("Failed to subscribe to real-time updates. Status:", status);
+          console.error("Failed to subscribe to order updates. Status:", status);
         }
       });
     
-    channelRef.current = channel;
+    orderChannelRef.current = orderChannel;
+    
+    // CRITICAL: Also subscribe to status history updates
+    const historyChannelName = `order-history-${id}-${Math.random().toString(36).substring(2, 9)}`;
+    console.log(`Setting up order history channel: ${historyChannelName}`);
+    
+    const historyChannel = supabase
+      .channel(historyChannelName)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'order_status_history',
+        filter: `order_id=eq.${id}`
+      }, (payload) => {
+        console.log("Real-time order history update received:", payload);
+        
+        if (payload.new && typeof payload.new === 'object') {
+          const newHistoryEntry = payload.new as OrderStatusHistory;
+          
+          // Add the new status history entry
+          setStatusHistory(prev => [...prev, {
+            ...newHistoryEntry,
+            status: newHistoryEntry.status as Order['status']
+          }]);
+          
+          // Update progress based on the new status
+          const newProgress = calculateProgress(newHistoryEntry.status);
+          console.log("New status from history:", newHistoryEntry.status, "New progress value:", newProgress);
+          
+          // Animate progress value change
+          animateProgressValue(progressValue, newProgress);
+        }
+      })
+      .subscribe((status) => {
+        console.log("Order history subscription status:", status);
+        if (status === 'SUBSCRIBED') {
+          console.log("Successfully subscribed to order history updates");
+        } else {
+          console.error("Failed to subscribe to order history updates. Status:", status);
+        }
+      });
+    
+    historyChannelRef.current = historyChannel;
       
     return () => {
-      console.log("Cleaning up real-time subscription");
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+      console.log("Cleaning up real-time subscriptions");
+      if (orderChannelRef.current) {
+        supabase.removeChannel(orderChannelRef.current);
+      }
+      if (historyChannelRef.current) {
+        supabase.removeChannel(historyChannelRef.current);
       }
     };
   }, [id, navigate]);

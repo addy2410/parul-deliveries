@@ -72,20 +72,36 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isVendor = false, onStatus
           // Default implementation if no callback is provided
           console.log("Updating order status to:", nextStatus);
           
-          // First update in database
-          const { error } = await supabase
+          // First update the order status
+          const { error: updateError } = await supabase
             .from('orders')
             .update({ status: nextStatus })
             .eq('id', order.id);
             
-          if (error) {
+          if (updateError) {
             // Revert on failure
             setLocalStatus(order.status);
-            console.error("Error updating order status:", error);
+            console.error("Error updating order status:", updateError);
             toast.error("Failed to update order status");
-          } else {
-            toast.success(`Order updated to ${nextStatus}`);
+            return;
           }
+          
+          // Then record in history table - THIS IS CRITICAL
+          const { error: historyError } = await supabase
+            .from('order_status_history')
+            .insert({
+              order_id: order.id,
+              status: nextStatus,
+              timestamp: new Date().toISOString()
+            });
+          
+          if (historyError) {
+            console.error("Failed to record status history:", historyError);
+            toast.error("Failed to record status history");
+            // Continue since the main status was updated successfully
+          }
+          
+          toast.success(`Order updated to ${nextStatus}`);
         }
       } catch (error) {
         // Revert on exception
